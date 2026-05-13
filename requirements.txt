@@ -1,0 +1,22 @@
+# Core runtime
+torch
+torchvision
+numpy
+pillow
+
+# Experiment and notebook workflow
+pandas
+scikit-learn
+matplotlib
+jupyter
+tqdm
+
+# Medical imaging and XAI libraries for the real-data phase
+pydicom
+nibabel
+opencv-python
+captum
+grad-cam
+shap
+torchxrayvision
+kaggle

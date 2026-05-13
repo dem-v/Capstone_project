@@ -1,0 +1,57 @@
+# Local data and generated outputs
+data_local/
+outputs/
+.kaggle/
+.mplconfig/
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.gz
+*.csv
+*.tsv
+*.jsonl
+*.dcm
+*.nii
+*.nii.gz
+*.nrrd
+*.mha
+*.mhd
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.rle
+*.json
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Generated thesis outputs
+*.pdf
+*.docx
+*.pptx
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
