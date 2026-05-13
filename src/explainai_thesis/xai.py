@@ -65,8 +65,13 @@ def integrated_gradients(
     class_idx: int = 1,
     steps: int = 32,
     baseline: torch.Tensor | None = None,
+    polarity: str = "magnitude",
 ) -> torch.Tensor:
     """Small Integrated Gradients implementation for single-image smoke tests."""
+    if polarity not in {"magnitude", "positive", "negative"}:
+        raise ValueError(
+            "polarity must be 'magnitude', 'positive', or 'negative'.")
+
     model.eval()
     if baseline is None:
         baseline = torch.zeros_like(image)
@@ -84,7 +89,13 @@ def integrated_gradients(
 
     avg_gradients = total_gradients / steps
     attribution = (image - baseline) * avg_gradients
-    heatmap = attribution.abs().sum(dim=1)[0]
+    if polarity == "positive":
+        attribution = F.relu(attribution)
+    elif polarity == "negative":
+        attribution = F.relu(-attribution)
+    else:
+        attribution = attribution.abs()
+    heatmap = attribution.sum(dim=1)[0]
     return normalize_map(heatmap.cpu())
 
 

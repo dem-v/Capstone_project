@@ -1028,3 +1028,55 @@ Metric interpretation:
 
 Suggested figure-caption wording:
 - Red overlay denotes positive attribution for the pneumothorax target class, indicating regions that increase the model's pneumothorax score. Blue overlay denotes negative signed attribution, indicating regions that decrease or suppress the pneumothorax score. The green contour represents the ground-truth pneumothorax mask. Overlap between red attribution and the green contour suggests localization of positive model evidence within the annotated lesion, whereas blue attribution inside the contour may indicate that the model treats part of the annotated lesion as evidence against the target class.
+
+## 2026-05-13 - Signed Integrated Gradients Expansion
+
+Code update:
+- `src/explainai_thesis/xai.py` now supports `integrated_gradients(..., polarity="magnitude" | "positive" | "negative")`.
+- The existing `integrated_gradients` default remains a magnitude/impact map, meaning it highlights the strongest input-attribution portions affecting the target output regardless of sign.
+- New method outputs are available across the main evaluation, calibration, and threshold visualization scripts: `integrated_gradients_positive` and `integrated_gradients_negative`.
+- Negative-signed IG selected-threshold images use the same negative evidence style as negative Grad-CAM: blue for selected negative evidence outside the true mask and cyan where selected negative evidence intersects the true mask.
+
+Interpretation note:
+- `integrated_gradients` should be described as strongest-impact target attribution.
+- `integrated_gradients_positive` can be described as input-level evidence increasing/supporting the pneumothorax target score relative to the baseline.
+- `integrated_gradients_negative` can be described as input-level evidence decreasing/suppressing the pneumothorax target score relative to the baseline.
+- IG sign remains baseline-dependent, so the thesis should still mention the baseline choice when interpreting signed IG maps.
+
+Verification:
+- WSL syntax check passed for `src/explainai_thesis/xai.py`, `scripts/run_cxr_torchxray_smoke.py`, `scripts/calibrate_cxr_xai_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`, and `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- CUDA smoke main evaluation completed at `outputs/iter_07_signed_ig_smoke` and produced `integrated_gradients_positive` and `integrated_gradients_negative` rows/images.
+- CUDA smoke single-image threshold visualization completed at `outputs/iter_07_signed_ig_threshold_smoke` and produced signed IG threshold sweep panels.
+- CUDA smoke classifier-outcome threshold visualization completed at `outputs/iter_07_signed_ig_classifier_threshold_smoke`.
+
+## 2026-05-13 - Integrated Gradients Visual Semantics Clarified
+
+Code update:
+- The default `integrated_gradients` output is now rendered as a neutral impact map, not as red/blue/green evidence. Brighter pixels mean larger absolute IG attribution magnitude regardless of sign.
+- Signed IG is now represented by three visual structures: `integrated_gradients_positive` in red, `integrated_gradients_negative` in blue, and `integrated_gradients_signed` as a combined red/blue overlay on the same X-ray.
+- Thresholded selected images follow the same semantics: magnitude IG uses a neutral violet selection color, positive IG uses red/yellow, negative IG uses blue/cyan, and combined signed IG overlays thresholded positive and negative selections together.
+- Calibration and threshold-sweep scripts now include `integrated_gradients_signed`, so multiple threshold sets can be generated for the combined signed IG view as well as the separate positive/negative maps.
+
+Follow-up correction:
+- Neutral magnitude IG must not be black, white, gray, red, green, blue, yellow, or cyan. Continuous and selected-threshold magnitude IG images now use violet as the distinct neutral impact color.
+
+Verification:
+- WSL syntax check passed for `src/explainai_thesis/visualization.py`, `scripts/run_cxr_torchxray_smoke.py`, `scripts/calibrate_cxr_xai_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`, and `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- CUDA smoke main evaluation completed at `outputs/iter_08_ig_visual_semantics_smoke` and produced neutral magnitude, positive, negative, and combined signed IG images.
+- CUDA smoke single-image threshold visualization completed at `outputs/iter_08_ig_visual_semantics_threshold_smoke`.
+- Follow-up CUDA smoke evaluation completed at `outputs/iter_09_ig_neutral_violet_smoke` and produced violet neutral magnitude IG continuous and selected-threshold images.
+
+## 2026-05-13 - Main Evaluation Output Grouped by Source X-ray
+
+Code update:
+- `scripts/run_cxr_torchxray_smoke.py` now writes per-case visual artifacts into one folder per source X-ray instead of placing all `sample_*` PNGs flat in the output root.
+- Root-level files remain reserved for run-wide CSV artifacts such as `metrics.csv` and `metrics_summary.csv`.
+- Each exported case folder uses the pattern `case_XXX_<source_xray_stem>` and contains same-level method files such as `grad_cam.png`, `grad_cam_selected.png`, `integrated_gradients.png`, `integrated_gradients_signed_selected.png`, `consensus.png`, and `consensus_selected.png`.
+
+Reason:
+- This makes the main smoke/evaluation output easier to browse and more consistent with the source-Xray-oriented threshold visualization outputs.
+
+Verification:
+- WSL syntax check passed for `scripts/run_cxr_torchxray_smoke.py`.
+- CUDA smoke evaluation completed at `outputs/iter_10_grouped_main_output_smoke`.
+- Confirmed the smoke output root contains `metrics.csv` and `metrics_summary.csv`, while the PNG artifacts are grouped under `case_000_0_test_1` with all method images as sibling files.

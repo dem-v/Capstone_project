@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
-from explainai_thesis.visualization import save_overlay
-from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
-from PIL import Image, ImageDraw
-import torchxrayvision as xrv
-import torch
-import numpy as np
 
 import argparse
 import csv
@@ -15,6 +8,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.visualization import save_overlay
+from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
+from PIL import Image, ImageDraw
+import torchxrayvision as xrv
+import torch
+import numpy as np
+
+
+NEUTRAL_IMPACT_COLOR = np.array([180, 0, 255], dtype=np.float32)
 
 
 def parse_args() -> argparse.Namespace:
@@ -129,6 +133,7 @@ def save_binary_selection(
     output_path: Path,
     *,
     negative_style: bool = False,
+    neutral_style: bool = False,
     negative_selected_mask: torch.Tensor | None = None,
 ) -> None:
     base = image.detach().cpu()
@@ -155,6 +160,9 @@ def save_binary_selection(
     if negative_style:
         selected_outside = np.array([0, 0, 255], dtype=np.float32)
         selected_inside = np.array([0, 255, 255], dtype=np.float32)
+    elif neutral_style:
+        selected_outside = NEUTRAL_IMPACT_COLOR
+        selected_inside = NEUTRAL_IMPACT_COLOR
     else:
         selected_outside = np.array([255, 0, 0], dtype=np.float32)
         selected_inside = np.array([255, 255, 0], dtype=np.float32)
@@ -192,6 +200,18 @@ def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fr
         "negative_mask_overlap_fraction": overlap.item(),
         "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
     }
+
+
+def is_negative_method(method_name: str) -> bool:
+    return method_name.endswith("_negative")
+
+
+def overlay_color_for_method(method_name: str) -> str:
+    if method_name == "integrated_gradients":
+        return "neutral"
+    if is_negative_method(method_name):
+        return "blue"
+    return "red"
 
 
 def main() -> None:
@@ -238,12 +258,19 @@ def main() -> None:
             model_input, class_idx=class_idx, polarity="negative")
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps)
+        ig_positive_map = integrated_gradients(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
+        ig_negative_map = integrated_gradients(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
         consensus = consensus_heatmap([cam_map, ig_map])
 
         methods = {
             "grad_cam": cam_map,
             "grad_cam_negative": negative_cam_map,
             "integrated_gradients": ig_map,
+            "integrated_gradients_positive": ig_positive_map,
+            "integrated_gradients_negative": ig_negative_map,
+            "integrated_gradients_signed": ig_positive_map,
             "consensus": consensus,
         }
         case_rows.append(
@@ -270,8 +297,12 @@ def main() -> None:
                 heatmap,
                 mask,
                 method_dir / "continuous_heatmap.png",
-                heatmap_color="blue" if method_name == "grad_cam_negative" else "red",
-                negative_heatmap=negative_cam_map if method_name == "consensus" else None,
+                heatmap_color=overlay_color_for_method(method_name),
+                negative_heatmap=(
+                    negative_cam_map if method_name == "consensus"
+                    else ig_negative_map if method_name == "integrated_gradients_signed"
+                    else None
+                ),
             )
             panel_paths: list[Path] = []
             captions: list[str] = []
@@ -284,10 +315,13 @@ def main() -> None:
                     selected,
                     mask,
                     selection_path,
-                    negative_style=(method_name == "grad_cam_negative"),
+                    negative_style=is_negative_method(method_name),
+                    neutral_style=method_name == "integrated_gradients",
                     negative_selected_mask=threshold_top_fraction(
                         negative_cam_map, fraction=fraction)
                     if method_name == "consensus"
+                    else threshold_top_fraction(ig_negative_map, fraction=fraction)
+                    if method_name == "integrated_gradients_signed"
                     else None,
                 )
                 panel_paths.append(selection_path)
@@ -296,12 +330,15 @@ def main() -> None:
                     heatmap, mask, fraction=fraction)
                 negative_metrics = {
                     "negative_mask_overlap_fraction": "", "negative_mask_avoidance_fraction": ""}
-                if method_name == "grad_cam_negative":
+                if is_negative_method(method_name):
                     negative_metrics = negative_evidence_metrics(
                         heatmap, mask, fraction)
                 elif method_name == "consensus":
                     negative_metrics = negative_evidence_metrics(
                         negative_cam_map, mask, fraction)
+                elif method_name == "integrated_gradients_signed":
+                    negative_metrics = negative_evidence_metrics(
+                        ig_negative_map, mask, fraction)
                 metric_rows.append(
                     {
                         "sample_index": sample_idx,

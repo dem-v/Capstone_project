@@ -9,6 +9,9 @@ from PIL import Image
 from .metrics import normalize_map
 
 
+NEUTRAL_IMPACT_COLOR = np.array([180, 0, 255], dtype=np.float32)
+
+
 def _to_uint8(values: torch.Tensor) -> np.ndarray:
     return (normalize_map(values).numpy() * 255).astype(np.uint8)
 
@@ -34,8 +37,8 @@ def save_overlay(
     negative_heatmap: torch.Tensor | None = None,
 ) -> None:
     """Save grayscale image with colored heatmap and green mask contour overlay."""
-    if heatmap_color not in {"red", "blue"}:
-        raise ValueError("heatmap_color must be 'red' or 'blue'.")
+    if heatmap_color not in {"red", "blue", "neutral"}:
+        raise ValueError("heatmap_color must be 'red', 'blue', or 'neutral'.")
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,9 +59,12 @@ def save_overlay(
         negative_colored[..., 2] = negative_heat
         rgb = (1 - alpha) * rgb + alpha * negative_colored
 
-    colored = np.zeros_like(rgb)
-    color_channel = 0 if heatmap_color == "red" else 2
-    colored[..., color_channel] = heat
+    if heatmap_color == "neutral":
+        colored = (heat[..., None].astype(np.float32) / 255.0) * NEUTRAL_IMPACT_COLOR
+    else:
+        colored = np.zeros_like(rgb)
+        color_channel = 0 if heatmap_color == "red" else 2
+        colored[..., color_channel] = heat
     rgb = (1 - alpha) * rgb + alpha * colored
 
     contour = _mask_contour(true)

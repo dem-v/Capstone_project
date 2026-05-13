@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
-from explainai_thesis.metrics import localization_metrics
-from PIL import Image
-import torchxrayvision as xrv
-import torch
-import numpy as np
 
 import argparse
 import csv
@@ -15,6 +9,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.metrics import localization_metrics
+from PIL import Image
+import torchxrayvision as xrv
+import torch
+import numpy as np
 
 
 def parse_args() -> argparse.Namespace:
@@ -149,10 +150,17 @@ def main() -> None:
             model_input, class_idx=class_idx, polarity="negative")
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps)
+        ig_positive_map = integrated_gradients(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
+        ig_negative_map = integrated_gradients(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
         methods = {
             "grad_cam": cam_map,
             "grad_cam_negative": negative_cam_map,
             "integrated_gradients": ig_map,
+            "integrated_gradients_positive": ig_positive_map,
+            "integrated_gradients_negative": ig_negative_map,
+            "integrated_gradients_signed": ig_positive_map,
             "consensus": consensus_heatmap([cam_map, ig_map]),
         }
 
