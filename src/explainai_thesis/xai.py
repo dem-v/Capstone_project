@@ -35,7 +35,10 @@ class GradCAM:
         for handle in self._handles:
             handle.remove()
 
-    def __call__(self, image: torch.Tensor, class_idx: int = 1) -> torch.Tensor:
+    def __call__(self, image: torch.Tensor, class_idx: int = 1, polarity: str = "positive") -> torch.Tensor:
+        if polarity not in {"positive", "negative"}:
+            raise ValueError("polarity must be 'positive' or 'negative'.")
+
         self.model.zero_grad(set_to_none=True)
         logits = self.model(image)
         score = logits[:, class_idx].sum()
@@ -46,7 +49,10 @@ class GradCAM:
 
         weights = self.gradients.mean(dim=(2, 3), keepdim=True)
         cam = (weights * self.activations).sum(dim=1, keepdim=True)
-        cam = F.relu(cam)
+        if polarity == "positive":
+            cam = F.relu(cam)
+        else:
+            cam = F.relu(-cam)
         cam = F.interpolate(cam, size=image.shape[-2:], mode="bilinear", align_corners=False)
         return normalize_map(cam[0, 0].cpu())
 

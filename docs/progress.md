@@ -788,3 +788,166 @@ Important XAI interpretation note:
   - the explanation method configuration is not suitable;
   - or the method faithfully reveals that the model is relying on non-lesion features.
 - Therefore, classifier performance and explanation localization must be evaluated separately before drawing conclusions about XAI method quality.
+
+## 2026-05-13 - XAI Heatmap Threshold Calibration Workflow Added
+
+Goal:
+- Add validation-derived heatmap threshold calibration so explanation masks are not evaluated only with a fixed arbitrary top-fraction.
+- Keep TorchXRayVision as an unchanged pretrained external baseline; calibration affects only XAI mask binarization.
+
+Code updates:
+- Added `scripts/calibrate_cxr_xai_thresholds.py`.
+- Updated `scripts/run_cxr_torchxray_smoke.py` to accept `--calibrated-fractions` and write `top_fraction` in `metrics.csv`.
+
+Calibration workflow:
+- Use positive masked calibration cases, by default from the train split.
+- Generate Grad-CAM, Integrated Gradients, and consensus heatmaps.
+- Sweep top-fractions, defaulting to `0.05,0.10,0.15,0.20,0.25,0.30`.
+- Select the best fraction per method by a validation metric, defaulting to mean Dice.
+- Write:
+  - `calibration_metrics.csv` for per-case/per-fraction metrics;
+  - `calibration_summary.csv` for aggregate metrics by method and fraction;
+  - `selected_fractions.csv` for frozen method-specific fractions.
+
+Held-out evaluation workflow:
+- Pass the frozen calibration file to `scripts/run_cxr_torchxray_smoke.py` with `--calibrated-fractions`.
+- The evaluation script then applies each method's selected top-fraction instead of the default `--top-fraction`.
+- Final test metrics should be reported only after thresholds are selected on calibration data.
+
+Verification completed:
+- WSL syntax check passed:
+
+```bash
+wsl.exe python3 -m py_compile scripts/calibrate_cxr_xai_thresholds.py scripts/run_cxr_torchxray_smoke.py
+```
+
+- CUDA smoke calibration completed on 1 train positive case:
+
+```bash
+wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 1 --ig-steps 2 --fractions 0.10,0.20 --output-dir outputs/cxr_xai_threshold_calibration_smoke
+```
+
+- CUDA frozen-fraction evaluation completed on 1 test positive case:
+
+```bash
+wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 1 --ig-steps 2 --max-overlays 0 --calibrated-fractions outputs/cxr_xai_threshold_calibration_smoke/selected_fractions.csv --output-dir outputs/cxr_xai_calibrated_eval_smoke
+```
+
+Recommended next technical run:
+- Run calibration on a larger train subset, for example 100-200 positive cases.
+- Then run held-out calibrated XAI evaluation on a separate test subset, for example 100-200 positive cases.
+- Compare calibrated results against the previous fixed 15% top-fraction baseline.
+
+## 2026-05-13 - First Larger Calibrated XAI Outputs Generated
+
+Calibration run:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --ig-steps 16 --fractions 0.05,0.10,0.15,0.20,0.25,0.30 --selection-metric dice --output-dir outputs/cxr_xai_threshold_calibration_train100_dice
+```
+
+Selected train-derived Dice-optimal top-fractions:
+- Grad-CAM: `0.10` with validation mean Dice `0.048577`.
+- Integrated Gradients: `0.30` with validation mean Dice `0.024299`.
+- Consensus: `0.10` with validation mean Dice `0.048237`.
+
+Generated calibration artifacts:
+- `outputs/cxr_xai_threshold_calibration_train100_dice/calibration_metrics.csv`
+- `outputs/cxr_xai_threshold_calibration_train100_dice/calibration_summary.csv`
+- `outputs/cxr_xai_threshold_calibration_train100_dice/selected_fractions.csv`
+
+Held-out calibrated evaluation run:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 100 --ig-steps 16 --max-overlays 20 --calibrated-fractions outputs/cxr_xai_threshold_calibration_train100_dice/selected_fractions.csv --output-dir outputs/cxr_xai_calibrated_eval_test100_dice
+```
+
+Generated held-out evaluation artifacts:
+- `outputs/cxr_xai_calibrated_eval_test100_dice/metrics.csv`
+- `outputs/cxr_xai_calibrated_eval_test100_dice/metrics_summary.csv`
+- overlay PNGs for the first 20 positive test cases.
+
+Held-out calibrated evaluation results on 100 positive test cases:
+- Grad-CAM: mean IoU `0.024297`, mean Dice `0.045134`, pointing hit rate `0.000000`, mean precision-at-fraction `0.027763`.
+- Integrated Gradients: mean IoU `0.013209`, mean Dice `0.025625`, pointing hit rate `0.010000`, mean precision-at-fraction `0.013960`.
+- Consensus: mean IoU `0.024163`, mean Dice `0.044858`, pointing hit rate `0.010000`, mean precision-at-fraction `0.027630`.
+
+Interpretation:
+- The calibrated top-fractions slightly improve/standardize the evaluation protocol but do not make localization strong.
+- Grad-CAM remains the best of the current methods by held-out mean Dice and IoU.
+- Consensus remains very close to Grad-CAM, so the current consensus strategy is still not a meaningful improvement over Grad-CAM alone.
+- Integrated Gradients selected a much broader top-fraction (`0.30`), but held-out overlap remains weaker than Grad-CAM.
+
+## 2026-05-13 - Overlay Visualization Clarified
+
+Code update:
+- `src/explainai_thesis/visualization.py` now draws the ground-truth lesion mask as a green contour instead of a filled green mask.
+- The contour is alpha-blended over the existing red heatmap overlay so red attribution remains visible where it overlaps the contour.
+
+Interpretation note:
+- This changes only exported PNG visualization, not localization metrics.
+- The red overlay represents method-specific positive attribution for the selected pneumothorax class in the current implementation, not a generic eye-tracking/attention signal.
+
+## 2026-05-13 - Negative Signed Grad-CAM Added
+
+Code update:
+- `src/explainai_thesis/xai.py` now supports Grad-CAM polarity: positive Grad-CAM keeps the usual ReLU class-supporting map, while negative Grad-CAM applies ReLU to the negated raw CAM to show regions that suppress the selected pneumothorax score.
+- `scripts/run_cxr_torchxray_smoke.py` and `scripts/calibrate_cxr_xai_thresholds.py` now include `grad_cam_negative` as an additional method.
+- `src/explainai_thesis/visualization.py` can render negative Grad-CAM as a blue heatmap; the green ground-truth contour is still alpha-blended on top so overlap remains visible.
+
+Interpretation note:
+- Red Grad-CAM highlights image regions that increase/support the target pneumothorax output.
+- Blue negative Grad-CAM highlights image regions whose signed Grad-CAM contribution goes in the opposite direction, i.e. regions that move evidence away from the target output under this Grad-CAM approximation.
+
+## 2026-05-13 - Future Output Folder Naming Rule
+
+Future note:
+- Every new experiment output folder should include an ordinal iteration number in its name, so results are easier to navigate chronologically.
+- Recommended pattern: `outputs/iter_XX_<short_experiment_name>`, for example `outputs/iter_01_cxr_xai_calibration_train100_dice` and `outputs/iter_02_cxr_xai_eval_test100_dice`.
+- Keep the ordinal number stable once results are generated; do not renumber old folders after reports or progress notes reference them.
+
+## 2026-05-13 - Consensus Overlay Now Includes Blue Negative Evidence
+
+Code update:
+- `src/explainai_thesis/visualization.py` now accepts an optional `negative_heatmap` and blends it as a blue channel before drawing the positive heatmap and green mask contour.
+- `scripts/run_cxr_torchxray_smoke.py` now passes `grad_cam_negative` as the blue channel for `consensus` overlay PNGs.
+
+Interpretation note:
+- Consensus metrics remain based on the positive consensus heatmap, so existing quantitative comparisons are unchanged.
+- Consensus PNGs are now qualitative signed overlays: red shows the positive consensus map, blue shows negative signed Grad-CAM evidence against the pneumothorax target, and overlap can appear purple/mixed before the green ground-truth contour is blended on top.
+
+Verification:
+- WSL syntax check passed for `src/explainai_thesis/visualization.py` and `scripts/run_cxr_torchxray_smoke.py`.
+- One-case CUDA smoke output generated at `outputs/iter_01_consensus_signed_overlay_smoke`.
+
+## 2026-05-13 - Single-Image Threshold Selection Visualization Added
+
+Code update:
+- Added `scripts/visualize_cxr_threshold_selection.py` for inspecting what the top-fraction thresholding step does on one positive masked CXR case.
+- The script generates the same backend heatmaps as the calibration/evaluation workflow: `grad_cam`, `grad_cam_negative`, `integrated_gradients`, and `consensus`.
+- For each method and requested top-fraction, it saves a binary threshold-selection PNG where red means selected outside the true mask, yellow means selected inside the true mask, and green means missed true-mask pixels.
+- It also saves each method's continuous overlay, a per-method `threshold_sweep_panel.png`, `threshold_metrics.csv`, and `case_metadata.csv`.
+
+Generated iteration output:
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split train --case-index 0 --ig-steps 16 --fractions 0.05,0.10,0.15,0.20,0.25,0.30 --output-dir outputs/iter_02_threshold_selection_single_image
+```
+
+Verification:
+- WSL syntax check passed for `scripts/visualize_cxr_threshold_selection.py`.
+- CUDA smoke visualization completed at `outputs/iter_02_threshold_selection_single_image_smoke`.
+- Full single-image visualization completed at `outputs/iter_02_threshold_selection_single_image` for case `2_train_1_.png`.
+
+## 2026-05-13 - Selected Threshold Images Added to Main XAI Output
+
+Code update:
+- `scripts/run_cxr_torchxray_smoke.py` now writes selected-threshold PNGs for every method/sample that receives a standard overlay export.
+- The selected images use the same style as `scripts/visualize_cxr_threshold_selection.py`: red means selected outside the true mask, yellow means selected inside the true mask, and green means missed true-mask pixels.
+- File naming pattern: `sample_XX_<method>_selected.png`, placed next to the existing continuous overlay `sample_XX_<method>.png`.
+- The selected image uses the same `top_fraction` used for metrics, including per-method calibrated fractions when `--calibrated-fractions` is supplied.
+
+Verification:
+- WSL syntax check passed for `scripts/run_cxr_torchxray_smoke.py`.
+- CUDA smoke evaluation completed at `outputs/iter_03_main_selected_images_smoke`.
+- Confirmed selected images exist for `grad_cam`, `grad_cam_negative`, `integrated_gradients`, and `consensus`.

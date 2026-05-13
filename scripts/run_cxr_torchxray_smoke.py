@@ -7,18 +7,17 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
 import numpy as np
 import torch
 import torchxrayvision as xrv
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
-from explainai_thesis.metrics import localization_metrics
+from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -58,6 +57,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.15,
         help="Heatmap fraction used for binary metrics.",
+    )
+    parser.add_argument(
+        "--calibrated-fractions",
+        default=None,
+        help="Optional calibration CSV with method,selected_fraction columns.",
     )
     parser.add_argument(
         "--max-overlays",
@@ -155,6 +159,46 @@ def write_metric_summary(
         writer.writerows(summary_rows)
 
 
+def read_calibrated_fractions(path: Path | None) -> dict[str, float]:
+    if path is None:
+        return {}
+
+    fractions: dict[str, float] = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            method = row.get("method")
+            selected_fraction = row.get("selected_fraction")
+            if method and selected_fraction:
+                fractions[method] = float(selected_fraction)
+    return fractions
+
+
+def save_selected_threshold_image(
+    image: torch.Tensor,
+    selected_mask: torch.Tensor,
+    true_mask: torch.Tensor,
+    output_path: Path,
+) -> None:
+    base = image.detach().cpu()
+    if base.ndim == 3:
+        base = base[0]
+    gray = (normalize_map(base).numpy() * 255).astype(np.uint8)
+    rgb = np.stack([gray, gray, gray], axis=-1).astype(np.float32)
+
+    pred = selected_mask.detach().cpu().bool().numpy()
+    true = true_mask.detach().cpu().bool().numpy()
+    tp = pred & true
+    fp = pred & ~true
+    fn = ~pred & true
+
+    rgb[fp] = 0.50 * rgb[fp] + 0.50 * np.array([255, 0, 0], dtype=np.float32)
+    rgb[tp] = 0.35 * rgb[tp] + 0.65 * np.array([255, 255, 0], dtype=np.float32)
+    rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
+
+    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
+
+
 def main() -> None:
     args = parse_args()
     manifest_path = Path(args.manifest)
@@ -162,6 +206,9 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     device = resolve_device(args.device)
+    calibrated_fractions = read_calibrated_fractions(
+        Path(args.calibrated_fractions) if args.calibrated_fractions else None
+    )
     rows = read_positive_rows(manifest_path, split=args.split, limit=args.max_positive)
     if not rows:
         raise RuntimeError(
@@ -187,6 +234,7 @@ def main() -> None:
             )
 
         cam_map = gradcam(model_input, class_idx=class_idx)
+        negative_cam_map = gradcam(model_input, class_idx=class_idx, polarity="negative")
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps
         )
@@ -194,12 +242,14 @@ def main() -> None:
 
         methods = {
             "grad_cam": cam_map,
+            "grad_cam_negative": negative_cam_map,
             "integrated_gradients": ig_map,
             "consensus": consensus,
         }
 
         for method_name, heatmap in methods.items():
-            metrics = localization_metrics(heatmap, mask, fraction=args.top_fraction)
+            top_fraction = calibrated_fractions.get(method_name, args.top_fraction)
+            metrics = localization_metrics(heatmap, mask, fraction=top_fraction)
             metric_rows.append(
                 {
                     "sample_id": sample_idx,
@@ -208,6 +258,7 @@ def main() -> None:
                     "xrv_pneumothorax_score": round(score, 6),
                     "xrv_pneumothorax_sigmoid": round(probability, 6),
                     "method": method_name,
+                    "top_fraction": round(top_fraction, 6),
                     **{key: round(value, 6) for key, value in metrics.items()},
                 }
             )
@@ -217,6 +268,15 @@ def main() -> None:
                     heatmap,
                     mask,
                     output_dir / f"sample_{sample_idx:02d}_{method_name}.png",
+                    heatmap_color="blue" if method_name == "grad_cam_negative" else "red",
+                    negative_heatmap=negative_cam_map if method_name == "consensus" else None,
+                )
+                selected_mask = threshold_top_fraction(heatmap, fraction=top_fraction)
+                save_selected_threshold_image(
+                    image,
+                    selected_mask,
+                    mask,
+                    output_dir / f"sample_{sample_idx:02d}_{method_name}_selected.png",
                 )
 
     gradcam.remove_hooks()
@@ -229,6 +289,7 @@ def main() -> None:
         "xrv_pneumothorax_score",
         "xrv_pneumothorax_sigmoid",
         "method",
+        "top_fraction",
         "iou",
         "dice",
         "pointing_hit",
