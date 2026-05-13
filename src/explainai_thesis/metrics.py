@@ -79,4 +79,3 @@ def localization_metrics(
         "pointing_hit": pointing_game_hit(heatmap, true_mask),
         "precision_at_fraction": precision_at_fraction(heatmap, true_mask, fraction=fraction),
     }
-

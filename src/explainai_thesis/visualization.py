@@ -18,7 +18,8 @@ def _mask_contour(mask: np.ndarray) -> np.ndarray:
     eroded = mask.copy()
     for y_offset in range(3):
         for x_offset in range(3):
-            eroded &= padded[y_offset : y_offset + mask.shape[0], x_offset : x_offset + mask.shape[1]]
+            eroded &= padded[y_offset: y_offset +
+                             mask.shape[0], x_offset: x_offset + mask.shape[1]]
     return mask & ~eroded
 
 
@@ -63,7 +64,7 @@ def save_overlay(
     contour = _mask_contour(true)
     green = np.zeros_like(rgb)
     green[..., 1] = 255
-    rgb[contour] = (1 - contour_alpha) * rgb[contour] + contour_alpha * green[contour]
+    rgb[contour] = (1 - contour_alpha) * rgb[contour] + \
+        contour_alpha * green[contour]
 
     Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
-

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.visualization import save_overlay
+from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
+from PIL import Image, ImageDraw
+import torchxrayvision as xrv
+import torch
+import numpy as np
 
 import argparse
 import csv
@@ -9,24 +16,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-import numpy as np
-import torch
-import torchxrayvision as xrv
-from PIL import Image, ImageDraw
-
-from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
-from explainai_thesis.visualization import save_overlay
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Visualize XAI threshold selections for classifier TP/FP/TN/FN CXR cases."
     )
-    parser.add_argument("--manifest", default="data/cxr_pneumothorax_manifest.csv")
-    parser.add_argument("--output-dir", default="outputs/iter_05_classifier_outcome_thresholds_test100")
+    parser.add_argument(
+        "--manifest", default="data/cxr_pneumothorax_manifest.csv")
+    parser.add_argument(
+        "--output-dir", default="outputs/iter_05_classifier_outcome_thresholds_test100")
     parser.add_argument("--weights", default="densenet121-res224-all")
-    parser.add_argument("--split", default="test", choices=["train", "test", "any"])
+    parser.add_argument("--split", default="test",
+                        choices=["train", "test", "any"])
     parser.add_argument("--max-cases", type=int, default=100)
     parser.add_argument("--threshold", type=float, default=0.61)
     parser.add_argument("--image-size", type=int, default=224)
@@ -36,7 +37,8 @@ def parse_args() -> argparse.Namespace:
         default="0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50",
         help="Comma-separated top-fractions to visualize.",
     )
-    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--device", default="auto",
+                        choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
 
 
@@ -62,7 +64,8 @@ def read_rows(manifest_path: Path, split: str, limit: int) -> list[dict[str, str
 
 
 def load_image(path: Path, image_size: int) -> torch.Tensor:
-    image = Image.open(path).convert("L").resize((image_size, image_size), Image.BILINEAR)
+    image = Image.open(path).convert("L").resize(
+        (image_size, image_size), Image.BILINEAR)
     array = np.asarray(image)
     normalized = xrv.datasets.normalize(array, 255)
     return torch.from_numpy(normalized).unsqueeze(0).float()
@@ -73,7 +76,8 @@ def load_mask(row: dict[str, str], image_size: int) -> torch.Tensor:
     if mask_path:
         path = Path(mask_path)
         if path.exists():
-            mask = Image.open(path).convert("L").resize((image_size, image_size), Image.NEAREST)
+            mask = Image.open(path).convert("L").resize(
+                (image_size, image_size), Image.NEAREST)
             return torch.from_numpy(np.asarray(mask) > 0)
     return torch.zeros((image_size, image_size), dtype=torch.bool)
 
@@ -83,11 +87,13 @@ def pathology_index(model: torch.nn.Module, pathology: str) -> int:
     try:
         return pathologies.index(pathology)
     except ValueError as exc:
-        raise ValueError(f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
+        raise ValueError(
+            f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
 
 
 def parse_fractions(raw: str) -> list[float]:
-    fractions = [float(value.strip()) for value in raw.split(",") if value.strip()]
+    fractions = [float(value.strip())
+                 for value in raw.split(",") if value.strip()]
     if not fractions:
         raise ValueError("At least one fraction is required.")
     for fraction in fractions:
@@ -141,8 +147,10 @@ def save_binary_selection(
         negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
         negative_inside = negative_pred & true
         negative_outside = negative_pred & ~true
-        rgb[negative_outside] = 0.50 * rgb[negative_outside] + 0.50 * np.array([0, 0, 255], dtype=np.float32)
-        rgb[negative_inside] = 0.35 * rgb[negative_inside] + 0.65 * np.array([0, 255, 255], dtype=np.float32)
+        rgb[negative_outside] = 0.50 * rgb[negative_outside] + \
+            0.50 * np.array([0, 0, 255], dtype=np.float32)
+        rgb[negative_inside] = 0.35 * rgb[negative_inside] + \
+            0.65 * np.array([0, 255, 255], dtype=np.float32)
 
     if negative_style:
         selected_outside = np.array([0, 0, 255], dtype=np.float32)
@@ -164,7 +172,8 @@ def make_contact_sheet(image_paths: list[Path], captions: list[str], output_path
         return
     width, height = images[0].size
     caption_height = 28
-    sheet = Image.new("RGB", (width * len(images), height + caption_height), "white")
+    sheet = Image.new("RGB", (width * len(images),
+                      height + caption_height), "white")
     draw = ImageDraw.Draw(sheet)
     for idx, image in enumerate(images):
         x = idx * width
@@ -193,7 +202,8 @@ def main() -> None:
     fractions = parse_fractions(args.fractions)
     rows = read_rows(Path(args.manifest), args.split, args.max_cases)
     if not rows:
-        raise RuntimeError(f"No rows found in {args.manifest} for split={args.split}.")
+        raise RuntimeError(
+            f"No rows found in {args.manifest} for split={args.split}.")
 
     device = resolve_device(args.device)
     model = xrv.models.DenseNet(weights=args.weights).to(device)
@@ -214,7 +224,8 @@ def main() -> None:
         with torch.no_grad():
             output = model(model_input)
             score = float(output[0, class_idx].detach().cpu().item())
-            probability = float(torch.sigmoid(output[0, class_idx]).detach().cpu().item())
+            probability = float(torch.sigmoid(
+                output[0, class_idx]).detach().cpu().item())
 
         outcome = classifier_outcome(label, probability, args.threshold)
         outcome_counts[outcome] += 1
@@ -223,8 +234,10 @@ def main() -> None:
         case_dir.mkdir(parents=True, exist_ok=True)
 
         cam_map = gradcam(model_input, class_idx=class_idx)
-        negative_cam_map = gradcam(model_input, class_idx=class_idx, polarity="negative")
-        ig_map = integrated_gradients(model, model_input, class_idx=class_idx, steps=args.ig_steps)
+        negative_cam_map = gradcam(
+            model_input, class_idx=class_idx, polarity="negative")
+        ig_map = integrated_gradients(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps)
         consensus = consensus_heatmap([cam_map, ig_map])
 
         methods = {
@@ -264,25 +277,31 @@ def main() -> None:
             captions: list[str] = []
             for fraction in fractions:
                 selected = threshold_top_fraction(heatmap, fraction=fraction)
-                selection_path = method_dir / f"selected_top_{int(round(fraction * 100)):02d}.png"
+                selection_path = method_dir / \
+                    f"selected_top_{int(round(fraction * 100)):02d}.png"
                 save_binary_selection(
                     image,
                     selected,
                     mask,
                     selection_path,
                     negative_style=(method_name == "grad_cam_negative"),
-                    negative_selected_mask=threshold_top_fraction(negative_cam_map, fraction=fraction)
+                    negative_selected_mask=threshold_top_fraction(
+                        negative_cam_map, fraction=fraction)
                     if method_name == "consensus"
                     else None,
                 )
                 panel_paths.append(selection_path)
                 captions.append(f"top {fraction:.0%}")
-                metrics = localization_metrics(heatmap, mask, fraction=fraction)
-                negative_metrics = {"negative_mask_overlap_fraction": "", "negative_mask_avoidance_fraction": ""}
+                metrics = localization_metrics(
+                    heatmap, mask, fraction=fraction)
+                negative_metrics = {
+                    "negative_mask_overlap_fraction": "", "negative_mask_avoidance_fraction": ""}
                 if method_name == "grad_cam_negative":
-                    negative_metrics = negative_evidence_metrics(heatmap, mask, fraction)
+                    negative_metrics = negative_evidence_metrics(
+                        heatmap, mask, fraction)
                 elif method_name == "consensus":
-                    negative_metrics = negative_evidence_metrics(negative_cam_map, mask, fraction)
+                    negative_metrics = negative_evidence_metrics(
+                        negative_cam_map, mask, fraction)
                 metric_rows.append(
                     {
                         "sample_index": sample_idx,
@@ -296,7 +315,8 @@ def main() -> None:
                         **negative_metrics,
                     }
                 )
-            make_contact_sheet(panel_paths, captions, method_dir / "threshold_sweep_panel.png")
+            make_contact_sheet(panel_paths, captions,
+                               method_dir / "threshold_sweep_panel.png")
 
     gradcam.remove_hooks()
     write_rows(output_dir / "cases.csv", case_rows)

@@ -32,8 +32,10 @@ def mask_has_foreground(mask_path: Path) -> int:
 
 def infer_label_from_name(path: Path) -> int | None:
     name = path.name.lower()
-    positive_markers = ("_1_", "-1-", "_positive", "-positive", "_pneumo", "-pneumo")
-    negative_markers = ("_0_", "-0-", "_negative", "-negative", "_normal", "-normal")
+    positive_markers = ("_1_", "-1-", "_positive",
+                        "-positive", "_pneumo", "-pneumo")
+    negative_markers = ("_0_", "-0-", "_negative",
+                        "-negative", "_normal", "-normal")
     if any(marker in name for marker in positive_markers):
         return 1
     if any(marker in name for marker in negative_markers):
@@ -42,7 +44,8 @@ def infer_label_from_name(path: Path) -> int | None:
 
 
 def build_png_mask_manifest(root: Path) -> list[dict[str, str | int]]:
-    files = [path for path in root.rglob("*") if path.suffix.lower() in IMAGE_EXTENSIONS]
+    files = [path for path in root.rglob(
+        "*") if path.suffix.lower() in IMAGE_EXTENSIONS]
     mask_files = [path for path in files if looks_like_mask(path)]
     image_files = [path for path in files if not looks_like_mask(path)]
 
@@ -138,6 +141,7 @@ def write_manifest(rows: list[dict[str, str | int]], output_path: Path) -> None:
         {key for row in rows for key in row} - set(BASE_FIELDNAMES)
     )
     with output_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=[*BASE_FIELDNAMES, *extra_fieldnames])
+        writer = csv.DictWriter(
+            handle, fieldnames=[*BASE_FIELDNAMES, *extra_fieldnames])
         writer.writeheader()
         writer.writerows(rows)

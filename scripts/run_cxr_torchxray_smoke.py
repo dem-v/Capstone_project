@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.visualization import save_overlay
+from explainai_thesis.metrics import (
+    localization_metrics,
+    normalize_map,
+    threshold_top_fraction,
+)
+from PIL import Image
+import torchxrayvision as xrv
+import torch
+import numpy as np
 
 import argparse
 import csv
@@ -10,14 +21,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-import numpy as np
-import torch
-import torchxrayvision as xrv
-from PIL import Image
-
-from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
-from explainai_thesis.visualization import save_overlay
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -48,7 +51,8 @@ def parse_args() -> argparse.Namespace:
         default=6,
         help="Number of positive cases to evaluate.",
     )
-    parser.add_argument("--image-size", type=int, default=224, help="Model input size.")
+    parser.add_argument("--image-size", type=int,
+                        default=224, help="Model input size.")
     parser.add_argument(
         "--ig-steps", type=int, default=16, help="Integrated Gradients steps."
     )
@@ -107,7 +111,8 @@ def read_positive_rows(
 
 def load_image(path: Path, image_size: int) -> torch.Tensor:
     image = (
-        Image.open(path).convert("L").resize((image_size, image_size), Image.BILINEAR)
+        Image.open(path).convert("L").resize(
+            (image_size, image_size), Image.BILINEAR)
     )
     array = np.asarray(image)
     normalized = xrv.datasets.normalize(array, 255)
@@ -115,7 +120,8 @@ def load_image(path: Path, image_size: int) -> torch.Tensor:
 
 
 def load_mask(path: Path, image_size: int) -> torch.Tensor:
-    mask = Image.open(path).convert("L").resize((image_size, image_size), Image.NEAREST)
+    mask = Image.open(path).convert("L").resize(
+        (image_size, image_size), Image.NEAREST)
     return torch.from_numpy(np.asarray(mask) > 0)
 
 
@@ -152,7 +158,8 @@ def write_metric_summary(
             "n": len(rows),
         }
         for metric_name in metric_names:
-            values = np.asarray([float(row[metric_name]) for row in rows], dtype=float)
+            values = np.asarray([float(row[metric_name])
+                                for row in rows], dtype=float)
             summary[f"{metric_name}_mean"] = round(float(values.mean()), 6)
             summary[f"{metric_name}_std"] = round(float(values.std(ddof=0)), 6)
         for metric_name in optional_metric_names:
@@ -162,8 +169,11 @@ def write_metric_summary(
                 dtype=float,
             )
             if numeric_values.size:
-                summary[f"{metric_name}_mean"] = round(float(numeric_values.mean()), 6)
-                summary[f"{metric_name}_std"] = round(float(numeric_values.std(ddof=0)), 6)
+                summary[f"{metric_name}_mean"] = round(
+                    float(numeric_values.mean()), 6)
+                summary[f"{metric_name}_std"] = round(
+                    float(numeric_values.std(ddof=0)), 6
+                )
             else:
                 summary[f"{metric_name}_mean"] = ""
                 summary[f"{metric_name}_std"] = ""
@@ -254,7 +264,8 @@ def main() -> None:
     calibrated_fractions = read_calibrated_fractions(
         Path(args.calibrated_fractions) if args.calibrated_fractions else None
     )
-    rows = read_positive_rows(manifest_path, split=args.split, limit=args.max_positive)
+    rows = read_positive_rows(
+        manifest_path, split=args.split, limit=args.max_positive)
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {manifest_path} for split={args.split}."
@@ -279,7 +290,9 @@ def main() -> None:
             )
 
         cam_map = gradcam(model_input, class_idx=class_idx)
-        negative_cam_map = gradcam(model_input, class_idx=class_idx, polarity="negative")
+        negative_cam_map = gradcam(
+            model_input, class_idx=class_idx, polarity="negative"
+        )
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps
         )
@@ -293,8 +306,10 @@ def main() -> None:
         }
 
         for method_name, heatmap in methods.items():
-            top_fraction = calibrated_fractions.get(method_name, args.top_fraction)
-            metrics = localization_metrics(heatmap, mask, fraction=top_fraction)
+            top_fraction = calibrated_fractions.get(
+                method_name, args.top_fraction)
+            metrics = localization_metrics(
+                heatmap, mask, fraction=top_fraction)
             negative_metrics = {
                 "negative_mask_overlap_fraction": "",
                 "negative_mask_avoidance_fraction": "",
@@ -309,7 +324,9 @@ def main() -> None:
                     ).items()
                 }
             elif method_name == "consensus":
-                negative_fraction = calibrated_fractions.get("grad_cam_negative", args.top_fraction)
+                negative_fraction = calibrated_fractions.get(
+                    "grad_cam_negative", args.top_fraction
+                )
                 negative_metrics = {
                     key: round(value, 6)
                     for key, value in negative_evidence_metrics(
@@ -337,15 +354,21 @@ def main() -> None:
                     heatmap,
                     mask,
                     output_dir / f"sample_{sample_idx:02d}_{method_name}.png",
-                    heatmap_color="blue" if method_name == "grad_cam_negative" else "red",
-                    negative_heatmap=negative_cam_map if method_name == "consensus" else None,
+                    heatmap_color=(
+                        "blue" if method_name == "grad_cam_negative" else "red"
+                    ),
+                    negative_heatmap=(
+                        negative_cam_map if method_name == "consensus" else None
+                    ),
                 )
-                selected_mask = threshold_top_fraction(heatmap, fraction=top_fraction)
+                selected_mask = threshold_top_fraction(
+                    heatmap, fraction=top_fraction)
                 save_selected_threshold_image(
                     image,
                     selected_mask,
                     mask,
-                    output_dir / f"sample_{sample_idx:02d}_{method_name}_selected.png",
+                    output_dir /
+                    f"sample_{sample_idx:02d}_{method_name}_selected.png",
                     negative_style=method_name == "grad_cam_negative",
                 )
 

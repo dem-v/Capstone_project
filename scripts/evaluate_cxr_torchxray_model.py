@@ -28,14 +28,18 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate a TorchXRayVision pneumothorax classifier on the CXR manifest."
     )
-    parser.add_argument("--manifest", default="data/cxr_pneumothorax_manifest.csv")
-    parser.add_argument("--output-dir", default="outputs/cxr_torchxray_model_eval")
+    parser.add_argument(
+        "--manifest", default="data/cxr_pneumothorax_manifest.csv")
+    parser.add_argument(
+        "--output-dir", default="outputs/cxr_torchxray_model_eval")
     parser.add_argument("--weights", default="densenet121-res224-all")
-    parser.add_argument("--split", default="test", choices=["train", "test", "any"])
+    parser.add_argument("--split", default="test",
+                        choices=["train", "test", "any"])
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--threshold", type=float, default=0.5)
-    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--device", default="auto",
+                        choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
 
 
@@ -59,7 +63,10 @@ def read_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
 
 
 def load_image(path: Path, image_size: int) -> torch.Tensor:
-    image = Image.open(path).convert("L").resize((image_size, image_size), Image.BILINEAR)
+    image = (
+        Image.open(path).convert("L").resize(
+            (image_size, image_size), Image.BILINEAR)
+    )
     array = np.asarray(image)
     normalized = xrv.datasets.normalize(array, 255)
     return torch.from_numpy(normalized).unsqueeze(0).float()
@@ -70,15 +77,19 @@ def pathology_index(model: torch.nn.Module, pathology: str) -> int:
     try:
         return pathologies.index(pathology)
     except ValueError as exc:
-        raise ValueError(f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
+        raise ValueError(
+            f"{pathology!r} is not available in model pathologies: {pathologies}"
+        ) from exc
 
 
 def batched(iterable: list[dict[str, str]], batch_size: int):
     for start in range(0, len(iterable), batch_size):
-        yield iterable[start : start + batch_size]
+        yield iterable[start: start + batch_size]
 
 
-def metrics_at_threshold(y_true: np.ndarray, y_score: np.ndarray, threshold: float) -> dict[str, float | int]:
+def metrics_at_threshold(
+    y_true: np.ndarray, y_score: np.ndarray, threshold: float
+) -> dict[str, float | int]:
     y_pred = y_score >= threshold
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     sensitivity = tp / max(tp + fn, 1)
@@ -104,7 +115,8 @@ def main() -> None:
 
     rows = read_rows(Path(args.manifest), args.split)
     if not rows:
-        raise RuntimeError(f"No rows found in {args.manifest} for split={args.split}.")
+        raise RuntimeError(
+            f"No rows found in {args.manifest} for split={args.split}.")
 
     device = resolve_device(args.device)
     model = xrv.models.DenseNet(weights=args.weights).to(device)
@@ -118,14 +130,19 @@ def main() -> None:
 
     for batch_rows in batched(rows, args.batch_size):
         images = torch.stack(
-            [load_image(Path(row["image_path"]), args.image_size) for row in batch_rows],
+            [
+                load_image(Path(row["image_path"]), args.image_size)
+                for row in batch_rows
+            ],
             dim=0,
         ).to(device)
         with torch.no_grad():
             output = model(images)[:, class_idx].detach().cpu()
             probabilities = torch.sigmoid(output)
 
-        for row, score, probability in zip(batch_rows, output.tolist(), probabilities.tolist()):
+        for row, score, probability in zip(
+            batch_rows, output.tolist(), probabilities.tolist(), strict=False
+        ):
             label = int(row["label"])
             labels.append(label)
             raw_scores.append(float(score))
@@ -145,7 +162,10 @@ def main() -> None:
     y_raw = np.asarray(raw_scores, dtype=float)
 
     thresholds = np.linspace(0.05, 0.95, 181)
-    threshold_rows = [metrics_at_threshold(y_true, y_score, float(threshold)) for threshold in thresholds]
+    threshold_rows = [
+        metrics_at_threshold(y_true, y_score, float(threshold))
+        for threshold in thresholds
+    ]
     best_f1_row = max(threshold_rows, key=lambda row: float(row["f1"]))
 
     summary = {
@@ -160,7 +180,12 @@ def main() -> None:
         "score_mean_negative": round(float(y_score[y_true == 0].mean()), 6),
         "raw_mean_positive": round(float(y_raw[y_true == 1].mean()), 6),
         "raw_mean_negative": round(float(y_raw[y_true == 0].mean()), 6),
-        **{f"default_{key}": value for key, value in metrics_at_threshold(y_true, y_score, args.threshold).items()},
+        **{
+            f"default_{key}": value
+            for key, value in metrics_at_threshold(
+                y_true, y_score, args.threshold
+            ).items()
+        },
         **{f"best_f1_{key}": value for key, value in best_f1_row.items()},
     }
 
@@ -181,7 +206,8 @@ def main() -> None:
 
     threshold_path = output_dir / "threshold_sweep.csv"
     with threshold_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(threshold_rows[0].keys()))
+        writer = csv.DictWriter(
+            handle, fieldnames=list(threshold_rows[0].keys()))
         writer.writeheader()
         writer.writerows(threshold_rows)
 
@@ -192,7 +218,9 @@ def main() -> None:
         writer.writerow(summary)
 
     print(f"TorchXRayVision model evaluation complete on {device}.")
-    print(f"Rows evaluated: {summary['n']} ({summary['positives']} positive, {summary['negatives']} negative)")
+    print(
+        f"Rows evaluated: {summary['n']} ({summary['positives']} positive, {summary['negatives']} negative)"
+    )
     print(f"ROC AUC: {summary['roc_auc']}")
     print(f"Average precision: {summary['average_precision']}")
     print(

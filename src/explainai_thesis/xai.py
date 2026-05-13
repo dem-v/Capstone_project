@@ -45,7 +45,8 @@ class GradCAM:
         score.backward()
 
         if self.activations is None or self.gradients is None:
-            raise RuntimeError("Grad-CAM hooks did not capture activations/gradients.")
+            raise RuntimeError(
+                "Grad-CAM hooks did not capture activations/gradients.")
 
         weights = self.gradients.mean(dim=(2, 3), keepdim=True)
         cam = (weights * self.activations).sum(dim=1, keepdim=True)
@@ -53,7 +54,8 @@ class GradCAM:
             cam = F.relu(cam)
         else:
             cam = F.relu(-cam)
-        cam = F.interpolate(cam, size=image.shape[-2:], mode="bilinear", align_corners=False)
+        cam = F.interpolate(
+            cam, size=image.shape[-2:], mode="bilinear", align_corners=False)
         return normalize_map(cam[0, 0].cpu())
 
 
@@ -69,7 +71,8 @@ def integrated_gradients(
     if baseline is None:
         baseline = torch.zeros_like(image)
 
-    scaled_images = [baseline + (float(i) / steps) * (image - baseline) for i in range(1, steps + 1)]
+    scaled_images = [baseline + (float(i) / steps) * (image - baseline)
+                     for i in range(1, steps + 1)]
     total_gradients = torch.zeros_like(image)
 
     for scaled in scaled_images:
@@ -91,4 +94,3 @@ def consensus_heatmap(heatmaps: list[torch.Tensor]) -> torch.Tensor:
         raise ValueError("At least one heatmap is required.")
     stacked = torch.stack([normalize_map(h) for h in heatmaps], dim=0)
     return normalize_map(stacked.mean(dim=0))
-
