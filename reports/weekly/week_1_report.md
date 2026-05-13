@@ -52,6 +52,29 @@ Next experimental MVP:
 - generate first real-data Grad-CAM / Integrated Gradients / SHAP-style outputs;
 - compare heatmaps against pneumothorax masks.
 
+## Initial MVP Flow and Smoke Test Results
+
+The initial MVP validates the technical flow before real patient or Kaggle data are used. A synthetic lesion dataset is generated with binary labels and pixel masks. A small CNN is trained to classify whether a lesion is present. Then three explanation outputs are produced: Grad-CAM, Integrated Gradients, and a simple consensus heatmap. Each heatmap is normalized, overlaid on the image, thresholded, and compared with the known lesion mask using IoU, Dice, pointing-game hit rate, and precision-at-fraction.
+
+Smoke test command:
+
+```bash
+python3 scripts/run_smoke_test.py --device auto
+```
+
+Smoke test result:
+- synthetic classification accuracy: 1.000;
+- all tested explanation methods localized the lesion peak inside the mask on the inspected positive samples;
+- consensus heatmap gave the best mean localization metrics in this synthetic test: IoU 0.1628, Dice 0.2730, pointing hit 1.0000, precision-at-fraction 0.1628;
+- generated outputs are stored in `outputs/smoke_test/`.
+
+Sample smoke-test overlays are shown below. Red indicates model attribution; green indicates the known lesion mask.
+
+| Grad-CAM | Integrated Gradients | Consensus |
+| --- | --- | --- |
+| ![Sample 00 Grad-CAM](../../outputs/smoke_test/sample_00_grad_cam.png) | ![Sample 00 Integrated Gradients](../../outputs/smoke_test/sample_00_integrated_gradients.png) | ![Sample 00 Consensus](../../outputs/smoke_test/sample_00_consensus.png) |
+| ![Sample 04 Grad-CAM](../../outputs/smoke_test/sample_04_grad_cam.png) | ![Sample 04 Integrated Gradients](../../outputs/smoke_test/sample_04_integrated_gradients.png) | ![Sample 04 Consensus](../../outputs/smoke_test/sample_04_consensus.png) |
+
 ## Supervisor Feedback and Open Questions
 
 Potential future directions:

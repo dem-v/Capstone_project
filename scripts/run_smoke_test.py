@@ -92,8 +92,7 @@ def main() -> None:
     rows: list[dict[str, float | str | int]] = []
     selected = 0
 
-    for item_index in range(len(test_set)):
-        image, label, mask = test_set[item_index]
+    for image, label, mask in test_set:
         if int(label.item()) != 1:
             continue
 

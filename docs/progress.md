@@ -626,3 +626,16 @@ Week 1 report requirements received:
 - next-week plan;
 - links/references to artifacts;
 - expected result: preliminary problem analysis, defined project goals, initial MVP or research methodology, first progress report.
+
+## 2026-05-13 - Week 1 Report MVP/Smoke-Test Section Added
+
+Updated:
+- `reports/weekly/week_1_report.md`
+- `reports/weekly/week_1_report_final.md`
+
+Added:
+- concise initial MVP flow description;
+- smoke-test command;
+- synthetic smoke-test result summary;
+- aggregate localization metrics for Grad-CAM, Integrated Gradients, and consensus heatmap;
+- embedded sample overlay images from `outputs/smoke_test/`.
