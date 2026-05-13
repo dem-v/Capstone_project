@@ -951,3 +951,80 @@ Verification:
 - WSL syntax check passed for `scripts/run_cxr_torchxray_smoke.py`.
 - CUDA smoke evaluation completed at `outputs/iter_03_main_selected_images_smoke`.
 - Confirmed selected images exist for `grad_cam`, `grad_cam_negative`, `integrated_gradients`, and `consensus`.
+
+## 2026-05-13 - Negative Selected Images and Consensus Diagnostics Clarified
+
+Code update:
+- `grad_cam_negative` selected-threshold PNGs now use blue for selected negative evidence outside the true mask, and cyan/green+blue for selected negative evidence that intersects the true mask.
+- Positive methods keep the previous selected-image colors: red for selected outside the mask, yellow for selected inside the mask, and green for missed mask pixels.
+- `scripts/run_cxr_torchxray_smoke.py` now adds negative evidence diagnostics to `metrics.csv` and `metrics_summary.csv`: `negative_mask_overlap_fraction` and `negative_mask_avoidance_fraction`.
+
+Interpretation note:
+- Standard Dice/IoU for `consensus` still measures only positive consensus localization against the lesion mask.
+- The blue negative evidence shown on consensus overlays is not folded into Dice/IoU as a reward; instead, the new negative avoidance columns separately report whether the negative Grad-CAM selected area avoids the lesion mask, where higher `negative_mask_avoidance_fraction` is better.
+
+Verification:
+- WSL syntax check passed for `scripts/run_cxr_torchxray_smoke.py` and `scripts/visualize_cxr_threshold_selection.py`.
+- CUDA smoke evaluation completed at `outputs/iter_04_negative_selected_consensus_metrics_smoke`.
+
+## 2026-05-13 - Classifier Outcome Threshold Sweep Visualization for 100 Test CXRs
+
+Code update:
+- Added `scripts/visualize_cxr_classifier_outcome_thresholds.py` to visualize XAI threshold selection across mixed classifier outcomes (`tp`, `fp`, `tn`, `fn`).
+- The script samples mixed-label manifest rows, applies a classifier probability threshold, groups each case by classifier outcome, and generates threshold-selection images for `grad_cam`, `grad_cam_negative`, `integrated_gradients`, and `consensus`.
+- Default threshold fractions are `0.05` through `0.50` in `0.05` steps.
+- Positive selected images keep red/yellow/green semantics; `grad_cam_negative` selected images use blue/cyan/green semantics.
+
+Generated iteration output:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device auto --split test --max-cases 100 --threshold 0.61 --ig-steps 16 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --output-dir outputs/iter_05_classifier_outcome_thresholds_test100
+```
+
+Generated artifacts:
+- `outputs/iter_05_classifier_outcome_thresholds_test100/cases.csv`
+- `outputs/iter_05_classifier_outcome_thresholds_test100/threshold_metrics.csv`
+- `outputs/iter_05_classifier_outcome_thresholds_test100/outcome_summary.csv`
+- Outcome-grouped image folders under `tp`, `fp`, and `tn`; no `fn` folder was generated because there were no false negatives in this first 100-case subset at threshold `0.61`.
+
+Classifier outcome counts at threshold `0.61` on the first 100 test rows:
+- TP: `20`
+- FP: `35`
+- TN: `45`
+- FN: `0`
+
+Verification:
+- WSL syntax check passed for `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- CUDA smoke run completed at `outputs/iter_05_classifier_outcome_thresholds_smoke`.
+- Full CUDA run completed at `outputs/iter_05_classifier_outcome_thresholds_test100` with `4000` threshold metric rows (`100` cases x `4` methods x `10` fractions).
+
+## 2026-05-13 - Consensus Stepped Selection Images Include Blue Negative Evidence
+
+Code update:
+- `scripts/visualize_cxr_classifier_outcome_thresholds.py` now renders thresholded `grad_cam_negative` evidence inside `consensus` selected-step images, not only in the continuous consensus overlay.
+- `scripts/visualize_cxr_threshold_selection.py` received the same behavior for the single-image threshold sweep.
+- Consensus selected images now combine blue/cyan thresholded negative evidence with red/yellow positive consensus selection, while green still indicates true-mask pixels missed by the positive consensus selection.
+
+Verification:
+- WSL syntax check passed for both threshold visualization scripts.
+- CUDA smoke run completed at `outputs/iter_06_consensus_selected_negative_smoke`; consensus `selected_top_05.png` files were generated under `tp` and `tn` case folders.
+
+## 2026-05-13 - Thesis Interpretation Note for Red and Blue Attribution Maps
+
+Future thesis wording:
+- In attribution overlays, red regions indicate image areas that contribute positively to the model's pneumothorax output, while blue regions indicate areas that contribute negatively to the same output.
+- Red should be described as evidence supporting the pneumothorax prediction; blue should be described as evidence suppressing or arguing against the pneumothorax prediction.
+- These maps should not be described as direct pneumothorax segmentations or as generic model attention maps. They are class-specific attribution maps with respect to the selected pneumothorax target score.
+
+Method-specific caveat:
+- For signed `Grad-CAM`, the red/blue interpretation is relatively clean because positive and negative components are separated from the signed class activation map: red supports the target score, blue suppresses it.
+- For the current `Integrated Gradients` visualization, interpretation is less strictly signed because it is used as a target-class attribution magnitude-style heatmap unless signed positive/negative IG is implemented later.
+- For `consensus`, red represents positive consensus evidence, while blue represents the separate negative signed `Grad-CAM` evidence included for qualitative inspection.
+
+Metric interpretation:
+- For positive red evidence, overlap with the green ground-truth pneumothorax contour is desirable and can be evaluated using positive localization metrics such as Dice, IoU, and pointing hit.
+- For blue negative evidence, the interpretation is reversed: blue outside the lesion is acceptable or expected, while blue inside the lesion may indicate that the model treats a true lesion region as evidence against pneumothorax.
+- Therefore, blue evidence should be treated as a diagnostic complement, not as another lesion-localization method to maximize with Dice/IoU; use negative avoidance/overlap diagnostics separately.
+
+Suggested figure-caption wording:
+- Red overlay denotes positive attribution for the pneumothorax target class, indicating regions that increase the model's pneumothorax score. Blue overlay denotes negative signed attribution, indicating regions that decrease or suppress the pneumothorax score. The green contour represents the ground-truth pneumothorax mask. Overlap between red attribution and the green contour suggests localization of positive model evidence within the annotated lesion, whereas blue attribution inside the contour may indicate that the model treats part of the annotated lesion as evidence against the target class.

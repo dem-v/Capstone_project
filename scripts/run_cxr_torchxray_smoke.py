@@ -137,8 +137,12 @@ def write_metric_summary(
         grouped[str(row["method"])].append(row)
 
     metric_names = ["iou", "dice", "pointing_hit", "precision_at_fraction"]
+    optional_metric_names = [
+        "negative_mask_overlap_fraction",
+        "negative_mask_avoidance_fraction",
+    ]
     fieldnames = ["method", "n"]
-    for metric_name in metric_names:
+    for metric_name in metric_names + optional_metric_names:
         fieldnames.extend([f"{metric_name}_mean", f"{metric_name}_std"])
 
     summary_rows: list[dict[str, str | int | float]] = []
@@ -151,6 +155,18 @@ def write_metric_summary(
             values = np.asarray([float(row[metric_name]) for row in rows], dtype=float)
             summary[f"{metric_name}_mean"] = round(float(values.mean()), 6)
             summary[f"{metric_name}_std"] = round(float(values.std(ddof=0)), 6)
+        for metric_name in optional_metric_names:
+            values = [row.get(metric_name) for row in rows]
+            numeric_values = np.asarray(
+                [float(value) for value in values if value != ""],
+                dtype=float,
+            )
+            if numeric_values.size:
+                summary[f"{metric_name}_mean"] = round(float(numeric_values.mean()), 6)
+                summary[f"{metric_name}_std"] = round(float(numeric_values.std(ddof=0)), 6)
+            else:
+                summary[f"{metric_name}_mean"] = ""
+                summary[f"{metric_name}_std"] = ""
         summary_rows.append(summary)
 
     with output_path.open("w", newline="", encoding="utf-8") as handle:
@@ -179,6 +195,8 @@ def save_selected_threshold_image(
     selected_mask: torch.Tensor,
     true_mask: torch.Tensor,
     output_path: Path,
+    *,
+    negative_style: bool = False,
 ) -> None:
     base = image.detach().cpu()
     if base.ndim == 3:
@@ -192,11 +210,38 @@ def save_selected_threshold_image(
     fp = pred & ~true
     fn = ~pred & true
 
-    rgb[fp] = 0.50 * rgb[fp] + 0.50 * np.array([255, 0, 0], dtype=np.float32)
-    rgb[tp] = 0.35 * rgb[tp] + 0.65 * np.array([255, 255, 0], dtype=np.float32)
+    if negative_style:
+        selected_outside = np.array([0, 0, 255], dtype=np.float32)
+        selected_inside = np.array([0, 255, 255], dtype=np.float32)
+    else:
+        selected_outside = np.array([255, 0, 0], dtype=np.float32)
+        selected_inside = np.array([255, 255, 0], dtype=np.float32)
+
+    rgb[fp] = 0.50 * rgb[fp] + 0.50 * selected_outside
+    rgb[tp] = 0.35 * rgb[tp] + 0.65 * selected_inside
     rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
 
     Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
+
+
+def negative_evidence_metrics(
+    heatmap: torch.Tensor,
+    true_mask: torch.Tensor,
+    fraction: float,
+) -> dict[str, float]:
+    selected = threshold_top_fraction(heatmap, fraction=fraction)
+    true = true_mask.bool()
+    selected_count = selected.sum().float()
+    if selected_count.item() == 0:
+        return {
+            "negative_mask_overlap_fraction": 0.0,
+            "negative_mask_avoidance_fraction": 0.0,
+        }
+    overlap = (selected & true).sum().float() / selected_count
+    return {
+        "negative_mask_overlap_fraction": overlap.item(),
+        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
+    }
 
 
 def main() -> None:
@@ -250,6 +295,29 @@ def main() -> None:
         for method_name, heatmap in methods.items():
             top_fraction = calibrated_fractions.get(method_name, args.top_fraction)
             metrics = localization_metrics(heatmap, mask, fraction=top_fraction)
+            negative_metrics = {
+                "negative_mask_overlap_fraction": "",
+                "negative_mask_avoidance_fraction": "",
+            }
+            if method_name == "grad_cam_negative":
+                negative_metrics = {
+                    key: round(value, 6)
+                    for key, value in negative_evidence_metrics(
+                        negative_cam_map,
+                        mask,
+                        top_fraction,
+                    ).items()
+                }
+            elif method_name == "consensus":
+                negative_fraction = calibrated_fractions.get("grad_cam_negative", args.top_fraction)
+                negative_metrics = {
+                    key: round(value, 6)
+                    for key, value in negative_evidence_metrics(
+                        negative_cam_map,
+                        mask,
+                        negative_fraction,
+                    ).items()
+                }
             metric_rows.append(
                 {
                     "sample_id": sample_idx,
@@ -260,6 +328,7 @@ def main() -> None:
                     "method": method_name,
                     "top_fraction": round(top_fraction, 6),
                     **{key: round(value, 6) for key, value in metrics.items()},
+                    **negative_metrics,
                 }
             )
             if sample_idx < args.max_overlays:
@@ -277,6 +346,7 @@ def main() -> None:
                     selected_mask,
                     mask,
                     output_dir / f"sample_{sample_idx:02d}_{method_name}_selected.png",
+                    negative_style=method_name == "grad_cam_negative",
                 )
 
     gradcam.remove_hooks()
@@ -294,6 +364,8 @@ def main() -> None:
         "dice",
         "pointing_hit",
         "precision_at_fraction",
+        "negative_mask_overlap_fraction",
+        "negative_mask_avoidance_fraction",
     ]
     with metrics_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

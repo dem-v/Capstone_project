@@ -106,6 +106,9 @@ def save_binary_selection(
     selected_mask: torch.Tensor,
     true_mask: torch.Tensor,
     output_path: Path,
+    *,
+    negative_style: bool = False,
+    negative_selected_mask: torch.Tensor | None = None,
 ) -> None:
     base = image.detach().cpu()
     if base.ndim == 3:
@@ -119,8 +122,22 @@ def save_binary_selection(
     fp = pred & ~true
     fn = ~pred & true
 
-    rgb[fp] = 0.50 * rgb[fp] + 0.50 * np.array([255, 0, 0], dtype=np.float32)
-    rgb[tp] = 0.35 * rgb[tp] + 0.65 * np.array([255, 255, 0], dtype=np.float32)
+    if negative_selected_mask is not None:
+        negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
+        negative_inside = negative_pred & true
+        negative_outside = negative_pred & ~true
+        rgb[negative_outside] = 0.50 * rgb[negative_outside] + 0.50 * np.array([0, 0, 255], dtype=np.float32)
+        rgb[negative_inside] = 0.35 * rgb[negative_inside] + 0.65 * np.array([0, 255, 255], dtype=np.float32)
+
+    if negative_style:
+        selected_outside = np.array([0, 0, 255], dtype=np.float32)
+        selected_inside = np.array([0, 255, 255], dtype=np.float32)
+    else:
+        selected_outside = np.array([255, 0, 0], dtype=np.float32)
+        selected_inside = np.array([255, 255, 0], dtype=np.float32)
+
+    rgb[fp] = 0.50 * rgb[fp] + 0.50 * selected_outside
+    rgb[tp] = 0.35 * rgb[tp] + 0.65 * selected_inside
     rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
 
     Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
@@ -220,7 +237,16 @@ def main() -> None:
                 }
             )
             image_path = method_dir / f"selected_top_{int(round(fraction * 100)):02d}pct.png"
-            save_binary_selection(image, selected, mask, image_path)
+            save_binary_selection(
+                image,
+                selected,
+                mask,
+                image_path,
+                negative_style=method_name == "grad_cam_negative",
+                negative_selected_mask=threshold_top_fraction(negative_cam_map, fraction=fraction)
+                if method_name == "consensus"
+                else None,
+            )
             binary_paths.append(image_path)
             binary_captions.append(
                 f"top {fraction:.0%} | Dice {metrics['dice']:.3f} | IoU {metrics['iou']:.3f}"
