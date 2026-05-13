@@ -35,9 +35,18 @@ class GradCAM:
         for handle in self._handles:
             handle.remove()
 
-    def __call__(self, image: torch.Tensor, class_idx: int = 1, polarity: str = "positive") -> torch.Tensor:
+    def __call__(
+        self,
+        image: torch.Tensor,
+        class_idx: int = 1,
+        polarity: str = "positive",
+        variant: str = "grad_cam",
+    ) -> torch.Tensor:
         if polarity not in {"positive", "negative"}:
             raise ValueError("polarity must be 'positive' or 'negative'.")
+        if variant not in {"grad_cam", "grad_cam_plus_plus"}:
+            raise ValueError(
+                "variant must be 'grad_cam' or 'grad_cam_plus_plus'.")
 
         self.model.zero_grad(set_to_none=True)
         logits = self.model(image)
@@ -48,7 +57,22 @@ class GradCAM:
             raise RuntimeError(
                 "Grad-CAM hooks did not capture activations/gradients.")
 
-        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
+        if variant == "grad_cam_plus_plus":
+            gradients = self.gradients if polarity == "positive" else -self.gradients
+            gradients_power_2 = gradients.pow(2)
+            gradients_power_3 = gradients_power_2 * gradients
+            denominator = 2 * gradients_power_2 + (
+                self.activations * gradients_power_3
+            ).sum(dim=(2, 3), keepdim=True)
+            denominator = torch.where(
+                denominator != 0,
+                denominator,
+                torch.ones_like(denominator),
+            )
+            alpha = gradients_power_2 / denominator
+            weights = (alpha * F.relu(gradients)).sum(dim=(2, 3), keepdim=True)
+        else:
+            weights = self.gradients.mean(dim=(2, 3), keepdim=True)
         cam = (weights * self.activations).sum(dim=1, keepdim=True)
         if polarity == "positive":
             cam = F.relu(cam)

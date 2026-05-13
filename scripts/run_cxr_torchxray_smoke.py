@@ -8,6 +8,11 @@ from collections import defaultdict
 from pathlib import Path
 import re
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -77,6 +82,11 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=12,
         help="Maximum number of cases for which overlay PNGs are exported.",
+    )
+    parser.add_argument(
+        "--faithfulness-fractions",
+        default="",
+        help="Optional comma-separated fractions for deletion/insertion faithfulness curves.",
     )
     parser.add_argument(
         "--device",
@@ -205,6 +215,177 @@ def read_calibrated_fractions(path: Path | None) -> dict[str, float]:
     return fractions
 
 
+def parse_optional_fractions(raw: str) -> list[float]:
+    fractions = [float(value.strip()) for value in raw.split(",") if value.strip()]
+    for fraction in fractions:
+        if not 0 <= fraction <= 1:
+            raise ValueError("Faithfulness fractions must be in [0, 1].")
+    return fractions
+
+
+def model_probability(model: torch.nn.Module, image: torch.Tensor, class_idx: int) -> float:
+    with torch.no_grad():
+        output = model(image)
+        return float(torch.sigmoid(output[0, class_idx]).detach().cpu().item())
+
+
+def faithfulness_curve_rows(
+    model: torch.nn.Module,
+    model_input: torch.Tensor,
+    heatmap: torch.Tensor,
+    class_idx: int,
+    fractions: list[float],
+) -> list[dict[str, float]]:
+    if not fractions:
+        return []
+    flat_order = torch.argsort(heatmap.flatten().to(model_input.device), descending=True)
+    original_flat = model_input.detach().clone().flatten()
+    baseline_flat = torch.zeros_like(original_flat)
+    rows: list[dict[str, float]] = []
+    total_pixels = flat_order.numel()
+    for fraction in fractions:
+        keep_count = int(round(total_pixels * fraction))
+        insertion_flat = baseline_flat.clone()
+        deletion_flat = original_flat.clone()
+        if keep_count > 0:
+            selected = flat_order[:keep_count]
+            insertion_flat[selected] = original_flat[selected]
+            deletion_flat[selected] = baseline_flat[selected]
+        insertion = insertion_flat.view_as(model_input)
+        deletion = deletion_flat.view_as(model_input)
+        rows.append(
+            {
+                "fraction": round(fraction, 6),
+                "insertion_probability": round(
+                    model_probability(model, insertion, class_idx), 6
+                ),
+                "deletion_probability": round(
+                    model_probability(model, deletion, class_idx), 6
+                ),
+            }
+        )
+    return rows
+
+
+def curve_auc(rows: list[dict[str, str | int | float]], value_key: str) -> float:
+    points = sorted((float(row["fraction"]), float(row[value_key])) for row in rows)
+    if len(points) < 2:
+        return 0.0
+    auc = 0.0
+    for (x0, y0), (x1, y1) in zip(points[:-1], points[1:]):
+        auc += (x1 - x0) * (y0 + y1) / 2.0
+    return auc
+
+
+def write_faithfulness_summary(
+    faithfulness_rows: list[dict[str, str | int | float]], output_path: Path
+) -> None:
+    grouped: dict[tuple[int, str], list[dict[str, str | int | float]]] = defaultdict(list)
+    for row in faithfulness_rows:
+        grouped[(int(row["sample_id"]), str(row["method"]))].append(row)
+
+    per_case: dict[str, list[dict[str, float]]] = defaultdict(list)
+    for (_sample_id, method), rows in grouped.items():
+        insertion_auc = curve_auc(rows, "insertion_probability")
+        deletion_auc = curve_auc(rows, "deletion_probability")
+        per_case[method].append(
+            {
+                "insertion_auc": insertion_auc,
+                "deletion_auc": deletion_auc,
+                "deletion_drop_auc": 1.0 - deletion_auc,
+            }
+        )
+
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "method",
+                "case_count",
+                "insertion_auc_mean",
+                "deletion_auc_mean",
+                "deletion_drop_auc_mean",
+            ],
+        )
+        writer.writeheader()
+        for method, values in sorted(per_case.items()):
+            writer.writerow(
+                {
+                    "method": method,
+                    "case_count": len(values),
+                    "insertion_auc_mean": round(
+                        float(np.mean([item["insertion_auc"] for item in values])), 6
+                    ),
+                    "deletion_auc_mean": round(
+                        float(np.mean([item["deletion_auc"] for item in values])), 6
+                    ),
+                    "deletion_drop_auc_mean": round(
+                        float(np.mean([item["deletion_drop_auc"] for item in values])), 6
+                    ),
+                }
+            )
+
+
+def plot_faithfulness_curves(
+    faithfulness_rows: list[dict[str, str | int | float]], output_path: Path, title: str
+) -> None:
+    if not faithfulness_rows:
+        return
+    grouped: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
+    for row in faithfulness_rows:
+        grouped[str(row["method"])].append(row)
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5), sharey=True)
+    for method, rows in sorted(grouped.items()):
+        by_fraction: dict[float, list[dict[str, str | int | float]]] = defaultdict(list)
+        for row in rows:
+            by_fraction[float(row["fraction"])].append(row)
+        fractions = sorted(by_fraction)
+        axes[0].plot(
+            fractions,
+            [
+                float(
+                    np.mean(
+                        [float(row["insertion_probability"]) for row in by_fraction[fraction]]
+                    )
+                )
+                for fraction in fractions
+            ],
+            marker="o",
+            linewidth=1.5,
+            label=method,
+        )
+        axes[1].plot(
+            fractions,
+            [
+                float(
+                    np.mean(
+                        [float(row["deletion_probability"]) for row in by_fraction[fraction]]
+                    )
+                )
+                for fraction in fractions
+            ],
+            marker="o",
+            linewidth=1.5,
+            label=method,
+        )
+
+    axes[0].set_title("Insertion")
+    axes[0].set_xlabel("Fraction of top-attributed pixels restored")
+    axes[0].set_ylabel("Pneumothorax probability")
+    axes[1].set_title("Deletion")
+    axes[1].set_xlabel("Fraction of top-attributed pixels removed")
+    for axis in axes:
+        axis.set_ylim(0.0, 1.0)
+        axis.grid(alpha=0.25)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8)
+    fig.suptitle(title)
+    fig.tight_layout(rect=(0, 0.12, 1, 0.95))
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+
+
 def save_selected_threshold_image(
     image: torch.Tensor,
     selected_mask: torch.Tensor,
@@ -307,6 +488,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     device = resolve_device(args.device)
+    faithfulness_fractions = parse_optional_fractions(args.faithfulness_fractions)
     calibrated_fractions = read_calibrated_fractions(
         Path(args.calibrated_fractions) if args.calibrated_fractions else None
     )
@@ -323,10 +505,12 @@ def main() -> None:
     gradcam = GradCAM(model, model.features.denseblock4)
 
     metric_rows: list[dict[str, str | int | float]] = []
+    faithfulness_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
         image = load_image(Path(row["image_path"]), args.image_size)
         mask = load_mask(Path(row["mask_path"]), args.image_size)
         model_input = image.unsqueeze(0).to(device)
+        case_faithfulness_rows: list[dict[str, str | int | float]] = []
 
         with torch.no_grad():
             output = model(model_input)
@@ -336,8 +520,17 @@ def main() -> None:
             )
 
         cam_map = gradcam(model_input, class_idx=class_idx)
+        cam_plus_plus_map = gradcam(
+            model_input, class_idx=class_idx, variant="grad_cam_plus_plus"
+        )
         negative_cam_map = gradcam(
             model_input, class_idx=class_idx, polarity="negative"
+        )
+        negative_cam_plus_plus_map = gradcam(
+            model_input,
+            class_idx=class_idx,
+            polarity="negative",
+            variant="grad_cam_plus_plus",
         )
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps
@@ -360,7 +553,9 @@ def main() -> None:
 
         methods = {
             "grad_cam": cam_map,
+            "grad_cam_plus_plus": cam_plus_plus_map,
             "grad_cam_negative": negative_cam_map,
+            "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
             "integrated_gradients": ig_map,
             "integrated_gradients_positive": ig_positive_map,
             "integrated_gradients_negative": ig_negative_map,
@@ -373,6 +568,18 @@ def main() -> None:
                 method_name, args.top_fraction)
             metrics = localization_metrics(
                 heatmap, mask, fraction=top_fraction)
+            for faithfulness_row in faithfulness_curve_rows(
+                model, model_input, heatmap, class_idx, faithfulness_fractions
+            ):
+                enriched_faithfulness_row = {
+                    "sample_id": sample_idx,
+                    "filename": row.get("filename", Path(row["image_path"]).name),
+                    "split": row.get("split", ""),
+                    "method": method_name,
+                    **faithfulness_row,
+                }
+                faithfulness_rows.append(enriched_faithfulness_row)
+                case_faithfulness_rows.append(enriched_faithfulness_row)
             negative_metrics = {
                 "negative_mask_overlap_fraction": "",
                 "negative_mask_avoidance_fraction": "",
@@ -472,6 +679,15 @@ def main() -> None:
                     neutral_selected_mask=neutral_selected_mask,
                 )
 
+        if faithfulness_fractions and sample_idx < args.max_overlays:
+            case_dir = output_dir / safe_case_name(sample_idx, row)
+            case_dir.mkdir(parents=True, exist_ok=True)
+            plot_faithfulness_curves(
+                case_faithfulness_rows,
+                case_dir / "faithfulness_curves.png",
+                f"Faithfulness curves: {row.get('filename', Path(row['image_path']).name)}",
+            )
+
     gradcam.remove_hooks()
 
     metrics_path = output_dir / "metrics.csv"
@@ -495,6 +711,32 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(metric_rows)
 
+    if faithfulness_fractions:
+        faithfulness_path = output_dir / "faithfulness_curves.csv"
+        with faithfulness_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "sample_id",
+                    "filename",
+                    "split",
+                    "method",
+                    "fraction",
+                    "insertion_probability",
+                    "deletion_probability",
+                ],
+            )
+            writer.writeheader()
+            writer.writerows(faithfulness_rows)
+        write_faithfulness_summary(
+            faithfulness_rows, output_dir / "faithfulness_summary.csv"
+        )
+        plot_faithfulness_curves(
+            faithfulness_rows,
+            output_dir / "faithfulness_curves.png",
+            "Aggregate faithfulness curves",
+        )
+
     summary_path = output_dir / "metrics_summary.csv"
     write_metric_summary(metric_rows, summary_path)
 
@@ -503,6 +745,10 @@ def main() -> None:
     print(f"Positive cases evaluated: {len(rows)}")
     print(f"Metrics written to: {metrics_path}")
     print(f"Metric summary written to: {summary_path}")
+    if faithfulness_fractions:
+        print(f"Faithfulness curves written to: {output_dir / 'faithfulness_curves.csv'}")
+        print(f"Faithfulness summary written to: {output_dir / 'faithfulness_summary.csv'}")
+        print(f"Faithfulness plot written to: {output_dir / 'faithfulness_curves.png'}")
     print(f"Overlay case folders written to: {output_dir}")
 
 

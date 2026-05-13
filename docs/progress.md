@@ -1105,3 +1105,593 @@ Future thesis/reference note:
 - The data section should cite the Kaggle/SIIM-ACR pneumothorax chest X-ray dataset and include the exact dataset details used in this project, including local source path, manifest/split construction, image and mask counts, positive/negative counts, preprocessing steps, and any sampled calibration/evaluation subsets.
 - The model/methods section should list all models and explainability methods actually used in the research, including the unchanged pretrained `TorchXRayVision` `DenseNet` baseline with `densenet121-res224-all` weights, classifier thresholding details, `Grad-CAM`, signed negative `Grad-CAM`, `Integrated Gradients` magnitude, signed positive/negative/combined `Integrated Gradients`, consensus overlays, and calibrated heatmap top-fraction thresholding.
 - Before final writing, verify exact tool names, versions, dates, package versions, dataset citation text, and model weight identifiers from the environment and generated artifacts instead of relying only on memory.
+
+## 2026-05-13 - Full Future Work Explanation: XAI Methods and Faithfulness Metrics
+
+This section preserves the full explanation of optional faithfulness metrics and candidate XAI methods because it will be useful later for thesis writing, future-work discussion, method selection, and figure interpretation.
+
+### Optional Faithfulness Metrics
+
+These are not new explanation methods. They are evaluation tests that ask whether an attribution map is actually faithful to the model's behavior.
+
+#### Deletion / Insertion Curve
+
+- Purpose: tests whether the highlighted pixels are truly important for the model output.
+- `Deletion`: progressively remove or blur the most-attributed pixels first.
+  - If the explanation is good, the pneumothorax score should drop quickly.
+- `Insertion`: start from a blank/blurred image and progressively add the most-attributed pixels back.
+  - If the explanation is good, the pneumothorax score should rise quickly.
+- What it tells us:
+  - Whether the heatmap identifies pixels that actually affect the model score.
+- Thesis value:
+  - Very useful because it evaluates attribution against the model itself, not only against the segmentation mask.
+
+Example interpretation:
+
+```text
+A method may overlap poorly with the ground-truth mask but still strongly affect the model score. That means it is faithful to the model, but the model may be relying on non-lesion evidence.
+```
+
+#### Captum Infidelity
+
+- Purpose: measures whether the attribution map correctly predicts the model's output change when the input is perturbed.
+- Idea:
+  - perturb the image;
+  - observe how much the model output changes;
+  - compare that real output change to what the attribution map predicted.
+- Lower infidelity is better.
+- What it tells us:
+  - Whether attribution values are numerically consistent with model behavior.
+- Thesis value:
+  - Good for saying whether an explanation is mathematically faithful, even if it is not clinically localized.
+
+#### Captum Sensitivity
+
+- Purpose: measures explanation stability under small input perturbations.
+- Idea:
+  - slightly perturb the image;
+  - recompute or compare attribution behavior;
+  - check how much the explanation changes.
+- Lower sensitivity generally means more stable explanations.
+- What it tells us:
+  - Whether the explanation is robust or fragile.
+- Thesis value:
+  - Important for medical imaging because a clinically useful explanation should not change drastically from tiny image noise.
+
+### Important Distinction
+
+There are two evaluation families here:
+
+| Evaluation Type | Question Asked |
+|---|---|
+| Mask localization metrics | Does the explanation overlap the annotated pneumothorax mask? |
+| Faithfulness metrics | Does the explanation reflect what the model actually uses? |
+
+This distinction is very important for the thesis.
+
+A method can be:
+
+- clinically well-localized but not very faithful;
+- faithful to the model but clinically wrong;
+- stable but not localized;
+- localized but unstable.
+
+That is exactly why comparing several metrics is stronger than relying only on `Dice` or visual overlays.
+
+### What Each XAI Method Brings
+
+#### Grad-CAM
+
+- Already in the workflow.
+- Uses gradients of the target class with respect to late convolutional feature maps.
+- Produces coarse class-discriminative regions.
+- Strength:
+  - easy to interpret visually;
+  - good for saying which broad region supports the class output;
+  - signed version lets us separate red positive evidence and blue negative evidence.
+- Weakness:
+  - low spatial resolution;
+  - may miss small pneumothorax regions;
+  - depends on the chosen convolutional layer.
+
+Thesis role:
+
+```text
+Baseline class-discriminative localization method.
+```
+
+#### Grad-CAM++
+
+- Extension of Grad-CAM.
+- Uses a more refined weighting of gradients, designed to better handle multiple object regions or small discriminative regions.
+- Potential advantage over Grad-CAM:
+  - can produce sharper or more localized maps;
+  - may better detect small pneumothorax regions.
+- Weakness:
+  - slightly more complex;
+  - still feature-map based and upsampled;
+  - not guaranteed to improve medical localization.
+
+What different information it brings:
+
+```text
+Whether a more refined CAM weighting improves lesion localization compared with standard Grad-CAM.
+```
+
+For this thesis, this is probably the most natural next CAM method to add.
+
+#### Eigen-CAM
+
+- CAM-style method that does not require gradients.
+- Uses principal components of feature activations to highlight dominant activation patterns.
+- It shows where the model has strong internal feature activity, but it is less class-specific unless adapted carefully.
+- Strength:
+  - gradient-free;
+  - often visually smooth and stable;
+  - useful as an activation-structure baseline.
+- Weakness:
+  - may show what the network activates on, not necessarily what supports pneumothorax specifically;
+  - weaker for signed red/blue target-evidence interpretation.
+
+What different information it brings:
+
+```text
+Whether dominant internal CNN activations align with the lesion, independent of target-class gradients.
+```
+
+Thesis role:
+
+```text
+A gradient-free activation localization comparison.
+```
+
+#### Score-CAM
+
+- CAM-style method that avoids gradients.
+- It masks the input image using activation maps and checks how each masked image changes the class score.
+- Strength:
+  - more directly score-based than Grad-CAM;
+  - can be more faithful in some cases;
+  - avoids noisy gradients.
+- Weakness:
+  - much slower because it requires many forward passes;
+  - expensive for 100+ X-rays and multiple thresholds;
+  - may be impractical unless used on small subsets.
+
+What different information it brings:
+
+```text
+Whether score-based perturbation of activation regions agrees with gradient-based CAM evidence.
+```
+
+Thesis role:
+
+```text
+Potentially stronger but computationally expensive CAM alternative.
+```
+
+If time is limited, choose `Grad-CAM++` before `Score-CAM`.
+
+#### Integrated Gradients
+
+- Already expanded in the workflow.
+- Attributes the model output back to input pixels by integrating gradients from a baseline image to the actual X-ray.
+- Conceptually there are now:
+  - magnitude IG: neutral violet impact map;
+  - positive IG: red positive contribution;
+  - negative IG: blue negative contribution;
+  - signed IG: red/blue combined.
+- Strength:
+  - pixel-level attribution;
+  - theoretically grounded;
+  - captures contributions relative to a baseline.
+- Weakness:
+  - depends heavily on baseline choice;
+  - can be noisy;
+  - sign interpretation needs careful wording.
+
+What different information it brings:
+
+```text
+Which input-level pixels contribute most to the pneumothorax output, compared with a baseline image.
+```
+
+Thesis role:
+
+```text
+Input-level attribution complement to Grad-CAM's feature-map-level attribution.
+```
+
+#### GradientSHAP / SHAP-style Attribution
+
+- Combines ideas from Integrated Gradients and SHAP.
+- Instead of using one fixed baseline, it samples multiple baselines/noisy variants and estimates attribution more like an expected contribution.
+- Strength:
+  - better accounts for baseline uncertainty;
+  - more SHAP-like feature contribution interpretation;
+  - useful if IG baseline choice is questionable.
+- Weakness:
+  - more computationally expensive than IG;
+  - still sensitive to baseline distribution;
+  - may be noisy unless enough samples are used.
+
+What different information it brings:
+
+```text
+Whether attribution remains consistent when baseline uncertainty is modeled rather than fixed to one reference image.
+```
+
+Thesis role:
+
+```text
+Robustness check for IG-style pixel attribution.
+```
+
+This is scientifically useful, but probably second priority after `Grad-CAM++`.
+
+#### Occlusion Sensitivity
+
+- Perturbation-based method.
+- Slides a patch over the image and masks/occludes that region.
+- Measures how much the pneumothorax score changes.
+- If occluding a region drops the score, that region was important positive evidence.
+- If occluding a region increases the score, that region was suppressing the target.
+- Strength:
+  - very intuitive;
+  - directly measures causal effect on model output;
+  - does not rely on gradients.
+- Weakness:
+  - slow;
+  - patch size matters;
+  - lower spatial precision depending on stride and patch size.
+
+What different information it brings:
+
+```text
+Which regions are causally important according to direct input removal, not gradients.
+```
+
+Thesis role:
+
+```text
+Perturbation-based sanity check for attribution maps.
+```
+
+This would be very useful for selected cases, especially `TP`, `FP`, `TN`, and suspicious examples.
+
+#### LIME
+
+- Perturbation-based local surrogate method.
+- Splits the image into superpixels, perturbs them on/off, and fits a simple interpretable model around that one prediction.
+- Strength:
+  - intuitive;
+  - model-agnostic;
+  - can explain local prediction behavior.
+- Weakness:
+  - superpixels are often awkward for X-rays;
+  - results depend heavily on segmentation settings;
+  - can be unstable;
+  - may require tuning to avoid misleading medical-image explanations.
+
+What different information it brings:
+
+```text
+Which image regions a simple local surrogate model thinks are responsible for the prediction.
+```
+
+Thesis role:
+
+```text
+Optional model-agnostic comparison, but only if implementation is cheap.
+```
+
+Do not prioritize `LIME` unless there is spare time.
+
+### Recommended Priority for This Thesis
+
+#### Priority 1 - Add Grad-CAM++
+
+- Most natural extension of current Grad-CAM.
+- Keeps the red/blue class-evidence discussion coherent.
+- Likely easy to compare with current metrics and selected-threshold images.
+
+#### Priority 2 - Add faithfulness metrics
+
+Especially:
+
+- deletion curve;
+- insertion curve;
+- maybe Captum infidelity/sensitivity on a smaller subset.
+
+This is highly thesis-relevant because it separates:
+
+```text
+Does the map overlap the lesion?
+```
+
+from:
+
+```text
+Does the map actually explain the model score?
+```
+
+#### Priority 3 - Add Occlusion Sensitivity for selected cases
+
+- Very useful for qualitative validation.
+- Especially for confusing `FP` and suspicious `TP` cases.
+- Maybe not necessary for all 100 images if runtime is high.
+
+#### Priority 4 - Add GradientSHAP
+
+- Good robustness comparison for IG.
+- Useful if discussing baseline sensitivity.
+
+#### Lower Priority - Score-CAM / Eigen-CAM / LIME
+
+- `Score-CAM`: useful but slow.
+- `Eigen-CAM`: useful but less class-specific.
+- `LIME`: optional, but may be unstable on CXR images.
+
+### What Different Information They Bring Together
+
+A strong thesis framing would be:
+
+| Method / Metric | Main Question |
+|---|---|
+| `Grad-CAM` | Which high-level regions support or suppress pneumothorax? |
+| `Grad-CAM++` | Does refined CAM weighting improve localization, especially for small lesions? |
+| `Integrated Gradients` | Which input pixels contribute most relative to a baseline? |
+| `GradientSHAP` | Are pixel attributions robust to baseline uncertainty? |
+| `Occlusion Sensitivity` | Which regions causally change the model score when removed? |
+| `Score-CAM` | Which activation regions increase the score via forward-pass masking? |
+| `Eigen-CAM` | Where are dominant internal CNN activations located, gradient-free? |
+| `LIME` | What local region-level surrogate explanation approximates this prediction? |
+| `Deletion / Insertion` | Do highlighted pixels actually control the model score? |
+| `Infidelity` | Do attribution values predict output changes under perturbation? |
+| `Sensitivity` | Are explanations stable under small input changes? |
+
+### Best Thesis-Safe Conclusion
+
+The most important message is:
+
+```text
+Different XAI methods answer different questions. Some localize class-discriminative CNN regions, some attribute the output to input pixels, some test causal score changes through perturbation, and faithfulness metrics evaluate whether the explanations actually reflect the model's behavior. Therefore, agreement between methods is stronger evidence than any single heatmap, while disagreement is itself an important validation finding.
+```
+
+For the next implementation step, the selected direction was:
+
+```text
+Grad-CAM++ + deletion/insertion faithfulness curves
+```
+
+That combination adds both a stronger visual method and a more rigorous explanation-quality evaluation.
+
+## 2026-05-13 - Iteration 12: Grad-CAM++ and Deletion/Insertion Faithfulness Started
+
+- Implemented the first prioritized future-work item:
+  - added `Grad-CAM++` positive evidence maps;
+  - added `Grad-CAM++` negative signed evidence maps;
+  - added optional deletion/insertion faithfulness curve output in the main CXR evaluation script.
+- `scripts/run_cxr_torchxray_smoke.py` now accepts `--faithfulness-fractions`, for example `0.0,0.5,1.0`, and writes `faithfulness_curves.csv` with insertion and deletion pneumothorax probabilities per method/fraction.
+- `Grad-CAM++` is now included in:
+  - main evaluation metrics and grouped PNG output;
+  - heatmap threshold calibration;
+  - single-image threshold selection visualization;
+  - classifier-outcome threshold visualization.
+- Smoke outputs generated:
+  - `outputs/iter_12_gradcampp_faithfulness_smoke`
+  - `outputs/iter_12_gradcampp_calibration_smoke`
+  - `outputs/iter_12_gradcampp_threshold_smoke`
+- Verification:
+  - WSL `py_compile` passed for changed Python files;
+  - CUDA main smoke confirmed `grad_cam_plus_plus`, `grad_cam_plus_plus_negative`, and `faithfulness_curves.csv`;
+  - CUDA calibration smoke confirmed selected fractions include the new methods;
+  - CUDA threshold smoke confirmed Grad-CAM++ sweep panels are generated.
+
+## 2026-05-14 - Iteration 13: Classifier Outcome Output Layout Corrected
+
+- Corrected `scripts/visualize_cxr_classifier_outcome_thresholds.py` output layout after the main output refactor.
+- Desired classifier-outcome layout convention:
+  - keep top-level classifier outcome folders: `tp`, `fp`, `tn`, `fn`;
+  - inside each outcome folder, create one folder per source X-ray/case;
+  - inside each case folder, keep all generated PNGs flat as sibling files, without per-method subfolders.
+- Added the source X-ray stem to each generated PNG filename so an exported/copied individual image remains traceable to its original case.
+- Smoke output generated:
+  - `outputs/iter_13_classifier_outcome_grouped_flat_smoke`
+- Verification:
+  - WSL `py_compile` passed for `scripts/visualize_cxr_classifier_outcome_thresholds.py`;
+  - CUDA smoke with 2 test cases produced `tp` and `tn` folders;
+  - each outcome folder contains per-case folders such as `case_000_tp_0_test_1`;
+  - case folders contain flat files such as `0_test_1_consensus.png`, `0_test_1_consensus_selected_top_05.png`, and `0_test_1_consensus_threshold_sweep_panel.png` with no nested method directories.
+
+## 2026-05-14 - Iteration 14: Threshold Metrics CSV Clarified
+
+- Investigated confusing apparent duplicate rows in `threshold_metrics.csv` from `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Finding:
+  - rows are not duplicate samples;
+  - the intended row key is `sample_index` + `method` + `top_fraction`;
+  - repeated rows for the same `sample_index` are expected because each source X-ray is evaluated for every method and every threshold fraction.
+- Fixed misleading epsilon-only metric values:
+  - no-overlap `IoU`, `Dice`, and `precision_at_fraction` now return exact `0.0` instead of tiny values such as `2.94e-12`;
+  - this makes no-overlap cases visually and numerically unambiguous.
+- Added traceability and backend-debug columns to classifier-outcome `threshold_metrics.csv`:
+  - `source_stem`, `image_path`, `mask_path`;
+  - `metric_component`;
+  - `top_fraction_percent`;
+  - `positive_localization_applicable`;
+  - `selected_pixel_count`, `mask_pixel_count`, `intersection_pixel_count`, `union_pixel_count`.
+- Positive lesion-localization metrics are now blank for negative-label/no-mask cases in classifier-outcome threshold runs, because `IoU`/`Dice` against an empty mask are not meaningful lesion-localization scores.
+- Negative evidence diagnostics remain separate:
+  - `negative_mask_overlap_fraction` shows how much selected negative evidence intersects the mask;
+  - `negative_mask_avoidance_fraction` is the complementary avoidance score.
+- Smoke output generated:
+  - `outputs/iter_14_threshold_metrics_clarity_smoke`
+- Verification:
+  - WSL `py_compile` passed for `src/explainai_thesis/metrics.py` and `scripts/visualize_cxr_classifier_outcome_thresholds.py`;
+  - CUDA smoke with 2 test cases completed successfully;
+  - inspected `threshold_metrics.csv` and confirmed the new columns, blank positive metrics for `tn`, and exact zero no-overlap behavior.
+
+## 2026-05-14 - Iteration 15: Faithfulness Curves Visualized
+
+- Expanded the deletion/insertion faithfulness output from CSV-only values into thesis-readable visual artifacts.
+- `scripts/run_cxr_torchxray_smoke.py` now writes the following whenever `--faithfulness-fractions` is provided:
+  - `faithfulness_curves.csv`: raw per-case/per-method/per-fraction insertion and deletion probabilities;
+  - `faithfulness_summary.csv`: method-level mean insertion AUC, deletion AUC, and deletion-drop AUC;
+  - `faithfulness_curves.png`: aggregate line plot comparing insertion and deletion curves across methods;
+  - `case_XXX_<source_stem>/faithfulness_curves.png`: per-case line plot inside each exported case folder.
+- Interpretation reminder:
+  - strong insertion behavior means pneumothorax probability rises quickly when top-attributed pixels are restored from a blank baseline;
+  - strong deletion behavior means pneumothorax probability drops quickly when top-attributed pixels are removed from the original image;
+  - these curves evaluate faithfulness to the model score, not direct lesion-mask localization.
+- Smoke output generated:
+  - `outputs/iter_15_faithfulness_plots_smoke`
+- Verification:
+  - WSL `py_compile` passed for `scripts/run_cxr_torchxray_smoke.py`;
+  - CUDA smoke with 1 positive test case and `--faithfulness-fractions 0.0,0.5,1.0` completed successfully;
+  - confirmed root `faithfulness_curves.csv`, `faithfulness_summary.csv`, root `faithfulness_curves.png`, and case-level `faithfulness_curves.png` exist.
+
+### Faithfulness Chart Readability and Interpretation Note
+
+- The first generated chart at `outputs/iter_15_faithfulness_plots_smoke/faithfulness_curves.png` is readable enough for an internal smoke-test check, but not yet thesis/report quality.
+- Readability limitations:
+  - too many methods are plotted together and many curves overlap almost exactly;
+  - the legend is large and far from the plots;
+  - the smoke run used only three fraction points, `0.0`, `0.5`, and `1.0`, making the curve shape too coarse;
+  - the y-axis is fixed to `0–1`, while the observed probabilities are compressed around `0.50–0.64`;
+  - positive, negative, magnitude, and consensus methods are mixed in one figure even though they answer partly different questions.
+- Meaning of the chart:
+  - it is an aggregate deletion/insertion faithfulness curve plot;
+  - it asks whether pixels ranked as important by an attribution method actually control the TorchXRayVision pneumothorax score.
+- Insertion panel interpretation:
+  - x-axis = fraction of top-attributed pixels restored into a baseline/blank image;
+  - y-axis = pneumothorax probability after restoration;
+  - a faithful explanation should ideally rise quickly, because restoring only the most important pixels should recover much of the original pneumothorax score.
+- Deletion panel interpretation:
+  - x-axis = fraction of top-attributed pixels removed from the original image;
+  - y-axis = pneumothorax probability after removal;
+  - a faithful explanation should ideally drop quickly, because removing truly important pixels should reduce the pneumothorax score.
+- Safe interpretation of the smoke chart:
+  - it proves the plotting pipeline works;
+  - it is not a thesis result because it used only one positive X-ray and three coarse fraction points;
+  - no method clearly shows ideal insertion/deletion behavior in that smoke chart;
+  - the model probability remains roughly in a narrow `0.50–0.64` range across perturbations.
+- Recommended thesis-quality improvements:
+  - run on `50–100` positive test cases or another clearly defined evaluation subset;
+  - use finer fractions such as `0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,0.90,1.0`;
+  - separate method families in plots, for example CAM methods vs Integrated Gradients variants;
+  - use `faithfulness_summary.csv` AUC values for method comparison;
+  - consider a zoomed y-axis version if probabilities remain compressed.
+- Thesis interpretation guidance:
+  - higher insertion AUC means the method restores the model score faster from important pixels;
+  - lower deletion AUC, or higher deletion-drop AUC, means the method removes score-supporting evidence more effectively;
+  - disagreement between localization metrics and faithfulness metrics is important, because a heatmap may be faithful to the model but not clinically localized, or visually/clinically plausible but not actually controlling the model score.
+
+## 2026-05-14 - Iteration 16: Finer Faithfulness Evaluation on 50 Positive Test X-rays
+
+- Generated a more meaningful deletion/insertion faithfulness output beyond the initial smoke chart.
+- Command:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 50 --ig-steps 16 --max-overlays 10 --faithfulness-fractions 0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,0.90,1.0 --output-dir outputs/iter_16_faithfulness_test50_fine
+```
+
+- Output folder:
+  - `outputs/iter_16_faithfulness_test50_fine`
+- Main artifacts:
+  - `metrics.csv`
+  - `metrics_summary.csv`
+  - `faithfulness_curves.csv`
+  - `faithfulness_summary.csv`
+  - `faithfulness_curves.png`
+  - per-case folders for the first 10 overlay-exported cases, each including `faithfulness_curves.png`.
+- Faithfulness summary from 50 positive test cases:
+
+| Method | Insertion AUC mean | Deletion AUC mean | Deletion-drop AUC mean |
+|---|---:|---:|---:|
+| `consensus` | `0.625316` | `0.619961` | `0.380039` |
+| `grad_cam` | `0.627488` | `0.622606` | `0.377394` |
+| `grad_cam_negative` | `0.622913` | `0.626269` | `0.373731` |
+| `grad_cam_plus_plus` | `0.627415` | `0.621973` | `0.378027` |
+| `grad_cam_plus_plus_negative` | `0.626356` | `0.622891` | `0.377109` |
+| `integrated_gradients` | `0.567037` | `0.550506` | `0.449494` |
+| `integrated_gradients_negative` | `0.545448` | `0.552268` | `0.447732` |
+| `integrated_gradients_positive` | `0.546898` | `0.552045` | `0.447955` |
+| `integrated_gradients_signed` | `0.546898` | `0.552045` | `0.447955` |
+
+- Initial reading:
+  - CAM-family methods have slightly higher insertion AUC, meaning they restore the model score faster under the current insertion protocol;
+  - IG-family methods have lower deletion AUC and higher deletion-drop AUC, meaning removing IG-ranked pixels suppresses the model score more strongly under the current deletion protocol;
+  - this suggests method disagreement between insertion and deletion faithfulness, which is thesis-relevant and should be discussed together with localization metrics rather than treated as a single winner.
+- Verification:
+  - CUDA run completed successfully on WSL;
+  - confirmed root `faithfulness_curves.csv`, `faithfulness_summary.csv`, `faithfulness_curves.png`, `metrics.csv`, and `metrics_summary.csv` exist;
+  - confirmed at least one exported case folder contains a case-level `faithfulness_curves.png`.
+
+### Deletion/Insertion Probability Source and Curve Behavior Interpretation
+
+- Deletion/insertion faithfulness evaluates the `TorchXRayVision` model's pneumothorax probability, not a separate metric model.
+- The implementation calls the same loaded model and target class after perturbing the input image:
+
+```python
+output = model(image)
+probability = torch.sigmoid(output[0, class_idx])
+```
+
+- For each method heatmap, pixels are sorted from highest attribution to lowest attribution.
+- Insertion:
+  - starts from a zero baseline image;
+  - restores the top-fraction pixels from the original X-ray;
+  - re-evaluates the `TorchXRayVision` pneumothorax probability.
+- Deletion:
+  - starts from the original X-ray;
+  - replaces the top-fraction pixels with the zero baseline;
+  - re-evaluates the `TorchXRayVision` pneumothorax probability.
+- Therefore, every insertion/deletion point is a real forward pass through `TorchXRayVision`.
+- If `Grad-CAM` causes a noticeable probability drop at `0.1`, this means the top `10%` `Grad-CAM`-ranked pixels contain regions that the model uses strongly for the pneumothorax score.
+- For deletion, this is the expected faithfulness behavior: removing top-ranked evidence should reduce the model's target probability.
+- For insertion, if restoring the top `10%` already changes the probability strongly, the ranked region carries high score-relevant information.
+- A steep `Grad-CAM` curve suggests that `Grad-CAM` is relatively good at identifying score-controlling regions for this model, even if those regions do not always overlap well with the pneumothorax mask.
+- Behavior near `0.9` should be interpreted carefully:
+  - at deletion `0.9`, `90%` of the image has been removed and only `10%` remains original;
+  - at insertion `0.9`, `90%` of the image has been restored and only `10%` remains baseline.
+- Strong probability changes near `0.9` may reflect broad image context, background, lung field structure, or artifacts caused by replacing large image areas with zero baseline, not only lesion-specific evidence.
+- `Grad-CAM++` may fluctuate because it uses different weighting logic from standard `Grad-CAM` and may rank sharper, smaller, or different discriminative regions.
+- Non-monotonic `Grad-CAM++` behavior can occur because:
+  - removing a small region can expose other evidence or remove suppressive evidence;
+  - the perturbed image is not a natural X-ray;
+  - the pretrained `TorchXRayVision` output is only moderately calibrated for this dataset;
+  - the model response to artificial masking does not have to be perfectly monotonic.
+- Important thesis point: deletion/insertion curves are directionally informative, but they are not expected to be perfectly monotonic in real CNNs.
+- `Integrated Gradients` variants can fluctuate more because they rank input pixels rather than broad feature-map regions.
+- IG-ranked top pixels can be scattered, edge-like, high-frequency, signed, and baseline-sensitive, so hard deletion/insertion can create more artificial-looking perturbations than CAM-based deletion/insertion.
+- Current IG variant interpretation:
+  - `integrated_gradients` = absolute/magnitude impact, regardless of sign;
+  - `integrated_gradients_positive` = pixels pushing toward pneumothorax;
+  - `integrated_gradients_negative` = pixels pushing away from pneumothorax;
+  - `integrated_gradients_signed` = positive IG localization with negative IG diagnostics/visual pairing.
+- The magnitude IG map can mix high positive attribution and high negative attribution, so deleting the most impactful IG pixels may remove both score-supporting and score-suppressing evidence.
+- If deletion removes suppressive evidence, pneumothorax probability can increase or fluctuate instead of decreasing smoothly.
+- If individual IG maps fluctuate but `consensus` is smoother, this likely means the consensus is dominated by more spatially coherent CAM-like regions while individual IG variants include finer signed pixel effects.
+- Thesis-safe interpretation:
+
+```text
+Deletion/insertion evaluates faithfulness to the model score, not clinical correctness. A steep curve means the heatmap identifies pixels that control the TorchXRayVision pneumothorax probability. It does not automatically mean those pixels correspond to the true pneumothorax mask.
+```
+
+- If `Grad-CAM` has stronger deletion/insertion behavior but weak `Dice`/`IoU`, that is thesis-important: `Grad-CAM` may be faithful to what the model uses, while the model itself may rely on non-lesion or distributed image evidence.
+- If IG fluctuates, this suggests IG may capture fine-grained signed input sensitivity, but ranked-pixel perturbations are less spatially coherent and can produce non-monotonic model responses.
+- Practical interpretation rule:
+  - strong deletion drop = method found pixels important to the model score;
+  - strong insertion rise = method found pixels sufficient to restore the model score;
+  - fluctuation = method ranking, sign mixture, baseline artifacts, or distributed model evidence causes non-monotonic response;
+  - good faithfulness but poor mask overlap = model may be using clinically questionable evidence;
+  - good mask overlap but weak faithfulness = visually plausible explanation may not actually control the model score.
+- Current result reading:
+  - `Grad-CAM` and `Grad-CAM++` having higher faithfulness AUCs around `0.62` suggests CAM-style maps are more aligned with `TorchXRayVision` score-controlling regions under the insertion protocol;
+  - IG variants having lower AUCs around `0.55–0.57` suggests the current IG perturbation ranking behaves differently and is less favorable under hard pixel replacement;
+  - this does not make IG useless, but indicates it gives a different, more pixel-level sensitivity view.
+- Thesis-safe wording:
+
+```text
+Deletion and insertion curves were computed by re-evaluating the TorchXRayVision pneumothorax probability after perturbing the input image according to each attribution ranking. CAM-based methods produced a stronger and more coherent probability response, suggesting that their highlighted regions better captured score-controlling image regions for this model. Integrated Gradients variants showed more fluctuation, likely because pixel-level signed attributions are less spatially coherent and because magnitude-based IG can mix positive and negative contributions. Therefore, faithfulness curves should be interpreted as model-behavior diagnostics rather than direct evidence of clinical lesion localization.
+```

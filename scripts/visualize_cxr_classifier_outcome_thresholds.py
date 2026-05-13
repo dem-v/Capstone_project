@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -126,6 +127,18 @@ def classifier_outcome(label: int, probability: float, threshold: float) -> str:
     return "fn"
 
 
+def safe_source_stem(row: dict[str, str]) -> str:
+    stem = Path(row.get("filename") or row["image_path"]).stem
+    safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
+    if not safe_stem:
+        safe_stem = "xray"
+    return safe_stem
+
+
+def safe_case_name(sample_idx: int, outcome: str, source_stem: str) -> str:
+    return f"case_{sample_idx:03d}_{outcome}_{source_stem}"
+
+
 def save_binary_selection(
     image: torch.Tensor,
     selected_mask: torch.Tensor,
@@ -207,6 +220,29 @@ def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fr
     }
 
 
+def selection_counts(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: float) -> dict[str, int]:
+    selected = threshold_top_fraction(heatmap, fraction=fraction).bool()
+    true = true_mask.bool()
+    return {
+        "selected_pixel_count": int(selected.sum().item()),
+        "mask_pixel_count": int(true.sum().item()),
+        "intersection_pixel_count": int((selected & true).sum().item()),
+        "union_pixel_count": int((selected | true).sum().item()),
+    }
+
+
+def metric_component(method_name: str) -> str:
+    if method_name == "consensus":
+        return "positive_consensus_with_negative_grad_cam_diagnostics"
+    if method_name == "integrated_gradients_signed":
+        return "positive_ig_with_negative_ig_diagnostics"
+    if method_name == "integrated_gradients":
+        return "absolute_ig_magnitude"
+    if is_negative_method(method_name):
+        return "negative_evidence"
+    return "positive_evidence"
+
+
 def is_negative_method(method_name: str) -> bool:
     return method_name.endswith("_negative")
 
@@ -254,13 +290,18 @@ def main() -> None:
 
         outcome = classifier_outcome(label, probability, args.threshold)
         outcome_counts[outcome] += 1
-        case_name = f"case_{sample_idx:03d}_{outcome}_{row.get('filename', Path(row['image_path']).stem)}"
+        source_stem = safe_source_stem(row)
+        case_name = safe_case_name(sample_idx, outcome, source_stem)
         case_dir = output_dir / outcome / case_name
         case_dir.mkdir(parents=True, exist_ok=True)
 
         cam_map = gradcam(model_input, class_idx=class_idx)
+        cam_plus_plus_map = gradcam(
+            model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
         negative_cam_map = gradcam(
             model_input, class_idx=class_idx, polarity="negative")
+        negative_cam_plus_plus_map = gradcam(
+            model_input, class_idx=class_idx, polarity="negative", variant="grad_cam_plus_plus")
         ig_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps)
         ig_positive_map = integrated_gradients(
@@ -271,7 +312,9 @@ def main() -> None:
 
         methods = {
             "grad_cam": cam_map,
+            "grad_cam_plus_plus": cam_plus_plus_map,
             "grad_cam_negative": negative_cam_map,
+            "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
             "integrated_gradients": ig_map,
             "integrated_gradients_positive": ig_positive_map,
             "integrated_gradients_negative": ig_negative_map,
@@ -295,13 +338,11 @@ def main() -> None:
         )
 
         for method_name, heatmap in methods.items():
-            method_dir = case_dir / method_name
-            method_dir.mkdir(parents=True, exist_ok=True)
             save_overlay(
                 image,
                 heatmap,
                 mask,
-                method_dir / "continuous_heatmap.png",
+                case_dir / f"{source_stem}_{method_name}.png",
                 heatmap_color=overlay_color_for_method(method_name),
                 negative_heatmap=(
                     negative_cam_map if method_name == "consensus"
@@ -314,8 +355,10 @@ def main() -> None:
             captions: list[str] = []
             for fraction in fractions:
                 selected = threshold_top_fraction(heatmap, fraction=fraction)
-                selection_path = method_dir / \
-                    f"selected_top_{int(round(fraction * 100)):02d}.png"
+                selection_path = (
+                    case_dir
+                    / f"{source_stem}_{method_name}_selected_top_{int(round(fraction * 100)):02d}.png"
+                )
                 save_binary_selection(
                     image,
                     selected,
@@ -335,8 +378,16 @@ def main() -> None:
                 )
                 panel_paths.append(selection_path)
                 captions.append(f"top {fraction:.0%}")
-                metrics = localization_metrics(
-                    heatmap, mask, fraction=fraction)
+                positive_localization_applicable = label == 1
+                metrics = localization_metrics(heatmap, mask, fraction=fraction)
+                if not positive_localization_applicable:
+                    metrics = {
+                        "iou": "",
+                        "dice": "",
+                        "pointing_hit": "",
+                        "precision_at_fraction": "",
+                    }
+                counts = selection_counts(heatmap, mask, fraction)
                 negative_metrics = {
                     "negative_mask_overlap_fraction": "", "negative_mask_avoidance_fraction": ""}
                 if is_negative_method(method_name):
@@ -352,17 +403,27 @@ def main() -> None:
                     {
                         "sample_index": sample_idx,
                         "filename": row.get("filename", Path(row["image_path"]).name),
+                        "source_stem": source_stem,
+                        "image_path": row["image_path"],
+                        "mask_path": row.get("mask_path", ""),
                         "label": label,
                         "prediction": int(probability >= args.threshold),
                         "classifier_outcome": outcome,
                         "method": method_name,
+                        "metric_component": metric_component(method_name),
                         "top_fraction": fraction,
+                        "top_fraction_percent": int(round(fraction * 100)),
+                        "positive_localization_applicable": int(positive_localization_applicable),
+                        **counts,
                         **metrics,
                         **negative_metrics,
                     }
                 )
-            make_contact_sheet(panel_paths, captions,
-                               method_dir / "threshold_sweep_panel.png")
+            make_contact_sheet(
+                panel_paths,
+                captions,
+                case_dir / f"{source_stem}_{method_name}_threshold_sweep_panel.png",
+            )
 
     gradcam.remove_hooks()
     write_rows(output_dir / "cases.csv", case_rows)

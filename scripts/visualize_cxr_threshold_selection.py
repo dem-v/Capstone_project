@@ -225,8 +225,12 @@ def main() -> None:
             output[0, class_idx]).detach().cpu().item())
 
     cam_map = gradcam(model_input, class_idx=class_idx)
+    cam_plus_plus_map = gradcam(
+        model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
     negative_cam_map = gradcam(
         model_input, class_idx=class_idx, polarity="negative")
+    negative_cam_plus_plus_map = gradcam(
+        model_input, class_idx=class_idx, polarity="negative", variant="grad_cam_plus_plus")
     ig_map = integrated_gradients(
         model, model_input, class_idx=class_idx, steps=args.ig_steps)
     ig_positive_map = integrated_gradients(
@@ -237,7 +241,9 @@ def main() -> None:
 
     methods = {
         "grad_cam": cam_map,
+        "grad_cam_plus_plus": cam_plus_plus_map,
         "grad_cam_negative": negative_cam_map,
+        "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
         "integrated_gradients": ig_map,
         "integrated_gradients_positive": ig_positive_map,
         "integrated_gradients_negative": ig_negative_map,

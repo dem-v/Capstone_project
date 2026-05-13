@@ -30,6 +30,8 @@ def dice_score(pred_mask: torch.Tensor, true_mask: torch.Tensor, eps: float = 1e
     denominator = pred.sum().float() + true.sum().float()
     if denominator.item() == 0:
         return 1.0
+    if intersection.item() == 0:
+        return 0.0
     return ((2 * intersection + eps) / (denominator + eps)).item()
 
 
@@ -40,6 +42,8 @@ def iou_score(pred_mask: torch.Tensor, true_mask: torch.Tensor, eps: float = 1e-
     union = (pred | true).sum().float()
     if union.item() == 0:
         return 1.0
+    if intersection.item() == 0:
+        return 0.0
     return ((intersection + eps) / (union + eps)).item()
 
 
@@ -64,6 +68,8 @@ def precision_at_fraction(
     if selected.item() == 0:
         return 0.0
     true_positive = (pred & true).sum().float()
+    if true_positive.item() == 0:
+        return 0.0
     return ((true_positive + eps) / (selected + eps)).item()
 
 
