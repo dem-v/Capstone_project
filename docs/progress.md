@@ -1080,3 +1080,28 @@ Verification:
 - WSL syntax check passed for `scripts/run_cxr_torchxray_smoke.py`.
 - CUDA smoke evaluation completed at `outputs/iter_10_grouped_main_output_smoke`.
 - Confirmed the smoke output root contains `metrics.csv` and `metrics_summary.csv`, while the PNG artifacts are grouped under `case_000_0_test_1` with all method images as sibling files.
+
+## 2026-05-13 - Consensus Visualization Includes IG Magnitude Layer
+
+Code update:
+- General `consensus` visualization now explicitly includes the neutral violet `integrated_gradients` magnitude map as a separate visual layer, instead of rendering the combined consensus heatmap only as red positive evidence.
+- Continuous consensus overlays now combine red positive consensus evidence, violet IG magnitude impact, blue negative Grad-CAM evidence, and the green ground-truth contour.
+- Consensus selected-threshold images now also include thresholded violet IG magnitude selections, while preserving the existing red/yellow positive selection and blue/cyan negative evidence semantics.
+- The same consensus visual semantics were applied to the main grouped evaluation output and both threshold visualization scripts.
+
+Interpretation note:
+- Consensus Dice/IoU still use the combined positive consensus heatmap for the reported localization score.
+- The violet IG magnitude layer is a qualitative impact layer showing where IG contributes strongly regardless of sign; it should not be described as positive pneumothorax evidence.
+
+Verification:
+- WSL syntax check passed for `src/explainai_thesis/visualization.py`, `scripts/run_cxr_torchxray_smoke.py`, `scripts/visualize_cxr_threshold_selection.py`, and `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- CUDA smoke evaluation completed at `outputs/iter_11_consensus_ig_magnitude_smoke`.
+- Confirmed `consensus.png` and `consensus_selected.png` were generated under the grouped case folder.
+
+## 2026-05-13 - Future Thesis References for Tools, Data, and Models
+
+Future thesis/reference note:
+- The final thesis methodology/acknowledgements/appendix should explicitly reference the software and AI-assisted development tools used during the work, including current `GPT-5.5`, `Codex`, `VS Code`, `PyCharm`, `Junie`, `Claude Sonnet 4.6`, and `Claude Opus 4.7 1M context`, with final version/access details checked near submission time.
+- The data section should cite the Kaggle/SIIM-ACR pneumothorax chest X-ray dataset and include the exact dataset details used in this project, including local source path, manifest/split construction, image and mask counts, positive/negative counts, preprocessing steps, and any sampled calibration/evaluation subsets.
+- The model/methods section should list all models and explainability methods actually used in the research, including the unchanged pretrained `TorchXRayVision` `DenseNet` baseline with `densenet121-res224-all` weights, classifier thresholding details, `Grad-CAM`, signed negative `Grad-CAM`, `Integrated Gradients` magnitude, signed positive/negative/combined `Integrated Gradients`, consensus overlays, and calibrated heatmap top-fraction thresholding.
+- Before final writing, verify exact tool names, versions, dates, package versions, dataset citation text, and model weight identifiers from the environment and generated artifacts instead of relying only on memory.

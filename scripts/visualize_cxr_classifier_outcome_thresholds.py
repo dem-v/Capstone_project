@@ -135,6 +135,7 @@ def save_binary_selection(
     negative_style: bool = False,
     neutral_style: bool = False,
     negative_selected_mask: torch.Tensor | None = None,
+    neutral_selected_mask: torch.Tensor | None = None,
 ) -> None:
     base = image.detach().cpu()
     if base.ndim == 3:
@@ -147,6 +148,10 @@ def save_binary_selection(
     tp = pred & true
     fp = pred & ~true
     fn = ~pred & true
+
+    if neutral_selected_mask is not None:
+        neutral_pred = neutral_selected_mask.detach().cpu().bool().numpy()
+        rgb[neutral_pred] = 0.50 * rgb[neutral_pred] + 0.50 * NEUTRAL_IMPACT_COLOR
 
     if negative_selected_mask is not None:
         negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
@@ -303,6 +308,7 @@ def main() -> None:
                     else ig_negative_map if method_name == "integrated_gradients_signed"
                     else None
                 ),
+                neutral_heatmap=ig_map if method_name == "consensus" else None,
             )
             panel_paths: list[Path] = []
             captions: list[str] = []
@@ -322,6 +328,9 @@ def main() -> None:
                     if method_name == "consensus"
                     else threshold_top_fraction(ig_negative_map, fraction=fraction)
                     if method_name == "integrated_gradients_signed"
+                    else None,
+                    neutral_selected_mask=threshold_top_fraction(ig_map, fraction=fraction)
+                    if method_name == "consensus"
                     else None,
                 )
                 panel_paths.append(selection_path)

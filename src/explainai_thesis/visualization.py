@@ -35,6 +35,7 @@ def save_overlay(
     contour_alpha: float = 0.55,
     heatmap_color: str = "red",
     negative_heatmap: torch.Tensor | None = None,
+    neutral_heatmap: torch.Tensor | None = None,
 ) -> None:
     """Save grayscale image with colored heatmap and green mask contour overlay."""
     if heatmap_color not in {"red", "blue", "neutral"}:
@@ -58,6 +59,13 @@ def save_overlay(
         negative_colored = np.zeros_like(rgb)
         negative_colored[..., 2] = negative_heat
         rgb = (1 - alpha) * rgb + alpha * negative_colored
+
+    if neutral_heatmap is not None:
+        neutral_heat = _to_uint8(neutral_heatmap.detach().cpu())
+        neutral_colored = (
+            neutral_heat[..., None].astype(np.float32) / 255.0
+        ) * NEUTRAL_IMPACT_COLOR
+        rgb = (1 - alpha) * rgb + alpha * neutral_colored
 
     if heatmap_color == "neutral":
         colored = (heat[..., None].astype(np.float32) / 255.0) * NEUTRAL_IMPACT_COLOR

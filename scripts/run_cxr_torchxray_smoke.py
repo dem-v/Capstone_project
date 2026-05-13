@@ -214,6 +214,7 @@ def save_selected_threshold_image(
     negative_style: bool = False,
     neutral_style: bool = False,
     negative_selected_mask: torch.Tensor | None = None,
+    neutral_selected_mask: torch.Tensor | None = None,
 ) -> None:
     base = image.detach().cpu()
     if base.ndim == 3:
@@ -226,6 +227,10 @@ def save_selected_threshold_image(
     tp = pred & true
     fp = pred & ~true
     fn = ~pred & true
+
+    if neutral_selected_mask is not None:
+        neutral_pred = neutral_selected_mask.detach().cpu().bool().numpy()
+        rgb[neutral_pred] = 0.50 * rgb[neutral_pred] + 0.50 * NEUTRAL_IMPACT_COLOR
 
     if negative_selected_mask is not None:
         negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
@@ -432,6 +437,7 @@ def main() -> None:
                         else ig_negative_map if method_name == "integrated_gradients_signed"
                         else None
                     ),
+                    neutral_heatmap=ig_map if method_name == "consensus" else None,
                 )
                 selected_mask = threshold_top_fraction(
                     heatmap, fraction=top_fraction)
@@ -445,6 +451,16 @@ def main() -> None:
                     if method_name == "integrated_gradients_signed"
                     else None
                 )
+                neutral_selected_mask = (
+                    threshold_top_fraction(
+                        ig_map,
+                        fraction=calibrated_fractions.get(
+                            "integrated_gradients", args.top_fraction
+                        ),
+                    )
+                    if method_name == "consensus"
+                    else None
+                )
                 save_selected_threshold_image(
                     image,
                     selected_mask,
@@ -453,6 +469,7 @@ def main() -> None:
                     negative_style=is_negative_method(method_name),
                     neutral_style=method_name == "integrated_gradients",
                     negative_selected_mask=negative_selected_mask,
+                    neutral_selected_mask=neutral_selected_mask,
                 )
 
     gradcam.remove_hooks()
