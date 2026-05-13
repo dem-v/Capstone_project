@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -11,12 +12,12 @@ import torch
 import torchxrayvision as xrv
 from PIL import Image
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
 from explainai_thesis.metrics import localization_metrics
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.15,
         help="Heatmap fraction used for binary metrics.",
+    )
+    parser.add_argument(
+        "--max-overlays",
+        type=int,
+        default=12,
+        help="Maximum number of cases for which overlay PNGs are exported.",
     )
     parser.add_argument(
         "--device",
@@ -118,6 +125,36 @@ def pathology_index(model: torch.nn.Module, pathology: str) -> int:
         ) from exc
 
 
+def write_metric_summary(
+    metric_rows: list[dict[str, str | int | float]], output_path: Path
+) -> None:
+    grouped: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
+    for row in metric_rows:
+        grouped[str(row["method"])].append(row)
+
+    metric_names = ["iou", "dice", "pointing_hit", "precision_at_fraction"]
+    fieldnames = ["method", "n"]
+    for metric_name in metric_names:
+        fieldnames.extend([f"{metric_name}_mean", f"{metric_name}_std"])
+
+    summary_rows: list[dict[str, str | int | float]] = []
+    for method_name, rows in sorted(grouped.items()):
+        summary: dict[str, str | int | float] = {
+            "method": method_name,
+            "n": len(rows),
+        }
+        for metric_name in metric_names:
+            values = np.asarray([float(row[metric_name]) for row in rows], dtype=float)
+            summary[f"{metric_name}_mean"] = round(float(values.mean()), 6)
+            summary[f"{metric_name}_std"] = round(float(values.std(ddof=0)), 6)
+        summary_rows.append(summary)
+
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(summary_rows)
+
+
 def main() -> None:
     args = parse_args()
     manifest_path = Path(args.manifest)
@@ -174,12 +211,13 @@ def main() -> None:
                     **{key: round(value, 6) for key, value in metrics.items()},
                 }
             )
-            save_overlay(
-                image,
-                heatmap,
-                mask,
-                output_dir / f"sample_{sample_idx:02d}_{method_name}.png",
-            )
+            if sample_idx < args.max_overlays:
+                save_overlay(
+                    image,
+                    heatmap,
+                    mask,
+                    output_dir / f"sample_{sample_idx:02d}_{method_name}.png",
+                )
 
     gradcam.remove_hooks()
 
@@ -201,10 +239,14 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(metric_rows)
 
+    summary_path = output_dir / "metrics_summary.csv"
+    write_metric_summary(metric_rows, summary_path)
+
     print(f"TorchXRayVision CXR smoke test complete on {device}.")
     print(f"Weights: {args.weights}")
     print(f"Positive cases evaluated: {len(rows)}")
     print(f"Metrics written to: {metrics_path}")
+    print(f"Metric summary written to: {summary_path}")
     print(f"Overlays written to: {output_dir}")
 
 

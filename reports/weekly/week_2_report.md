@@ -1,6 +1,68 @@
-# Weekly Progress Report 1
+# Weekly Progress Report 2
 
-Reporting period: 2026-05-07 to 2026-05-14
+Reporting period: 2026-05-15 to 2026-05-21
+
+## Week 2 Update - Larger Real-Data XAI Evaluation
+
+The next technical step was executed on the real Kaggle/SIIM-style pneumothorax dataset using TorchXRayVision and mask-based explanation metrics.
+
+Command:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_cxr_torchxray_smoke.py --device auto --max-positive 50 --ig-steps 16 --max-overlays 12 --output-dir outputs/cxr_torchxray_week2_50
+```
+
+Completed result:
+- evaluated 50 positive test cases with available pneumothorax masks;
+- generated Grad-CAM, Integrated Gradients, and consensus heatmaps;
+- exported overlays for the first 12 cases;
+- wrote per-case metrics to `outputs/cxr_torchxray_week2_50/metrics.csv`;
+- wrote method-level aggregate metrics to `outputs/cxr_torchxray_week2_50/metrics_summary.csv`.
+
+Aggregate localization results on the 50-case subset:
+
+| Method | N | Mean IoU | Mean Dice | Pointing Hit Rate | Mean Precision-at-15% |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Grad-CAM | 50 | 0.0213 | 0.0400 | 0.0000 | 0.0234 |
+| Integrated Gradients | 50 | 0.0147 | 0.0282 | 0.0200 | 0.0168 |
+| Consensus | 50 | 0.0213 | 0.0400 | 0.0000 | 0.0234 |
+
+Interpretation:
+- the first larger run confirms that uncalibrated explanations from the pretrained TorchXRayVision model localize pneumothorax weakly on this subset;
+- Grad-CAM and the simple consensus method performed similarly because consensus is currently dominated by the Grad-CAM spatial pattern;
+- Integrated Gradients produced one pointing-game hit but lower average overlap;
+- the result strengthens the thesis motivation: explanation maps should be evaluated quantitatively and clinically rather than accepted as visually plausible.
+
+Next technical step:
+- add a stronger third explanation method, preferably Grad-CAM++ / Score-CAM or Captum GradientSHAP;
+- run threshold calibration on a validation subset;
+- compare calibrated explanation masks on held-out test cases;
+- decide whether the classifier should be fine-tuned specifically for pneumothorax before final XAI comparison.
+
+## Week 2 Update - Classifier Baseline Check
+
+To interpret the weak XAI localization, the pretrained TorchXRayVision classifier was evaluated directly on the same pneumothorax manifest.
+
+Test split command:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split test --batch-size 64 --output-dir outputs/cxr_torchxray_model_eval_test
+```
+
+Test split result:
+- N = 1,372, with 290 positive and 1,082 negative cases;
+- ROC AUC = 0.7711;
+- average precision = 0.4120;
+- default threshold 0.5: accuracy 0.2114, sensitivity 1.0000, specificity 0.0000, F1 0.3490;
+- best-F1 threshold in the sweep: 0.61, with accuracy 0.5940, sensitivity 0.8931, specificity 0.5139, F1 0.4819.
+
+Interpretation:
+- TorchXRayVision is not random on this dataset because AUC is about 0.77;
+- the default sigmoid threshold is not calibrated for this dataset and predicts all test cases as positive;
+- classification quality is moderate, not strong enough to treat as a final pneumothorax model without calibration or fine-tuning;
+- weak XAI localization should therefore be interpreted as both a model-match/calibration problem and an explanation-localization problem.
+
+## Background Carried Over From Week 1
 
 ## Completed Work
 

@@ -689,3 +689,102 @@ Immediate next technical steps:
 2. Add a train/fine-tuned pneumothorax-specific baseline or select a more task-aligned TorchXRayVision weight configuration.
 3. Add Grad-CAM++ / Score-CAM or Captum GradientSHAP as the next explanation method.
 4. Calibrate heatmap thresholds on a validation split, then compare against held-out test masks.
+
+Reporting note:
+- Week 1 reports are already submitted and should be treated as frozen.
+- Do not update `reports/weekly/week_1_report.md` or `reports/weekly/week_1_report_final.md` for new work.
+- New progress-report updates should go into Week 2 report files.
+
+## 2026-05-13 - Week 2 Larger Real-Data XAI Evaluation
+
+Executed the next technical step on the real pneumothorax dataset:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_cxr_torchxray_smoke.py --device auto --max-positive 50 --ig-steps 16 --max-overlays 12 --output-dir outputs/cxr_torchxray_week2_50
+```
+
+Code update:
+- `scripts/run_cxr_torchxray_smoke.py` now writes both per-case metrics and `metrics_summary.csv`.
+- The script now limits overlay export with `--max-overlays` so larger metric runs do not create too many images.
+- Fixed local import path ordering so `src/` is inserted before importing `explainai_thesis`.
+
+Output artifacts:
+- `outputs/cxr_torchxray_week2_50/metrics.csv`
+- `outputs/cxr_torchxray_week2_50/metrics_summary.csv`
+- overlays for the first 12 positive cases.
+
+Aggregate result on 50 positive test cases:
+- Grad-CAM: mean IoU 0.0213, mean Dice 0.0400, pointing hit rate 0.0000, mean precision-at-15% 0.0234.
+- Integrated Gradients: mean IoU 0.0147, mean Dice 0.0282, pointing hit rate 0.0200, mean precision-at-15% 0.0168.
+- Consensus: mean IoU 0.0213, mean Dice 0.0400, pointing hit rate 0.0000, mean precision-at-15% 0.0234.
+
+Interpretation:
+- The pretrained TorchXRayVision model runs end to end, but uncalibrated heatmap localization is weak on the first 50 positive cases.
+- This supports the thesis premise that XAI outputs require quantitative and clinical validation.
+- The next best technical step is to add a stronger third XAI method and threshold calibration before deciding whether model fine-tuning is needed.
+
+## 2026-05-13 - TorchXRayVision Classification Baseline Evaluation
+
+Question tested:
+- Are weak XAI localization results caused only by untuned XAI, or is the pretrained TorchXRayVision model itself weak on this Kaggle/SIIM-style pneumothorax dataset?
+
+Added:
+- `scripts/evaluate_cxr_torchxray_model.py`
+
+Commands:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split test --batch-size 64 --output-dir outputs/cxr_torchxray_model_eval_test
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split train --batch-size 64 --output-dir outputs/cxr_torchxray_model_eval_train
+```
+
+Test split classification result:
+- N = 1,372; positives = 290; negatives = 1,082.
+- ROC AUC = 0.7711.
+- Average precision = 0.4120.
+- Mean sigmoid score: positives 0.6191, negatives 0.5818.
+- Default threshold 0.5:
+  - accuracy 0.2114;
+  - sensitivity 1.0000;
+  - specificity 0.0000;
+  - F1 0.3490.
+- Best F1 threshold in sweep: 0.61.
+  - accuracy 0.5940;
+  - sensitivity 0.8931;
+  - specificity 0.5139;
+  - F1 0.4819.
+
+Train split classification result:
+- N = 10,675; positives = 2,379; negatives = 8,296.
+- ROC AUC = 0.7720.
+- Average precision = 0.4280.
+- Default threshold 0.5:
+  - accuracy 0.2229;
+  - sensitivity 1.0000;
+  - specificity 0.0000;
+  - F1 0.3645.
+- Best F1 threshold in sweep: 0.62.
+  - accuracy 0.6145;
+  - sensitivity 0.8932;
+  - specificity 0.5346;
+  - F1 0.5081.
+
+Interpretation:
+- TorchXRayVision is not random on this dataset: AUC around 0.77 means it has moderate ranking signal.
+- However, the default sigmoid threshold is unusable here because it predicts every case as positive.
+- The model is also not a strong pneumothorax classifier for this dataset without calibration/fine-tuning.
+- Therefore the weak XAI localization is likely a combined issue:
+  - the classifier is only moderately matched to the dataset and poorly calibrated;
+  - the explanation maps are also uncalibrated and not optimized for lesion-mask localization.
+- Next decision: either fine-tune/calibrate a pneumothorax-specific classifier before final XAI comparison, or clearly frame TorchXRayVision as a pretrained external baseline whose limitations are part of the evaluation.
+
+Important XAI interpretation note:
+- Grad-CAM, Integrated Gradients, SHAP-style methods, Occlusion, and similar XAI methods are normally not trained as separate diagnostic models.
+- They are post-hoc explanation methods applied to an already trained classifier.
+- They can have configuration choices, such as target layer, target class, baseline image/background distribution, heatmap normalization, top-k fraction, threshold, patch size, or number of integration steps.
+- Poor explanation localization can mean:
+  - the classifier did not learn clinically relevant features for this dataset;
+  - the classifier is poorly calibrated or domain-mismatched;
+  - the explanation method configuration is not suitable;
+  - or the method faithfully reveals that the model is relying on non-lesion features.
+- Therefore, classifier performance and explanation localization must be evaluated separately before drawing conclusions about XAI method quality.
