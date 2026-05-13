@@ -7,6 +7,7 @@ from PIL import Image
 
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+BASE_FIELDNAMES = ["image_path", "mask_path", "label"]
 
 
 def looks_like_mask(path: Path) -> bool:
@@ -74,10 +75,69 @@ def build_png_mask_manifest(root: Path) -> list[dict[str, str | int]]:
     return rows
 
 
+def build_siim_pneumothorax_manifest(root: Path) -> list[dict[str, str | int]]:
+    dataset_root = root / "siim-acr-pneumothorax"
+    if not dataset_root.exists():
+        dataset_root = root
+
+    image_dir = dataset_root / "png_images"
+    mask_dir = dataset_root / "png_masks"
+    csv_by_split = {
+        "train": dataset_root / "stage_1_train_images.csv",
+        "test": dataset_root / "stage_1_test_images.csv",
+    }
+
+    missing_paths = [
+        path
+        for path in [image_dir, mask_dir, *csv_by_split.values()]
+        if not path.exists()
+    ]
+    if missing_paths:
+        raise FileNotFoundError(
+            "SIIM pneumothorax dataset layout is incomplete: "
+            + ", ".join(str(path) for path in missing_paths)
+        )
+
+    rows: list[dict[str, str | int]] = []
+    for split, csv_path in csv_by_split.items():
+        with csv_path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            for source_row in reader:
+                filename = source_row["new_filename"]
+                rows.append(
+                    {
+                        "image_path": str(image_dir / filename),
+                        "mask_path": str(mask_dir / filename),
+                        "label": int(source_row["has_pneumo"]),
+                        "split": split,
+                        "image_id": source_row["ImageId"],
+                        "filename": filename,
+                    }
+                )
+
+    return rows
+
+
+def build_manifest(root: Path) -> list[dict[str, str | int]]:
+    dataset_root = root / "siim-acr-pneumothorax"
+    if not dataset_root.exists():
+        dataset_root = root
+
+    if (
+        (dataset_root / "stage_1_train_images.csv").exists()
+        and (dataset_root / "stage_1_test_images.csv").exists()
+    ):
+        return build_siim_pneumothorax_manifest(root)
+
+    return build_png_mask_manifest(root)
+
+
 def write_manifest(rows: list[dict[str, str | int]], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    extra_fieldnames = sorted(
+        {key for row in rows for key in row} - set(BASE_FIELDNAMES)
+    )
     with output_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["image_path", "mask_path", "label"])
+        writer = csv.DictWriter(handle, fieldnames=[*BASE_FIELDNAMES, *extra_fieldnames])
         writer.writeheader()
         writer.writerows(rows)
-

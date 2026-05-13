@@ -20,6 +20,7 @@ PACKAGES = [
     "captum",
     "shap",
     "pytorch_grad_cam",
+    "torchxrayvision",
 ]
 
 
@@ -51,4 +52,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

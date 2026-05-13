@@ -10,14 +10,14 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
 from explainai_thesis.metrics import localization_metrics
 from explainai_thesis.models import TinyCnn
 from explainai_thesis.synthetic import SyntheticLesionDataset
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
 
 
 def parse_args() -> argparse.Namespace:

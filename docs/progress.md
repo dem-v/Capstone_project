@@ -639,3 +639,53 @@ Added:
 - synthetic smoke-test result summary;
 - aggregate localization metrics for Grad-CAM, Integrated Gradients, and consensus heatmap;
 - embedded sample overlay images from `outputs/smoke_test/`.
+
+## 2026-05-13 - Restored Real-Data TorchXRayVision Iteration
+
+Repository/runtime status:
+- Primary Kaggle pneumothorax dataset is present locally under `data_local/cxr_pneumothorax/siim-acr-pneumothorax`.
+- Dataset layout:
+  - `png_images/`: 12,047 files.
+  - `png_masks/`: 12,047 files.
+  - `stage_1_train_images.csv` and `stage_1_test_images.csv`.
+- The active Python runtime is WSL Ubuntu, not native Windows Python:
+  - command pattern: `wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 ...`
+  - WSL Python: 3.10.12.
+  - PyTorch: 2.10.0+cu128.
+  - torchvision: 0.25.0+cu128.
+- Native Windows `python`/`python3` points to Microsoft Store aliases; native `py -3.10` works but does not have the ML stack installed.
+- Installed `torchxrayvision==1.4.0` into the WSL user environment.
+
+Code updates:
+- `src/explainai_thesis/manifest.py` now detects the SIIM/Kaggle pneumothorax layout and writes split, image ID, and filename fields.
+- `scripts/build_manifest.py` now calls the layout-aware `build_manifest`.
+- Added `scripts/run_cxr_torchxray_smoke.py` for a small real-data TorchXRayVision explainability pass.
+
+Generated artifact:
+- Command:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_cxr_torchxray_smoke.py --device auto --max-positive 6 --ig-steps 16
+```
+
+- Manifest:
+  - `data/cxr_pneumothorax_manifest.csv`
+  - 12,047 rows.
+  - 12,047 rows with masks.
+  - Labels: 9,378 negative and 2,669 positive.
+- Real-data smoke-test outputs:
+  - `outputs/cxr_torchxray_smoke/metrics.csv`
+  - `outputs/cxr_torchxray_smoke/sample_*_grad_cam.png`
+  - `outputs/cxr_torchxray_smoke/sample_*_integrated_gradients.png`
+  - `outputs/cxr_torchxray_smoke/sample_*_consensus.png`
+
+Initial real-data observation:
+- TorchXRayVision DenseNet (`densenet121-res224-all`) runs on CUDA and produces pneumothorax scores for positive SIIM-style samples.
+- On the first 6 positive test cases, uncalibrated Grad-CAM / Integrated Gradients / consensus localization against masks is low, with pointing-game hits equal to 0 in this tiny sample.
+- This supports the thesis motivation: plausible classifier outputs do not automatically imply clinically/localization-valid explanations.
+
+Immediate next technical steps:
+1. Run a larger evaluation subset and aggregate metrics by method.
+2. Add a train/fine-tuned pneumothorax-specific baseline or select a more task-aligned TorchXRayVision weight configuration.
+3. Add Grad-CAM++ / Score-CAM or Captum GradientSHAP as the next explanation method.
+4. Calibrate heatmap thresholds on a validation split, then compare against held-out test masks.
