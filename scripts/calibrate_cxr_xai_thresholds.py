@@ -17,7 +17,7 @@ from explainai_thesis.xai import (
     integrated_gradients,
     occlusion_sensitivity,
 )
-from explainai_thesis.metrics import localization_metrics
+from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
 from PIL import Image
 import torchxrayvision as xrv
 import torch
@@ -50,7 +50,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--selection-metric",
         default="dice",
-        choices=["dice", "iou", "precision_at_fraction", "pointing_hit"],
+        choices=[
+            "dice",
+            "iou",
+            "precision_at_fraction",
+            "pointing_hit",
+            "negative_mask_avoidance_fraction",
+            "negative_mask_overlap_fraction",
+        ],
     )
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
@@ -123,6 +130,25 @@ def write_rows(path: Path, rows: list[dict[str, str | int | float]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: float) -> dict[str, float]:
+    selected = threshold_top_fraction(heatmap, fraction=fraction)
+    selected_count = selected.sum().float()
+    if selected_count.item() == 0:
+        return {
+            "negative_mask_overlap_fraction": 0.0,
+            "negative_mask_avoidance_fraction": 0.0,
+        }
+    overlap = (selected & true_mask.bool()).sum().float() / selected_count
+    return {
+        "negative_mask_overlap_fraction": overlap.item(),
+        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
+    }
+
+
+def is_negative_or_signed_method(method_name: str) -> bool:
+    return method_name.endswith("_negative") or method_name.endswith("_signed") or method_name == "consensus"
 
 
 def main() -> None:
@@ -203,6 +229,17 @@ def main() -> None:
             for fraction in fractions:
                 metrics = localization_metrics(
                     heatmap, mask, fraction=fraction)
+                negative_metrics = {
+                    "negative_mask_overlap_fraction": "",
+                    "negative_mask_avoidance_fraction": "",
+                }
+                if is_negative_or_signed_method(method_name):
+                    negative_metrics = {
+                        key: round(value, 6)
+                        for key, value in negative_evidence_metrics(
+                            heatmap, mask, fraction
+                        ).items()
+                    }
                 metric_rows.append(
                     {
                         "sample_id": sample_idx,
@@ -213,6 +250,7 @@ def main() -> None:
                         "method": method_name,
                         "top_fraction": round(fraction, 6),
                         **{key: round(value, 6) for key, value in metrics.items()},
+                        **negative_metrics,
                     }
                 )
 
@@ -230,18 +268,36 @@ def main() -> None:
             "top_fraction": round(fraction, 6),
             "n": len(rows_for_fraction),
         }
-        for metric_name in ["iou", "dice", "pointing_hit", "precision_at_fraction"]:
-            values = np.asarray([float(row[metric_name])
-                                for row in rows_for_fraction], dtype=float)
-            summary[f"{metric_name}_mean"] = round(float(values.mean()), 6)
-            summary[f"{metric_name}_std"] = round(float(values.std(ddof=0)), 6)
+        for metric_name in [
+            "iou",
+            "dice",
+            "pointing_hit",
+            "precision_at_fraction",
+            "negative_mask_overlap_fraction",
+            "negative_mask_avoidance_fraction",
+        ]:
+            values = np.asarray(
+                [float(row[metric_name]) for row in rows_for_fraction if row[metric_name] != ""],
+                dtype=float,
+            )
+            if values.size:
+                summary[f"{metric_name}_mean"] = round(float(values.mean()), 6)
+                summary[f"{metric_name}_std"] = round(float(values.std(ddof=0)), 6)
+            else:
+                summary[f"{metric_name}_mean"] = ""
+                summary[f"{metric_name}_std"] = ""
         summary_rows.append(summary)
 
     selected_rows: list[dict[str, str | int | float]] = []
     for method_name in sorted({str(row["method"]) for row in summary_rows}):
         candidates = [
             row for row in summary_rows if row["method"] == method_name]
-        selected = max(candidates, key=lambda row: float(
+        valid_candidates = [
+            row for row in candidates if row.get(f"{args.selection_metric}_mean") != ""
+        ]
+        if not valid_candidates:
+            continue
+        selected = max(valid_candidates, key=lambda row: float(
             row[f"{args.selection_metric}_mean"]))
         selected_rows.append(
             {
@@ -253,9 +309,38 @@ def main() -> None:
             }
         )
 
+    selected_by_metric_rows: list[dict[str, str | int | float]] = []
+    for metric_name in [
+        "iou",
+        "dice",
+        "precision_at_fraction",
+        "pointing_hit",
+        "negative_mask_avoidance_fraction",
+        "negative_mask_overlap_fraction",
+    ]:
+        for method_name in sorted({str(row["method"]) for row in summary_rows}):
+            candidates = [
+                row
+                for row in summary_rows
+                if row["method"] == method_name and row.get(f"{metric_name}_mean") != ""
+            ]
+            if not candidates:
+                continue
+            selected = max(candidates, key=lambda row: float(row[f"{metric_name}_mean"]))
+            selected_by_metric_rows.append(
+                {
+                    "method": method_name,
+                    "selected_fraction": selected["top_fraction"],
+                    "selection_metric": metric_name,
+                    "selection_metric_mean": selected[f"{metric_name}_mean"],
+                    "n": selected["n"],
+                }
+            )
+
     write_rows(output_dir / "calibration_metrics.csv", metric_rows)
     write_rows(output_dir / "calibration_summary.csv", summary_rows)
     write_rows(output_dir / "selected_fractions.csv", selected_rows)
+    write_rows(output_dir / "selected_fractions_by_metric.csv", selected_by_metric_rows)
 
     print(f"CXR XAI threshold calibration complete on {device}.")
     print(f"Positive calibration cases: {len(rows)}")

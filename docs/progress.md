@@ -1756,3 +1756,179 @@ Deletion and insertion curves were computed by re-evaluating the TorchXRayVision
 ```text
 The current TorchXRayVision DenseNet should be treated as an external pretrained baseline rather than a clinically adequate pneumothorax model. Its moderate classifier signal and weak lesion localization make it useful for demonstrating why XAI validation is necessary, but a second, stronger pneumothorax-oriented model is needed to show how explanation behavior changes when the underlying classifier is more clinically appropriate.
 ```
+
+## 2026-05-15 - Iteration 18: Faithfulness Readability, Output Naming, and Recalibration Notes
+
+- Follow-up issues addressed in the code:
+  - main per-case PNGs in `case_XXX_<source_stem>` folders now include the source X-ray stem in the filename, e.g. `<source_stem>_grad_cam.png`, `<source_stem>_grad_cam_selected.png`, and `<source_stem>_faithfulness_curves.png`;
+  - root-level faithfulness bar plots are now written under both `faithfulness_summary.png` and the clearer alias `faithfulness_auc_bars.png`;
+  - family-specific faithfulness plots now use one shared zoomed y-axis range derived from the full run, so `CAM`, `IG`, `GradientSHAP`, and `Occlusion` family plots are visually comparable and do not exaggerate small changes independently.
+- Calibration was extended for the expanded method set:
+  - `calibration_metrics.csv` and `calibration_summary.csv` now include `negative_mask_overlap_fraction` and `negative_mask_avoidance_fraction` where applicable;
+  - `selected_fractions_by_metric.csv` is written in addition to `selected_fractions.csv` so fractions can be inspected for `IoU`, `Dice`, `precision_at_fraction`, `pointing_hit`, and negative-evidence diagnostics;
+  - `--selection-metric` can now directly choose `negative_mask_avoidance_fraction` or `negative_mask_overlap_fraction` when intentionally calibrating blue/suppressive evidence diagnostics.
+- Important interpretation for recalibration:
+  - positive/red methods should generally be calibrated by lesion-localization metrics such as `Dice` or `IoU`;
+  - negative/blue methods should not be optimized for overlap with the lesion, because blue means evidence against pneumothorax; for blue maps, high `negative_mask_avoidance_fraction` is usually the healthier diagnostic;
+  - faithfulness insertion/deletion is still a separate model-behavior evaluation and should not be treated as the same thing as mask threshold calibration.
+- Why `100%` deletion can still return about `60%` pneumothorax probability:
+  - deletion currently replaces removed pixels with the zero baseline in the normalized TorchXRayVision input space, not with a clinically realistic negative X-ray;
+  - the pretrained model has a high pneumothorax baseline/poor threshold calibration on this dataset, so even a blank or heavily perturbed image can retain a high sigmoid output;
+  - this means the absolute deletion probability floor is partly a model calibration/bias artifact, not evidence that the removed image still contains pneumothorax;
+  - for thesis interpretation, deletion should emphasize probability change/drop and AUC differences rather than assuming the final probability after `100%` removal is clinically meaningful.
+- New method explanation notes:
+  - `GradientSHAP` estimates IG/SHAP-like attribution by sampling noisy baselines, so it tests whether pixel attribution is robust to baseline uncertainty;
+  - `Occlusion Sensitivity` directly masks square patches and measures score change, so it is more causal/intuitive but coarser and slower;
+  - occlusion may identify a clinically plausible positive square with good `IoU` while showing weak insertion/deletion degradation if the model also relies on broad context or remains highly biased toward pneumothorax on baseline images.
+- Recommended next recalibration command pattern:
+
+```bash
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --ig-steps 16 --gradshap-samples 8 --occlusion-patch-size 32 --occlusion-stride 16 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --selection-metric dice --output-dir outputs/iter_18_xai_threshold_calibration_train100_expanded_dice
+```
+
+- For negative-evidence-specific inspection, repeat with:
+
+```bash
+--selection-metric negative_mask_avoidance_fraction --output-dir outputs/iter_18_xai_threshold_calibration_train100_expanded_negative_avoidance
+```
+
+## 2026-05-15 - Iteration 19: First-Order Baseline Stabilization Started
+
+- Started the first-order plan before larger XAI runs: recalibrate the classifier threshold and finish output naming/layout consistency.
+- Updated `scripts/evaluate_cxr_torchxray_model.py` so classifier evaluation now writes `selected_thresholds.csv` with explicit candidate operating points:
+  - `best_f1`;
+  - `best_youden_j`;
+  - `high_sensitivity` using `--high-sensitivity-min`, defaulting to `0.95`.
+- Ran train-split calibration as the current calibration reference:
+
+```bash
+wsl.exe python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split train --batch-size 64 --threshold 0.5 --high-sensitivity-min 0.95 --output-dir outputs/iter_19_classifier_threshold_calibration_train
+```
+
+- Train calibration result for `densenet121-res224-all`:
+
+| Selection | Threshold | Sensitivity | Specificity | Precision | F1 | Youden J |
+|---|---:|---:|---:|---:|---:|---:|
+| `best_f1` | `0.62` | `0.893232` | `0.534595` | `0.354995` | `0.508069` | `0.427827` |
+| `best_youden_j` | `0.62` | `0.893232` | `0.534595` | `0.354995` | `0.508069` | `0.427827` |
+| `high_sensitivity` | `0.58` | `0.950399` | `0.441900` | `0.328109` | `0.487810` | `0.392299` |
+
+- Interpretation:
+  - the old exploratory `0.61` is close to the train-calibrated `best_f1`/`best_youden_j` threshold of `0.62`;
+  - for a screening/high-sensitivity view, `0.58` is the current frozen candidate from the train split;
+  - these are still thresholds for a weak external baseline and should be presented as calibration-derived operating points, not as proof of clinical adequacy.
+- Refactored `scripts/visualize_cxr_threshold_selection.py` output naming:
+  - now creates one `case_XXX_<source_stem>` folder;
+  - PNGs are flat inside that folder;
+  - every PNG filename includes the source X-ray stem, method name, and artifact type;
+  - no nested per-method folders are created in the new layout.
+- Smoke output generated:
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split train --case-index 0 --ig-steps 2 --fractions 0.05,0.10 --output-dir outputs/iter_19_threshold_selection_grouped_flat_smoke
+```
+
+- Verified example case folder: `outputs/iter_19_threshold_selection_grouped_flat_smoke/case_000_2_train_1_`.
+- Verified example source-stemmed files include:
+  - `2_train_1__grad_cam_continuous_heatmap.png`;
+  - `2_train_1__grad_cam_selected_top_05pct.png`;
+  - `2_train_1__grad_cam_threshold_sweep_panel.png`;
+  - `2_train_1__consensus_continuous_heatmap.png`.
+- Verification:
+  - WSL `py_compile` passed for `scripts/evaluate_cxr_torchxray_model.py`, `scripts/visualize_cxr_threshold_selection.py`, `scripts/run_cxr_torchxray_smoke.py`, and `scripts/visualize_cxr_classifier_outcome_thresholds.py`;
+  - classifier calibration completed successfully on CUDA;
+  - grouped-flat single-image threshold smoke completed successfully on CUDA.
+
+## 2026-05-15 - Iteration 20: Threshold Smoke Updated for Expanded Metrics
+
+- Follow-up issue: the Iteration 19 single-image threshold smoke confirmed the new folder/filename layout, but it did not include the newly added expanded XAI methods/metric-detail columns.
+- Updated `scripts/visualize_cxr_threshold_selection.py` so the single-image threshold smoke now includes the full expanded method set:
+  - `grad_cam`, `grad_cam_plus_plus`, and signed negative variants;
+  - `integrated_gradients` magnitude/positive/negative/signed;
+  - `gradient_shap` magnitude/positive/negative/signed;
+  - `occlusion` magnitude/positive/negative;
+  - `consensus` including positive, negative, and neutral evidence layers.
+- Expanded `threshold_metrics.csv` in this smoke path with the newer clarity fields:
+  - `metric_component`;
+  - `top_fraction_percent`;
+  - `selected_pixel_count`, `mask_pixel_count`, `intersection_pixel_count`, `union_pixel_count`;
+  - `negative_mask_overlap_fraction` and `negative_mask_avoidance_fraction` where applicable.
+- Verification command:
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split train --case-index 0 --ig-steps 2 --gradshap-samples 2 --occlusion-patch-size 112 --occlusion-stride 112 --fractions 0.05,0.10 --output-dir outputs/iter_20_threshold_selection_new_metrics_smoke_v2
+```
+
+- Verification result:
+  - WSL `py_compile` passed for `scripts/visualize_cxr_threshold_selection.py`;
+  - smoke completed successfully on CUDA;
+  - `threshold_metrics.csv` contains `32` rows = `16` methods × `2` fractions;
+  - verified source-stemmed PNGs exist for `gradient_shap`, `gradient_shap_signed`, `occlusion`, `occlusion_negative`, and `consensus` panels.
+
+## 2026-05-15 - Iteration 21: Stage 3/4 Follow-up, Expanded XAI Recalibration
+
+- Completed the requested next plan stages after the first-order stabilization:
+  - Stage 3: faithfulness plot readability was already implemented and re-verified by compile checks; the main evaluation now writes full-scale, zoomed, family-split, and AUC/bar faithfulness plots.
+  - Stage 4: reran XAI threshold calibration with the expanded method set on `100` positive train cases.
+- Compile verification:
+
+```bash
+wsl.exe python3 -m py_compile scripts/run_cxr_torchxray_smoke.py scripts/calibrate_cxr_xai_thresholds.py scripts/visualize_cxr_threshold_selection.py
+```
+
+- Positive-localization calibration command:
+
+```bash
+wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --ig-steps 16 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --selection-metric dice --output-dir outputs/iter_21_xai_calibration_train100_all_methods_dice
+```
+
+- Negative-evidence avoidance calibration command:
+
+```bash
+wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --ig-steps 16 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --selection-metric negative_mask_avoidance_fraction --output-dir outputs/iter_21_xai_calibration_train100_all_methods_negative_avoidance
+```
+
+- Dice-selected fractions on `100` positive train cases:
+
+| Method | Selected fraction | Mean Dice |
+|---|---:|---:|
+| `grad_cam` | `0.10` | `0.048577` |
+| `grad_cam_plus_plus` | `0.50` | `0.035571` |
+| `consensus` | `0.25` | `0.036091` |
+| `integrated_gradients` | `0.45` | `0.024766` |
+| `integrated_gradients_positive` | `0.25` | `0.024002` |
+| `integrated_gradients_negative` | `0.30` | `0.023064` |
+| `gradient_shap` | `0.50` | `0.023444` |
+| `gradient_shap_positive` | `0.50` | `0.023431` |
+| `gradient_shap_negative` | `0.50` | `0.022702` |
+| `occlusion` | `0.40` | `0.023441` |
+| `occlusion_positive` | `0.45` | `0.025307` |
+| `occlusion_negative` | `0.35` | `0.025893` |
+
+- Negative-avoidance selected fractions for suppressive/signed evidence:
+
+| Method | Selected fraction | Mean negative-mask avoidance |
+|---|---:|---:|
+| `grad_cam_negative` | `0.15` | `0.992465` |
+| `grad_cam_plus_plus_negative` | `0.05` | `0.986044` |
+| `integrated_gradients_negative` | `0.50` | `0.987988` |
+| `integrated_gradients_signed` | `0.50` | `0.987869` |
+| `gradient_shap_negative` | `0.15` | `0.988309` |
+| `gradient_shap_signed` | `0.50` | `0.987805` |
+| `occlusion_negative` | `0.10` | `0.990804` |
+| `consensus` | `0.50` | `0.983692` |
+
+- Artifacts generated:
+  - `outputs/iter_21_xai_calibration_train100_all_methods_dice/calibration_metrics.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_dice/calibration_summary.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_dice/selected_fractions.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_dice/selected_fractions_by_metric.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_negative_avoidance/calibration_metrics.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_negative_avoidance/calibration_summary.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_negative_avoidance/selected_fractions.csv`
+  - `outputs/iter_21_xai_calibration_train100_all_methods_negative_avoidance/selected_fractions_by_metric.csv`
+- Interpretation:
+  - `grad_cam` remains the best positive-localization method by mean Dice in this calibration pass, but the absolute Dice is still low.
+  - Many expanded methods select larger top fractions (`0.35`-`0.50`) for their best Dice, suggesting their signal is diffuse or that the model evidence is not tightly localized to pneumothorax masks.
+  - Negative-evidence calibration should be read separately from positive localization: high avoidance means blue/suppressive evidence mostly stays outside the true lesion mask, which is generally healthier than maximizing blue-mask overlap.
+  - These calibration files are now ready to use as frozen threshold candidates for the next `100`- or `200`-case all-method sanity evaluation before any `1000+` case run.

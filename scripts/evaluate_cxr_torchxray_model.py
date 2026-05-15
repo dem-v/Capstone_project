@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--high-sensitivity-min", type=float, default=0.95)
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
@@ -108,6 +109,46 @@ def metrics_at_threshold(
     }
 
 
+def selected_threshold_rows(
+    threshold_rows: list[dict[str, float | int]], high_sensitivity_min: float
+) -> list[dict[str, str | float | int]]:
+    best_f1 = max(threshold_rows, key=lambda row: float(row["f1"]))
+    best_youden = max(
+        threshold_rows,
+        key=lambda row: float(row["sensitivity"]) + float(row["specificity"]) - 1.0,
+    )
+    high_sensitivity_candidates = [
+        row for row in threshold_rows
+        if float(row["sensitivity"]) >= high_sensitivity_min
+    ]
+    if high_sensitivity_candidates:
+        high_sensitivity = max(
+            high_sensitivity_candidates,
+            key=lambda row: (float(row["specificity"]), float(row["precision"]), float(row["f1"])),
+        )
+    else:
+        high_sensitivity = max(threshold_rows, key=lambda row: float(row["sensitivity"]))
+
+    selected = [
+        ("best_f1", "Maximizes F1 on this calibration split.", best_f1),
+        ("best_youden_j", "Maximizes sensitivity + specificity - 1 on this calibration split.", best_youden),
+        (
+            "high_sensitivity",
+            f"Highest-specificity threshold with sensitivity >= {high_sensitivity_min:.2f}; falls back to maximum sensitivity if unavailable.",
+            high_sensitivity,
+        ),
+    ]
+    return [
+        {
+            "selection_name": name,
+            "selection_note": note,
+            "youden_j": round(float(row["sensitivity"]) + float(row["specificity"]) - 1.0, 6),
+            **row,
+        }
+        for name, note, row in selected
+    ]
+
+
 def main() -> None:
     args = parse_args()
     output_dir = Path(args.output_dir)
@@ -167,6 +208,7 @@ def main() -> None:
         for threshold in thresholds
     ]
     best_f1_row = max(threshold_rows, key=lambda row: float(row["f1"]))
+    selected_rows = selected_threshold_rows(threshold_rows, args.high_sensitivity_min)
 
     summary = {
         "weights": args.weights,
@@ -211,6 +253,12 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(threshold_rows)
 
+    selected_thresholds_path = output_dir / "selected_thresholds.csv"
+    with selected_thresholds_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(selected_rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(selected_rows)
+
     summary_path = output_dir / "classification_metrics.csv"
     with summary_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(summary.keys()))
@@ -235,6 +283,7 @@ def main() -> None:
         f"f1={summary['best_f1_f1']}"
     )
     print(f"Outputs written to: {output_dir}")
+    print(f"Selected threshold candidates written to: {selected_thresholds_path}")
 
 
 if __name__ == "__main__":

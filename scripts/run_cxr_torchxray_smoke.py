@@ -374,6 +374,7 @@ def plot_faithfulness_curves(
     title: str,
     *,
     zoom_y: bool = False,
+    y_limits: tuple[float, float] | None = None,
 ) -> None:
     if not faithfulness_rows:
         return
@@ -426,7 +427,9 @@ def plot_faithfulness_curves(
     axes[0].set_ylabel("Pneumothorax probability")
     axes[1].set_title("Deletion")
     axes[1].set_xlabel("Fraction of top-attributed pixels removed")
-    if zoom_y and plotted_values:
+    if y_limits is not None:
+        y_min, y_max = y_limits
+    elif zoom_y and plotted_values:
         y_min = max(0.0, min(plotted_values) - 0.03)
         y_max = min(1.0, max(plotted_values) + 0.03)
     else:
@@ -446,6 +449,17 @@ def plot_faithfulness_curves(
 def write_faithfulness_plots(
     faithfulness_rows: list[dict[str, str | int | float]], output_dir: Path, title: str
 ) -> None:
+    plotted_values = [
+        float(row[key])
+        for row in faithfulness_rows
+        for key in ["insertion_probability", "deletion_probability"]
+    ]
+    shared_zoom_limits = None
+    if plotted_values:
+        shared_zoom_limits = (
+            max(0.0, min(plotted_values) - 0.03),
+            min(1.0, max(plotted_values) + 0.03),
+        )
     plot_faithfulness_curves(
         faithfulness_rows,
         output_dir / "faithfulness_curves.png",
@@ -455,7 +469,7 @@ def write_faithfulness_plots(
         faithfulness_rows,
         output_dir / "faithfulness_curves_zoomed.png",
         f"{title} (zoomed y-axis)",
-        zoom_y=True,
+        y_limits=shared_zoom_limits,
     )
     families: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
     for row in faithfulness_rows:
@@ -465,8 +479,8 @@ def write_faithfulness_plots(
             plot_faithfulness_curves(
                 rows,
                 output_dir / f"faithfulness_curves_{family}.png",
-                f"{title}: {family.replace('_', ' ')}",
-                zoom_y=True,
+                f"{title}: {family.replace('_', ' ')} (shared zoom scale)",
+                y_limits=shared_zoom_limits,
             )
 
 
@@ -582,6 +596,12 @@ def safe_case_name(sample_idx: int, row: dict[str, str]) -> str:
     if not safe_stem:
         safe_stem = "xray"
     return f"case_{sample_idx:03d}_{safe_stem}"
+
+
+def safe_source_stem(row: dict[str, str]) -> str:
+    stem = Path(row.get("filename") or row["image_path"]).stem
+    safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
+    return safe_stem or "xray"
 
 
 def overlay_color_for_method(method_name: str) -> str:
@@ -809,12 +829,13 @@ def main() -> None:
             )
             if sample_idx < args.max_overlays:
                 case_dir = output_dir / safe_case_name(sample_idx, row)
+                source_stem = safe_source_stem(row)
                 case_dir.mkdir(parents=True, exist_ok=True)
                 save_overlay(
                     image,
                     heatmap,
                     mask,
-                    case_dir / f"{method_name}.png",
+                    case_dir / f"{source_stem}_{method_name}.png",
                     heatmap_color=overlay_color_for_method(method_name),
                     negative_heatmap=(
                         negative_cam_map if method_name == "consensus"
@@ -858,7 +879,7 @@ def main() -> None:
                     image,
                     selected_mask,
                     mask,
-                    case_dir / f"{method_name}_selected.png",
+                    case_dir / f"{source_stem}_{method_name}_selected.png",
                     negative_style=is_negative_method(method_name),
                     neutral_style=method_name in {"integrated_gradients", "gradient_shap", "occlusion"},
                     negative_selected_mask=negative_selected_mask,
@@ -867,10 +888,11 @@ def main() -> None:
 
         if faithfulness_fractions and sample_idx < args.max_overlays:
             case_dir = output_dir / safe_case_name(sample_idx, row)
+            source_stem = safe_source_stem(row)
             case_dir.mkdir(parents=True, exist_ok=True)
             plot_faithfulness_curves(
                 case_faithfulness_rows,
-                case_dir / "faithfulness_curves.png",
+                case_dir / f"{source_stem}_faithfulness_curves.png",
                 f"Faithfulness curves: {row.get('filename', Path(row['image_path']).name)}",
             )
 
@@ -925,6 +947,10 @@ def main() -> None:
             faithfulness_summary_path,
             output_dir / "faithfulness_summary.png",
         )
+        plot_faithfulness_summary(
+            faithfulness_summary_path,
+            output_dir / "faithfulness_auc_bars.png",
+        )
 
     summary_path = output_dir / "metrics_summary.csv"
     write_metric_summary(metric_rows, summary_path)
@@ -938,6 +964,7 @@ def main() -> None:
         print(f"Faithfulness curves written to: {output_dir / 'faithfulness_curves.csv'}")
         print(f"Faithfulness summary written to: {output_dir / 'faithfulness_summary.csv'}")
         print(f"Faithfulness plot written to: {output_dir / 'faithfulness_curves.png'}")
+        print(f"Faithfulness AUC bar plot written to: {output_dir / 'faithfulness_auc_bars.png'}")
     print(f"Overlay case folders written to: {output_dir}")
 
 
