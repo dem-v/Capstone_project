@@ -16,7 +16,13 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.xai import (
+    GradCAM,
+    consensus_heatmap,
+    gradient_shap,
+    integrated_gradients,
+    occlusion_sensitivity,
+)
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.metrics import (
     localization_metrics,
@@ -87,6 +93,30 @@ def parse_args() -> argparse.Namespace:
         "--faithfulness-fractions",
         default="",
         help="Optional comma-separated fractions for deletion/insertion faithfulness curves.",
+    )
+    parser.add_argument(
+        "--gradshap-samples",
+        type=int,
+        default=8,
+        help="GradientSHAP samples per image. Increase for final runs.",
+    )
+    parser.add_argument(
+        "--gradshap-stdevs",
+        type=float,
+        default=0.02,
+        help="GradientSHAP noise standard deviation.",
+    )
+    parser.add_argument(
+        "--occlusion-patch-size",
+        type=int,
+        default=32,
+        help="Occlusion Sensitivity square patch size in resized image pixels.",
+    )
+    parser.add_argument(
+        "--occlusion-stride",
+        type=int,
+        default=16,
+        help="Occlusion Sensitivity stride in resized image pixels.",
     )
     parser.add_argument(
         "--device",
@@ -326,8 +356,24 @@ def write_faithfulness_summary(
             )
 
 
+def faithfulness_method_family(method: str) -> str:
+    if method.startswith("grad_cam") or method == "consensus":
+        return "cam_family"
+    if method.startswith("integrated_gradients"):
+        return "integrated_gradients_family"
+    if method.startswith("gradient_shap"):
+        return "gradient_shap_family"
+    if method.startswith("occlusion"):
+        return "occlusion_family"
+    return "other"
+
+
 def plot_faithfulness_curves(
-    faithfulness_rows: list[dict[str, str | int | float]], output_path: Path, title: str
+    faithfulness_rows: list[dict[str, str | int | float]],
+    output_path: Path,
+    title: str,
+    *,
+    zoom_y: bool = False,
 ) -> None:
     if not faithfulness_rows:
         return
@@ -335,36 +381,41 @@ def plot_faithfulness_curves(
     for row in faithfulness_rows:
         grouped[str(row["method"])].append(row)
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
+    plotted_values: list[float] = []
     for method, rows in sorted(grouped.items()):
         by_fraction: dict[float, list[dict[str, str | int | float]]] = defaultdict(list)
         for row in rows:
             by_fraction[float(row["fraction"])].append(row)
         fractions = sorted(by_fraction)
+        insertion_values = [
+            float(
+                np.mean(
+                    [float(row["insertion_probability"]) for row in by_fraction[fraction]]
+                )
+            )
+            for fraction in fractions
+        ]
+        deletion_values = [
+            float(
+                np.mean(
+                    [float(row["deletion_probability"]) for row in by_fraction[fraction]]
+                )
+            )
+            for fraction in fractions
+        ]
+        plotted_values.extend(insertion_values)
+        plotted_values.extend(deletion_values)
         axes[0].plot(
             fractions,
-            [
-                float(
-                    np.mean(
-                        [float(row["insertion_probability"]) for row in by_fraction[fraction]]
-                    )
-                )
-                for fraction in fractions
-            ],
+            insertion_values,
             marker="o",
             linewidth=1.5,
             label=method,
         )
         axes[1].plot(
             fractions,
-            [
-                float(
-                    np.mean(
-                        [float(row["deletion_probability"]) for row in by_fraction[fraction]]
-                    )
-                )
-                for fraction in fractions
-            ],
+            deletion_values,
             marker="o",
             linewidth=1.5,
             label=method,
@@ -375,13 +426,73 @@ def plot_faithfulness_curves(
     axes[0].set_ylabel("Pneumothorax probability")
     axes[1].set_title("Deletion")
     axes[1].set_xlabel("Fraction of top-attributed pixels removed")
+    if zoom_y and plotted_values:
+        y_min = max(0.0, min(plotted_values) - 0.03)
+        y_max = min(1.0, max(plotted_values) + 0.03)
+    else:
+        y_min = 0.0
+        y_max = 1.0
     for axis in axes:
-        axis.set_ylim(0.0, 1.0)
+        axis.set_ylim(y_min, y_max)
         axis.grid(alpha=0.25)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8)
     fig.suptitle(title)
     fig.tight_layout(rect=(0, 0.12, 1, 0.95))
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+
+
+def write_faithfulness_plots(
+    faithfulness_rows: list[dict[str, str | int | float]], output_dir: Path, title: str
+) -> None:
+    plot_faithfulness_curves(
+        faithfulness_rows,
+        output_dir / "faithfulness_curves.png",
+        title,
+    )
+    plot_faithfulness_curves(
+        faithfulness_rows,
+        output_dir / "faithfulness_curves_zoomed.png",
+        f"{title} (zoomed y-axis)",
+        zoom_y=True,
+    )
+    families: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
+    for row in faithfulness_rows:
+        families[faithfulness_method_family(str(row["method"]))].append(row)
+    for family, rows in families.items():
+        if rows:
+            plot_faithfulness_curves(
+                rows,
+                output_dir / f"faithfulness_curves_{family}.png",
+                f"{title}: {family.replace('_', ' ')}",
+                zoom_y=True,
+            )
+
+
+def plot_faithfulness_summary(summary_path: Path, output_path: Path) -> None:
+    if not summary_path.exists():
+        return
+    rows: list[dict[str, str]] = []
+    with summary_path.open(newline="", encoding="utf-8") as handle:
+        rows.extend(csv.DictReader(handle))
+    if not rows:
+        return
+    methods = [row["method"] for row in rows]
+    x = np.arange(len(methods))
+    width = 0.38
+    insertion = [float(row["insertion_auc_mean"]) for row in rows]
+    deletion_drop = [float(row["deletion_drop_auc_mean"]) for row in rows]
+    fig, axis = plt.subplots(figsize=(max(10, len(methods) * 0.8), 5))
+    axis.bar(x - width / 2, insertion, width, label="Insertion AUC")
+    axis.bar(x + width / 2, deletion_drop, width, label="Deletion-drop AUC")
+    axis.set_ylabel("AUC")
+    axis.set_title("Faithfulness AUC summary")
+    axis.set_xticks(x)
+    axis.set_xticklabels(methods, rotation=45, ha="right")
+    axis.grid(axis="y", alpha=0.25)
+    axis.legend()
+    fig.tight_layout()
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
 
@@ -474,7 +585,7 @@ def safe_case_name(sample_idx: int, row: dict[str, str]) -> str:
 
 
 def overlay_color_for_method(method_name: str) -> str:
-    if method_name == "integrated_gradients":
+    if method_name in {"integrated_gradients", "gradient_shap", "occlusion"}:
         return "neutral"
     if is_negative_method(method_name):
         return "blue"
@@ -549,7 +660,54 @@ def main() -> None:
             steps=args.ig_steps,
             polarity="negative",
         )
-        consensus = consensus_heatmap([cam_map, ig_map])
+        gradient_shap_map = gradient_shap(
+            model,
+            model_input,
+            class_idx=class_idx,
+            samples=args.gradshap_samples,
+            stdevs=args.gradshap_stdevs,
+        )
+        gradient_shap_positive_map = gradient_shap(
+            model,
+            model_input,
+            class_idx=class_idx,
+            samples=args.gradshap_samples,
+            stdevs=args.gradshap_stdevs,
+            polarity="positive",
+        )
+        gradient_shap_negative_map = gradient_shap(
+            model,
+            model_input,
+            class_idx=class_idx,
+            samples=args.gradshap_samples,
+            stdevs=args.gradshap_stdevs,
+            polarity="negative",
+        )
+        occlusion_map = occlusion_sensitivity(
+            model,
+            model_input,
+            class_idx=class_idx,
+            patch_size=args.occlusion_patch_size,
+            stride=args.occlusion_stride,
+            polarity="magnitude",
+        )
+        occlusion_positive_map = occlusion_sensitivity(
+            model,
+            model_input,
+            class_idx=class_idx,
+            patch_size=args.occlusion_patch_size,
+            stride=args.occlusion_stride,
+            polarity="positive",
+        )
+        occlusion_negative_map = occlusion_sensitivity(
+            model,
+            model_input,
+            class_idx=class_idx,
+            patch_size=args.occlusion_patch_size,
+            stride=args.occlusion_stride,
+            polarity="negative",
+        )
+        consensus = consensus_heatmap([cam_map, ig_map, gradient_shap_map, occlusion_map])
 
         methods = {
             "grad_cam": cam_map,
@@ -560,6 +718,13 @@ def main() -> None:
             "integrated_gradients_positive": ig_positive_map,
             "integrated_gradients_negative": ig_negative_map,
             "integrated_gradients_signed": ig_positive_map,
+            "gradient_shap": gradient_shap_map,
+            "gradient_shap_positive": gradient_shap_positive_map,
+            "gradient_shap_negative": gradient_shap_negative_map,
+            "gradient_shap_signed": gradient_shap_positive_map,
+            "occlusion": occlusion_map,
+            "occlusion_positive": occlusion_positive_map,
+            "occlusion_negative": occlusion_negative_map,
             "consensus": consensus,
         }
 
@@ -617,6 +782,18 @@ def main() -> None:
                         negative_fraction,
                     ).items()
                 }
+            elif method_name == "gradient_shap_signed":
+                negative_fraction = calibrated_fractions.get(
+                    "gradient_shap_negative", args.top_fraction
+                )
+                negative_metrics = {
+                    key: round(value, 6)
+                    for key, value in negative_evidence_metrics(
+                        gradient_shap_negative_map,
+                        mask,
+                        negative_fraction,
+                    ).items()
+                }
             metric_rows.append(
                 {
                     "sample_id": sample_idx,
@@ -642,9 +819,14 @@ def main() -> None:
                     negative_heatmap=(
                         negative_cam_map if method_name == "consensus"
                         else ig_negative_map if method_name == "integrated_gradients_signed"
+                        else gradient_shap_negative_map if method_name == "gradient_shap_signed"
                         else None
                     ),
-                    neutral_heatmap=ig_map if method_name == "consensus" else None,
+                    neutral_heatmap=(
+                        consensus_heatmap([ig_map, gradient_shap_map, occlusion_map])
+                        if method_name == "consensus"
+                        else None
+                    ),
                 )
                 selected_mask = threshold_top_fraction(
                     heatmap, fraction=top_fraction)
@@ -656,15 +838,19 @@ def main() -> None:
                         ),
                     )
                     if method_name == "integrated_gradients_signed"
+                    else threshold_top_fraction(
+                        gradient_shap_negative_map,
+                        fraction=calibrated_fractions.get(
+                            "gradient_shap_negative", args.top_fraction
+                        ),
+                    )
+                    if method_name == "gradient_shap_signed"
                     else None
                 )
                 neutral_selected_mask = (
-                    threshold_top_fraction(
-                        ig_map,
-                        fraction=calibrated_fractions.get(
-                            "integrated_gradients", args.top_fraction
-                        ),
-                    )
+                    threshold_top_fraction(ig_map, fraction=calibrated_fractions.get("integrated_gradients", args.top_fraction))
+                    | threshold_top_fraction(gradient_shap_map, fraction=calibrated_fractions.get("gradient_shap", args.top_fraction))
+                    | threshold_top_fraction(occlusion_map, fraction=calibrated_fractions.get("occlusion", args.top_fraction))
                     if method_name == "consensus"
                     else None
                 )
@@ -674,7 +860,7 @@ def main() -> None:
                     mask,
                     case_dir / f"{method_name}_selected.png",
                     negative_style=is_negative_method(method_name),
-                    neutral_style=method_name == "integrated_gradients",
+                    neutral_style=method_name in {"integrated_gradients", "gradient_shap", "occlusion"},
                     negative_selected_mask=negative_selected_mask,
                     neutral_selected_mask=neutral_selected_mask,
                 )
@@ -728,13 +914,16 @@ def main() -> None:
             )
             writer.writeheader()
             writer.writerows(faithfulness_rows)
-        write_faithfulness_summary(
-            faithfulness_rows, output_dir / "faithfulness_summary.csv"
-        )
-        plot_faithfulness_curves(
+        faithfulness_summary_path = output_dir / "faithfulness_summary.csv"
+        write_faithfulness_summary(faithfulness_rows, faithfulness_summary_path)
+        write_faithfulness_plots(
             faithfulness_rows,
-            output_dir / "faithfulness_curves.png",
+            output_dir,
             "Aggregate faithfulness curves",
+        )
+        plot_faithfulness_summary(
+            faithfulness_summary_path,
+            output_dir / "faithfulness_summary.png",
         )
 
     summary_path = output_dir / "metrics_summary.csv"

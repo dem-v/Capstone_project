@@ -10,7 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.xai import (
+    GradCAM,
+    consensus_heatmap,
+    gradient_shap,
+    integrated_gradients,
+    occlusion_sensitivity,
+)
 from explainai_thesis.metrics import localization_metrics
 from PIL import Image
 import torchxrayvision as xrv
@@ -32,6 +38,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-positive", type=int, default=200)
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--ig-steps", type=int, default=16)
+    parser.add_argument("--gradshap-samples", type=int, default=8)
+    parser.add_argument("--gradshap-stdevs", type=float, default=0.02)
+    parser.add_argument("--occlusion-patch-size", type=int, default=32)
+    parser.add_argument("--occlusion-stride", type=int, default=16)
     parser.add_argument(
         "--fractions",
         default="0.05,0.10,0.15,0.20,0.25,0.30",
@@ -158,6 +168,18 @@ def main() -> None:
             model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
         ig_negative_map = integrated_gradients(
             model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
+        gradient_shap_map = gradient_shap(
+            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs)
+        gradient_shap_positive_map = gradient_shap(
+            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs, polarity="positive")
+        gradient_shap_negative_map = gradient_shap(
+            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs, polarity="negative")
+        occlusion_map = occlusion_sensitivity(
+            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="magnitude")
+        occlusion_positive_map = occlusion_sensitivity(
+            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="positive")
+        occlusion_negative_map = occlusion_sensitivity(
+            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="negative")
         methods = {
             "grad_cam": cam_map,
             "grad_cam_plus_plus": cam_plus_plus_map,
@@ -167,7 +189,14 @@ def main() -> None:
             "integrated_gradients_positive": ig_positive_map,
             "integrated_gradients_negative": ig_negative_map,
             "integrated_gradients_signed": ig_positive_map,
-            "consensus": consensus_heatmap([cam_map, ig_map]),
+            "gradient_shap": gradient_shap_map,
+            "gradient_shap_positive": gradient_shap_positive_map,
+            "gradient_shap_negative": gradient_shap_negative_map,
+            "gradient_shap_signed": gradient_shap_positive_map,
+            "occlusion": occlusion_map,
+            "occlusion_positive": occlusion_positive_map,
+            "occlusion_negative": occlusion_negative_map,
+            "consensus": consensus_heatmap([cam_map, ig_map, gradient_shap_map, occlusion_map]),
         }
 
         for method_name, heatmap in methods.items():

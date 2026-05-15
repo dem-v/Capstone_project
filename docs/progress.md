@@ -1695,3 +1695,64 @@ Deletion/insertion evaluates faithfulness to the model score, not clinical corre
 ```text
 Deletion and insertion curves were computed by re-evaluating the TorchXRayVision pneumothorax probability after perturbing the input image according to each attribution ranking. CAM-based methods produced a stronger and more coherent probability response, suggesting that their highlighted regions better captured score-controlling image regions for this model. Integrated Gradients variants showed more fluctuation, likely because pixel-level signed attributions are less spatially coherent and because magnitude-based IG can mix positive and negative contributions. Therefore, faithfulness curves should be interpreted as model-behavior diagnostics rather than direct evidence of clinical lesion localization.
 ```
+
+## 2026-05-15 - Iteration 17: Faithfulness Plot Readability, GradientSHAP, and Occlusion Sensitivity
+
+- Improved deletion/insertion faithfulness readability in `scripts/run_cxr_torchxray_smoke.py`:
+  - original aggregate `faithfulness_curves.png` is still written;
+  - added `faithfulness_curves_zoomed.png` with auto-scaled y-axis;
+  - added family-specific plots such as `faithfulness_curves_cam_family.png`, `faithfulness_curves_integrated_gradients_family.png`, `faithfulness_curves_gradient_shap_family.png`, and `faithfulness_curves_occlusion_family.png` when corresponding rows exist;
+  - added `faithfulness_summary.png` bar plot comparing insertion AUC and deletion-drop AUC.
+- Added `GradientSHAP` via Captum:
+  - `gradient_shap` = neutral/violet magnitude map;
+  - `gradient_shap_positive` = red positive signed contribution;
+  - `gradient_shap_negative` = blue negative signed contribution;
+  - `gradient_shap_signed` = red positive map with blue negative diagnostic overlay.
+- Added `Occlusion Sensitivity`:
+  - `occlusion` = neutral/violet absolute score-change map;
+  - `occlusion_positive` = red regions where occlusion decreases the pneumothorax logit, meaning the region supports the target score;
+  - `occlusion_negative` = blue regions where occlusion increases the pneumothorax logit, meaning the region suppresses the target score.
+- Added runtime controls:
+  - `--gradshap-samples`;
+  - `--gradshap-stdevs`;
+  - `--occlusion-patch-size`;
+  - `--occlusion-stride`.
+- Integrated new methods into:
+  - main evaluation metrics and overlays;
+  - selected-threshold images;
+  - deletion/insertion faithfulness curves;
+  - top-fraction calibration in `scripts/calibrate_cxr_xai_thresholds.py`.
+- Smoke outputs generated:
+  - `outputs/iter_17_occlusion_gradshap_smoke`;
+  - `outputs/iter_17_occlusion_gradshap_calibration_smoke`.
+- Verification:
+  - WSL `py_compile` passed for `src/explainai_thesis/xai.py`, `scripts/run_cxr_torchxray_smoke.py`, and `scripts/calibrate_cxr_xai_thresholds.py`;
+  - CUDA main smoke with one positive test case generated all expected method rows, including `gradient_shap`, `gradient_shap_signed`, `occlusion`, `occlusion_positive`, and `occlusion_negative`;
+  - verified new faithfulness plot artifacts exist, including zoomed and family-specific plots plus `faithfulness_summary.png`;
+  - CUDA calibration smoke confirmed selected fractions are written for all new methods.
+
+### Model/Weights Concern and Next Evaluation Direction
+
+- Current clinical interpretation concern is important:
+  - many inspected predictions/localizations look clinically random or anatomically implausible;
+  - current overlap scores are very low, often only a few percent `IoU` at best;
+  - the model can still achieve moderate classifier signal because some pneumothorax-correlated information may be inferred indirectly from lung roots, mediastinal configuration, costophrenic/deep sulcus changes, positioning, or dataset bias;
+  - however, attribution on ribs, outside body regions, chin/neck artifacts, or other irrelevant anatomy is clinically suspicious.
+- The currently used weight identifier is still `densenet121-res224-all` from TorchXRayVision:
+  - it is not necessarily pneumothorax-specialized;
+  - it is a broad pretrained multi-pathology baseline;
+  - weak localization does not prove the weights are technically wrong, but it strongly suggests dataset/model mismatch and/or insufficient pneumothorax task specificity.
+- Before running `1000+` cases, recommended sanity sequence:
+  1. run a `100`-case sanity pass with the new methods and inspect runtime/artifacts;
+  2. calibrate thresholds for the expanded method set;
+  3. then run `1000` mixed-label cases for classifier outcome diversity and reporting.
+- A second model should be added for comparison because the current TorchXRayVision baseline may be clinically weak for this SIIM/Kaggle pneumothorax task.
+- Candidate direction:
+  - CheXNet-style DenseNet trained on chest pathology can be a historical comparator;
+  - preferably use a newer pneumothorax-specific or stronger CXR model if available with reproducible weights and license;
+  - compare classification performance first, then run the same XAI/localization/faithfulness protocol on both models.
+- Thesis-safe framing:
+
+```text
+The current TorchXRayVision DenseNet should be treated as an external pretrained baseline rather than a clinically adequate pneumothorax model. Its moderate classifier signal and weak lesion localization make it useful for demonstrating why XAI validation is necessary, but a second, stronger pneumothorax-oriented model is needed to show how explanation behavior changes when the underlying classifier is more clinically appropriate.
+```

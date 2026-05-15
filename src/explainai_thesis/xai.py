@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 from torch import nn
+from captum.attr import GradientShap
 
 from .metrics import normalize_map
 
@@ -121,6 +122,80 @@ def integrated_gradients(
         attribution = attribution.abs()
     heatmap = attribution.sum(dim=1)[0]
     return normalize_map(heatmap.cpu())
+
+
+def gradient_shap(
+    model: nn.Module,
+    image: torch.Tensor,
+    class_idx: int = 1,
+    samples: int = 16,
+    stdevs: float = 0.02,
+    polarity: str = "magnitude",
+) -> torch.Tensor:
+    """GradientSHAP attribution for a single image using zero and blurred-noise baselines."""
+    if polarity not in {"magnitude", "positive", "negative"}:
+        raise ValueError(
+            "polarity must be 'magnitude', 'positive', or 'negative'.")
+
+    model.eval()
+    baseline_zero = torch.zeros_like(image)
+    baseline_mean = torch.full_like(image, float(image.mean().detach().cpu().item()))
+    baselines = torch.cat([baseline_zero, baseline_mean], dim=0)
+    attribution = GradientShap(model).attribute(
+        image,
+        baselines=baselines,
+        target=class_idx,
+        n_samples=samples,
+        stdevs=stdevs,
+    )
+    if polarity == "positive":
+        attribution = F.relu(attribution)
+    elif polarity == "negative":
+        attribution = F.relu(-attribution)
+    else:
+        attribution = attribution.abs()
+    heatmap = attribution.sum(dim=1)[0]
+    return normalize_map(heatmap.detach().cpu())
+
+
+def occlusion_sensitivity(
+    model: nn.Module,
+    image: torch.Tensor,
+    class_idx: int = 1,
+    patch_size: int = 16,
+    stride: int = 8,
+    baseline_value: float = 0.0,
+    polarity: str = "positive",
+) -> torch.Tensor:
+    """Score-change occlusion map for a single image."""
+    if polarity not in {"positive", "negative", "magnitude"}:
+        raise ValueError(
+            "polarity must be 'positive', 'negative', or 'magnitude'.")
+
+    model.eval()
+    _, _, height, width = image.shape
+    attribution = torch.zeros((height, width), device=image.device)
+    counts = torch.zeros((height, width), device=image.device)
+    with torch.no_grad():
+        original_score = model(image)[:, class_idx].sum()
+        for top in range(0, height, stride):
+            bottom = min(top + patch_size, height)
+            for left in range(0, width, stride):
+                right = min(left + patch_size, width)
+                occluded = image.detach().clone()
+                occluded[:, :, top:bottom, left:right] = baseline_value
+                occluded_score = model(occluded)[:, class_idx].sum()
+                delta = original_score - occluded_score
+                if polarity == "negative":
+                    value = F.relu(-delta)
+                elif polarity == "magnitude":
+                    value = delta.abs()
+                else:
+                    value = F.relu(delta)
+                attribution[top:bottom, left:right] += value
+                counts[top:bottom, left:right] += 1
+    attribution = attribution / torch.clamp(counts, min=1)
+    return normalize_map(attribution.detach().cpu())
 
 
 def consensus_heatmap(heatmaps: list[torch.Tensor]) -> torch.Tensor:
