@@ -95,6 +95,16 @@ def parse_args() -> argparse.Namespace:
         help="Optional comma-separated fractions for deletion/insertion faithfulness curves.",
     )
     parser.add_argument(
+        "--faithfulness-baseline",
+        default="zero_tensor",
+        choices=["zero_tensor", "black", "white", "case_mean"],
+        help=(
+            "Baseline used for deletion/insertion faithfulness. "
+            "zero_tensor preserves the historical behavior; black/white/case_mean "
+            "use normalized image-space baselines."
+        ),
+    )
+    parser.add_argument(
         "--gradshap-samples",
         type=int,
         default=8,
@@ -259,18 +269,31 @@ def model_probability(model: torch.nn.Module, image: torch.Tensor, class_idx: in
         return float(torch.sigmoid(output[0, class_idx]).detach().cpu().item())
 
 
+def faithfulness_baseline_tensor(model_input: torch.Tensor, baseline: str) -> torch.Tensor:
+    if baseline == "zero_tensor":
+        return torch.zeros_like(model_input)
+    if baseline == "black":
+        return torch.full_like(model_input, -1024.0)
+    if baseline == "white":
+        return torch.full_like(model_input, 1024.0)
+    if baseline == "case_mean":
+        return torch.full_like(model_input, float(model_input.mean().item()))
+    raise ValueError(f"Unsupported faithfulness baseline: {baseline}")
+
+
 def faithfulness_curve_rows(
     model: torch.nn.Module,
     model_input: torch.Tensor,
     heatmap: torch.Tensor,
     class_idx: int,
     fractions: list[float],
+    baseline: torch.Tensor,
 ) -> list[dict[str, float]]:
     if not fractions:
         return []
     flat_order = torch.argsort(heatmap.flatten().to(model_input.device), descending=True)
     original_flat = model_input.detach().clone().flatten()
-    baseline_flat = torch.zeros_like(original_flat)
+    baseline_flat = baseline.detach().clone().flatten().to(model_input.device)
     rows: list[dict[str, float]] = []
     total_pixels = flat_order.numel()
     for fraction in fractions:
@@ -641,6 +664,9 @@ def main() -> None:
         image = load_image(Path(row["image_path"]), args.image_size)
         mask = load_mask(Path(row["mask_path"]), args.image_size)
         model_input = image.unsqueeze(0).to(device)
+        faithfulness_baseline = faithfulness_baseline_tensor(
+            model_input, args.faithfulness_baseline
+        )
         case_faithfulness_rows: list[dict[str, str | int | float]] = []
 
         with torch.no_grad():
@@ -754,13 +780,19 @@ def main() -> None:
             metrics = localization_metrics(
                 heatmap, mask, fraction=top_fraction)
             for faithfulness_row in faithfulness_curve_rows(
-                model, model_input, heatmap, class_idx, faithfulness_fractions
+                model,
+                model_input,
+                heatmap,
+                class_idx,
+                faithfulness_fractions,
+                faithfulness_baseline,
             ):
                 enriched_faithfulness_row = {
                     "sample_id": sample_idx,
                     "filename": row.get("filename", Path(row["image_path"]).name),
                     "split": row.get("split", ""),
                     "method": method_name,
+                    "baseline": args.faithfulness_baseline,
                     **faithfulness_row,
                 }
                 faithfulness_rows.append(enriched_faithfulness_row)
@@ -929,6 +961,7 @@ def main() -> None:
                     "filename",
                     "split",
                     "method",
+                    "baseline",
                     "fraction",
                     "insertion_probability",
                     "deletion_probability",

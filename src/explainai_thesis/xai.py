@@ -166,6 +166,7 @@ def occlusion_sensitivity(
     stride: int = 8,
     baseline_value: float = 0.0,
     polarity: str = "positive",
+    batch_size: int = 32,
 ) -> torch.Tensor:
     """Score-change occlusion map for a single image."""
     if polarity not in {"positive", "negative", "magnitude"}:
@@ -176,22 +177,29 @@ def occlusion_sensitivity(
     _, _, height, width = image.shape
     attribution = torch.zeros((height, width), device=image.device)
     counts = torch.zeros((height, width), device=image.device)
+    windows: list[tuple[int, int, int, int]] = []
+    for top in range(0, height, stride):
+        bottom = min(top + patch_size, height)
+        for left in range(0, width, stride):
+            right = min(left + patch_size, width)
+            windows.append((top, bottom, left, right))
+
     with torch.no_grad():
         original_score = model(image)[:, class_idx].sum()
-        for top in range(0, height, stride):
-            bottom = min(top + patch_size, height)
-            for left in range(0, width, stride):
-                right = min(left + patch_size, width)
-                occluded = image.detach().clone()
-                occluded[:, :, top:bottom, left:right] = baseline_value
-                occluded_score = model(occluded)[:, class_idx].sum()
-                delta = original_score - occluded_score
-                if polarity == "negative":
-                    value = F.relu(-delta)
-                elif polarity == "magnitude":
-                    value = delta.abs()
-                else:
-                    value = F.relu(delta)
+        for start in range(0, len(windows), batch_size):
+            batch_windows = windows[start:start + batch_size]
+            occluded_batch = image.detach().repeat(len(batch_windows), 1, 1, 1)
+            for batch_idx, (top, bottom, left, right) in enumerate(batch_windows):
+                occluded_batch[batch_idx, :, top:bottom, left:right] = baseline_value
+            occluded_scores = model(occluded_batch)[:, class_idx]
+            deltas = original_score - occluded_scores
+            if polarity == "negative":
+                values = F.relu(-deltas)
+            elif polarity == "magnitude":
+                values = deltas.abs()
+            else:
+                values = F.relu(deltas)
+            for value, (top, bottom, left, right) in zip(values, batch_windows):
                 attribution[top:bottom, left:right] += value
                 counts[top:bottom, left:right] += 1
     attribution = attribution / torch.clamp(counts, min=1)

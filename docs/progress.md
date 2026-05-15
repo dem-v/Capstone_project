@@ -1932,3 +1932,121 @@ wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split tr
   - Many expanded methods select larger top fractions (`0.35`-`0.50`) for their best Dice, suggesting their signal is diffuse or that the model evidence is not tightly localized to pneumothorax masks.
   - Negative-evidence calibration should be read separately from positive localization: high avoidance means blue/suppressive evidence mostly stays outside the true lesion mask, which is generally healthier than maximizing blue-mask overlap.
   - These calibration files are now ready to use as frozen threshold candidates for the next `100`- or `200`-case all-method sanity evaluation before any `1000+` case run.
+
+## 2026-05-15 - Iteration 22: Random Train-100 XAI Calibration, 5%-95% Fractions
+
+- Updated calibration sampling after reviewing the `0.62` classifier cutoff result:
+  - `0.62` is now the preferred train-calibrated operating threshold for the current TorchXRayVision baseline, replacing the earlier exploratory `0.61` in future classifier-outcome runs unless another operating point is intentionally selected.
+  - `scripts/calibrate_cxr_xai_thresholds.py` now supports `--random-sample` and `--seed` so calibration cases can be sampled randomly and reproducibly instead of taking the first manifest rows.
+  - The default behavior remains sequential unless `--random-sample` is explicitly passed.
+- Runtime fix:
+  - batched `occlusion_sensitivity` in `src/explainai_thesis/xai.py` so all-method calibration with occlusion is feasible on larger fraction grids;
+  - also fixed a missing `defaultdict` import in the calibration script that surfaced during the wider run.
+- Negative avoidance reminder:
+  - `negative_mask_avoidance_fraction = 1 - negative_mask_overlap_fraction`;
+  - it measures how much selected suppressive/blue evidence stays outside the true pneumothorax mask;
+  - for negative evidence, higher avoidance is usually better because blue evidence inside the lesion would mean the model is treating annotated pneumothorax area as evidence against pneumothorax.
+- Random positive-localization calibration command:
+
+```bash
+wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --random-sample --seed 20260515 --ig-steps 16 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --selection-metric dice --output-dir outputs/iter_22_xai_calibration_train100_random_all_methods_dice
+```
+
+- Random negative-evidence avoidance calibration command:
+
+```bash
+wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --device auto --split train --max-positive 100 --random-sample --seed 20260515 --ig-steps 16 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --selection-metric negative_mask_avoidance_fraction --output-dir outputs/iter_22_xai_calibration_train100_random_all_methods_negative_avoidance
+```
+
+- Dice-selected fractions on random `100` positive train cases:
+
+| Method | Selected fraction | Mean Dice |
+|---|---:|---:|
+| `grad_cam` | `0.15` | `0.050771` |
+| `grad_cam_plus_plus` | `0.40` | `0.043228` |
+| `consensus` | `0.30` | `0.040034` |
+| `occlusion` | `0.40` | `0.034777` |
+| `occlusion_positive` | `0.40` | `0.034230` |
+| `occlusion_negative` | `0.35` | `0.032562` |
+| `integrated_gradients` | `0.45` | `0.032322` |
+| `gradient_shap` | `0.55` | `0.031276` |
+
+- Negative-avoidance selected fractions for suppressive/signed evidence:
+
+| Method | Selected fraction | Mean negative-mask avoidance |
+|---|---:|---:|
+| `grad_cam_negative` | `0.05` | `0.991260` |
+| `occlusion_negative` | `0.10` | `0.985373` |
+| `gradient_shap_negative` | `0.50` | `0.984785` |
+| `grad_cam_plus_plus_negative` | `0.70` | `0.984683` |
+| `integrated_gradients_negative` | `0.50` | `0.984612` |
+| `consensus` | `0.95` | `0.984111` |
+
+- Artifacts generated:
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_dice/calibration_metrics.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_dice/calibration_summary.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions_by_metric.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_negative_avoidance/calibration_metrics.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_negative_avoidance/calibration_summary.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_negative_avoidance/selected_fractions.csv`
+  - `outputs/iter_22_xai_calibration_train100_random_all_methods_negative_avoidance/selected_fractions_by_metric.csv`
+- Verification:
+  - WSL `py_compile` passed for `src/explainai_thesis/xai.py` and `scripts/calibrate_cxr_xai_thresholds.py`;
+  - both CUDA calibration runs completed successfully;
+  - verified all expected Iteration 22 CSV artifacts exist.
+
+## 2026-05-15 - Iteration 23: Stage 7 TorchXRayVision Baseline / Blank-Image Diagnostic
+
+- Stage 7 question investigated:
+  - why `100%` deletion in faithfulness curves could still show about `60%` pneumothorax probability;
+  - whether this was caused by model output interpretation, preprocessing, baseline choice, or model calibration.
+- Important implementation finding:
+  - current classifier and faithfulness paths correctly treat TorchXRayVision outputs as logits and apply `sigmoid` for multi-label pneumothorax probability;
+  - the larger problem was baseline interpretation: `xrv.datasets.normalize(array, 255)` maps image pixels approximately to `[-1024, 1024]`;
+  - therefore a faithfulness baseline tensor of all `0.0` is not a black image. It is approximately the normalized value of a mid-gray pixel (`~128`), and this current model assigns that baseline a high pneumothorax probability.
+- Added diagnostic script:
+  - `scripts/diagnose_cxr_torchxray_baselines.py`;
+  - compares `original_image`, historical `current_faithfulness_zero_tensor`, normalized black pixel `0`, normalized mid-gray pixel `128`, normalized white pixel `255`, blurred original, and case-mean baseline;
+  - writes per-case `baseline_diagnostics.csv` and aggregate `baseline_diagnostics_summary.csv`.
+- Diagnostic command:
+
+```bash
+wsl.exe python3 scripts/diagnose_cxr_torchxray_baselines.py --device auto --split test --max-cases 20 --output-dir outputs/iter_23_torchxray_baseline_diagnostic_test20
+```
+
+- Diagnostic summary on first `20` test cases:
+
+| Variant | Mean pneumothorax probability |
+|---|---:|
+| `current_faithfulness_zero_tensor` | `0.633799` |
+| `mid_gray_pixel_128_normalized` | `0.633781` |
+| `case_mean_pixel_normalized` | `0.630749` |
+| `original_image` | `0.569075` |
+| `black_pixel_0_normalized` | `0.532825` |
+| `blurred_original_normalized` | `0.526610` |
+| `white_pixel_255_normalized` | `0.500022` |
+
+- Interpretation:
+  - the previous `~60%` fully-deleted score was largely a baseline artifact: full deletion to a zero tensor means replacement with a normalized mid-gray baseline, not with black pixels;
+  - however, even true normalized black and white baselines remain near `0.50`, so the model is also poorly calibrated around the pneumothorax decision boundary for blank/out-of-distribution images;
+  - the model can assign higher pneumothorax probability to non-anatomical constant images than to some real cases, reinforcing that the current `densenet121-res224-all` baseline is not clinically reliable for this dataset.
+- Main faithfulness workflow update:
+  - `scripts/run_cxr_torchxray_smoke.py` now supports `--faithfulness-baseline` with choices `zero_tensor`, `black`, `white`, and `case_mean`;
+  - `zero_tensor` preserves historical behavior for comparison;
+  - `black` uses normalized black image-space replacement (`-1024`) and is the preferred immediate replacement baseline for clearer deletion/insertion interpretation;
+  - `faithfulness_curves.csv` now records the baseline name in a `baseline` column.
+- Smoke verification command:
+
+```bash
+wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 1 --ig-steps 2 --gradshap-samples 2 --occlusion-patch-size 112 --occlusion-stride 112 --max-overlays 1 --faithfulness-fractions 0.0,0.5,1.0 --faithfulness-baseline black --output-dir outputs/iter_23_faithfulness_black_baseline_smoke
+```
+
+- Smoke result:
+  - with `--faithfulness-baseline black`, insertion at fraction `0.0` starts at `0.532825` instead of the historical `~0.6338` zero-tensor baseline;
+  - deletion at fraction `1.0` also ends at `0.532825`, confirming the baseline is now actually used in the faithfulness perturbation path.
+- Thesis-safe wording:
+  - `Deletion/insertion curves depend strongly on the replacement baseline. In the initial implementation, a zero tensor in TorchXRayVision-normalized space did not represent a black image, but rather an approximately mid-gray normalized input, which the pretrained model scored highly for pneumothorax. Subsequent diagnostics showed that normalized constant-image baselines are out-of-distribution and can still receive near-threshold pneumothorax probabilities. Therefore, deletion/insertion results should be interpreted as model-behavior diagnostics under a specified perturbation baseline, not as direct clinical probability estimates for realistic images.`
+- Recommended next decision:
+  - use `--faithfulness-baseline black` for the next sanity evaluation to avoid the misleading mid-gray zero-tensor baseline;
+  - optionally compare `black` versus `blurred` later, because blurred original images may be a more natural medical-image baseline but require a separate implementation in the main faithfulness runner.

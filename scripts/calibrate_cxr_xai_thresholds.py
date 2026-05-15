@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import random
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -36,6 +37,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", default="train",
                         choices=["train", "test", "any"])
     parser.add_argument("--max-positive", type=int, default=200)
+    parser.add_argument(
+        "--random-sample",
+        action="store_true",
+        help="Randomly sample positive masked cases instead of taking the first rows in manifest order.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=20260515,
+        help="Random seed used with --random-sample.",
+    )
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--ig-steps", type=int, default=16)
     parser.add_argument("--gradshap-samples", type=int, default=8)
@@ -72,7 +84,13 @@ def resolve_device(choice: str) -> torch.device:
     return torch.device(choice)
 
 
-def read_positive_rows(manifest_path: Path, split: str, limit: int) -> list[dict[str, str]]:
+def read_positive_rows(
+    manifest_path: Path,
+    split: str,
+    limit: int,
+    random_sample: bool,
+    seed: int,
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
@@ -84,8 +102,12 @@ def read_positive_rows(manifest_path: Path, split: str, limit: int) -> list[dict
             if not row.get("mask_path"):
                 continue
             rows.append(row)
-            if len(rows) >= limit:
+            if not random_sample and len(rows) >= limit:
                 break
+    if random_sample:
+        rng = random.Random(seed)
+        rng.shuffle(rows)
+        rows = rows[:limit]
     return rows
 
 
@@ -158,7 +180,12 @@ def main() -> None:
 
     fractions = parse_fractions(args.fractions)
     rows = read_positive_rows(
-        Path(args.manifest), args.split, args.max_positive)
+        Path(args.manifest),
+        args.split,
+        args.max_positive,
+        args.random_sample,
+        args.seed,
+    )
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {args.manifest} for split={args.split}.")
