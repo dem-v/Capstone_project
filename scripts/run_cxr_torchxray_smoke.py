@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import random
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -66,6 +67,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=6,
         help="Number of positive cases to evaluate.",
+    )
+    parser.add_argument(
+        "--random-sample",
+        action="store_true",
+        help="Randomly sample positive cases after filtering instead of taking the first rows.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=20260515,
+        help="Seed used with --random-sample for reproducible case selection.",
     )
     parser.add_argument("--image-size", type=int,
                         default=224, help="Model input size.")
@@ -146,7 +158,7 @@ def resolve_device(choice: str) -> torch.device:
 
 
 def read_positive_rows(
-    manifest_path: Path, split: str, limit: int
+    manifest_path: Path, split: str, limit: int, *, random_sample: bool = False, seed: int = 20260515
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
@@ -159,8 +171,11 @@ def read_positive_rows(
             if not row.get("mask_path"):
                 continue
             rows.append(row)
-            if len(rows) >= limit:
+            if not random_sample and len(rows) >= limit:
                 break
+    if random_sample:
+        rng = random.Random(seed)
+        rng.shuffle(rows)
     return rows
 
 
@@ -647,7 +662,12 @@ def main() -> None:
         Path(args.calibrated_fractions) if args.calibrated_fractions else None
     )
     rows = read_positive_rows(
-        manifest_path, split=args.split, limit=args.max_positive)
+        manifest_path,
+        split=args.split,
+        limit=args.max_positive,
+        random_sample=args.random_sample,
+        seed=args.seed,
+    )[: args.max_positive]
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {manifest_path} for split={args.split}."

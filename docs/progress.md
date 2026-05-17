@@ -2050,3 +2050,48 @@ wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --
 - Recommended next decision:
   - use `--faithfulness-baseline black` for the next sanity evaluation to avoid the misleading mid-gray zero-tensor baseline;
   - optionally compare `black` versus `blurred` later, because blurred original images may be a more natural medical-image baseline but require a separate implementation in the main faithfulness runner.
+
+## 2026-05-15 - Iteration 24: Stage 5 Random Test-100 All-Method Sanity Evaluation
+
+- Stage 5 goal:
+  - run a controlled `100`-case sanity evaluation before any `1000+` case run;
+  - use random, reproducible case selection rather than the first sequential manifest rows;
+  - include the expanded XAI method set: `Grad-CAM`, `Grad-CAM++`, `Integrated Gradients`, `GradientSHAP`, `Occlusion Sensitivity`, and `consensus`;
+  - use the latest random train-100 Dice-calibrated XAI fractions from Iteration 22.
+- Code update:
+  - `scripts/run_cxr_torchxray_smoke.py` now supports `--random-sample` and `--seed`;
+  - default behavior is unchanged: without `--random-sample`, the script still uses the first positive masked rows for the selected split.
+- Runtime finding:
+  - a full `100`-case all-method run with faithfulness curves, `ig-steps=16`, `gradshap-samples=8`, and `56/56` occlusion exceeded the one-hour command window;
+  - a lighter faithfulness attempt with `ig-steps=8`, `gradshap-samples=4`, `112/112` occlusion, and only five faithfulness fractions also exceeded the one-hour command window during deletion/insertion forward passes;
+  - conclusion: `100`-case all-method faithfulness needs either a smaller subset, batching/optimization, resume/checkpoint support, or a longer execution window.
+- Completed Stage 5 localization sanity command:
+
+```bash
+wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 100 --random-sample --seed 20260515 --ig-steps 8 --gradshap-samples 4 --occlusion-patch-size 112 --occlusion-stride 112 --max-overlays 20 --calibrated-fractions outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions.csv --faithfulness-baseline black --output-dir outputs/iter_24_stage5_test100_random_all_methods_localization_sanity
+```
+
+- Completed artifacts:
+  - `outputs/iter_24_stage5_test100_random_all_methods_localization_sanity/metrics.csv`
+  - `outputs/iter_24_stage5_test100_random_all_methods_localization_sanity/metrics_summary.csv`
+  - `20` source-stemmed exported case folders with flat PNG files inside.
+- Verification:
+  - `metrics.csv` contains `1600` rows: `100` random positive test cases x `16` methods;
+  - `metrics_summary.csv` contains `16` method summaries;
+  - root CSVs and exported case folders were verified.
+- Key Stage 5 localization summary on random positive test-100:
+
+| Method | Mean IoU | Mean Dice | Pointing hit | Mean precision-at-fraction |
+|---|---:|---:|---:|---:|
+| `grad_cam` | `0.025781` | `0.048245` | `0.01` | `0.028036` |
+| `grad_cam_plus_plus` | `0.020670` | `0.038913` | `0.02` | `0.021059` |
+| `consensus` | `0.014933` | `0.028595` | `0.03` | `0.015397` |
+| `integrated_gradients` | `0.015299` | `0.029498` | `0.01` | `0.015761` |
+| `gradient_shap` | `0.014698` | `0.028347` | `0.02` | `0.014989` |
+| `occlusion` | `0.013259` | `0.025504` | `0.00` | `0.013357` |
+
+- Immediate interpretation:
+  - the current pretrained TorchXRayVision baseline remains weak for clinically meaningful pneumothorax localization on this dataset;
+  - `Grad-CAM` is still the strongest positive-localization method in this completed random test-100 sanity run, but absolute overlap remains very low;
+  - the result supports the thesis argument that off-the-shelf CXR models and visually plausible attribution maps require validation and should not be interpreted as lesion segmentations;
+  - before scaling to `1000+` cases, faithfulness runtime should be optimized or separated into a smaller representative subset.
