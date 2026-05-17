@@ -40,6 +40,11 @@ def parse_args() -> argparse.Namespace:
                         choices=["train", "test", "any"])
     parser.add_argument("--case-index", type=int, default=0,
                         help="Zero-based index among positive masked cases.")
+    parser.add_argument(
+        "--case-filename",
+        default="",
+        help="Optional exact manifest filename; overrides --case-index when provided.",
+    )
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--ig-steps", type=int, default=16)
     parser.add_argument("--gradshap-samples", type=int, default=8)
@@ -272,11 +277,22 @@ def main() -> None:
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {args.manifest} for split={args.split}.")
-    if not 0 <= args.case_index < len(rows):
-        raise ValueError(
-            f"case-index must be in [0, {len(rows) - 1}] for split={args.split}.")
-
-    row = rows[args.case_index]
+    if args.case_filename:
+        matches = [
+            (idx, row) for idx, row in enumerate(rows)
+            if row.get("filename", Path(row["image_path"]).name) == args.case_filename
+        ]
+        if not matches:
+            raise ValueError(
+                f"case-filename={args.case_filename!r} was not found among positive masked cases for split={args.split}."
+            )
+        case_index, row = matches[0]
+    else:
+        if not 0 <= args.case_index < len(rows):
+            raise ValueError(
+                f"case-index must be in [0, {len(rows) - 1}] for split={args.split}.")
+        case_index = args.case_index
+        row = rows[case_index]
     image = load_image(Path(row["image_path"]), args.image_size)
     mask = load_mask(Path(row["mask_path"]), args.image_size)
 

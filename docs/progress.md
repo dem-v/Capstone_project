@@ -2,6 +2,99 @@
 
 This file keeps the project context, decisions, constraints, and next steps for the master thesis work.
 
+## 2026-05-17 - GradientSHAP Stability Note
+
+### Meaning of Stable GradientSHAP Samples
+
+- Stable `GradientSHAP` samples means using enough random baseline/noise samples so the resulting attribution map does not change materially between repeated runs.
+- Low sample counts such as `--gradshap-samples 4` or `8` are useful for smoke and sanity runs, but they are not necessarily stable enough for thesis interpretation.
+- For targeted diagnostic cases, especially contradictory examples like `case_019_1294_test_1`, compare higher sample counts such as `32`, `64`, and optionally `128`.
+
+### Practical Interpretation
+
+- `GradientSHAP` samples around baselines/noisy variants and averages attribution estimates, so it asks which pixels consistently contribute to the pneumothorax output across baseline/noise perturbations.
+- A stable configuration should produce visually similar `gradient_shap`, `gradient_shap_positive`, `gradient_shap_negative`, and `gradient_shap_signed` maps across repeated runs or increasing sample counts.
+- It should also produce similar `IoU`, `Dice`, `precision_at_fraction`, negative-overlap diagnostics, and deletion/insertion behavior.
+- Increasing samples should eventually stop changing the main interpretation; if it does not, the case should be described as unstable or sensitive to GradientSHAP sampling.
+
+### Working Sample-Count Guidance
+
+- `2-4` samples: smoke only; very unstable.
+- `8` samples: fast sanity pass; still noisy.
+- `16` samples: light diagnostic; better, but not final.
+- `32` samples: reasonable targeted diagnostic starting point.
+- `64` samples: stronger targeted diagnostic and more appropriate for selected thesis examples.
+- `128+` samples: high-confidence case study if runtime allows and the case is central to the thesis.
+
+### Thesis-Safe Wording
+
+```text
+For GradientSHAP, the number of random baseline/noise samples controls the stability of the attribution estimate. Low sample counts are useful for smoke testing but may produce unstable positive and negative maps. Therefore, clinically interesting or contradictory cases should be re-evaluated with higher sample counts and repeated seeds to confirm that the observed attribution pattern is reproducible rather than sampling noise.
+```
+
+### Immediate Diagnostic Decision
+
+- Re-run `case_019_1294_test_1` with `--gradshap-samples 64` before treating the observed `Grad-CAM++` / `GradientSHAP` / `Occlusion` disagreement as a thesis finding.
+- Use a finer occlusion stride approximating a `5%` image step on `224x224` inputs, i.e. about `11-12` pixels.
+- Keep black faithfulness baseline for consistency with the latest baseline diagnostic.
+
+## 2026-05-17 - Iteration 25: Case 019 Stable GradientSHAP Diagnostic
+
+### Code Support Added
+
+- Added `--case-filename` to `scripts/run_cxr_torchxray_smoke.py` so exact source-image diagnostics can be run without relying on sequential or random case position.
+- Added `--case-filename` to `scripts/visualize_cxr_threshold_selection.py` so detailed threshold sweeps can target exact source files.
+- Verified both scripts compile under WSL Python.
+
+### Commands Run
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split test --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds
+
+wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 3000 --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --max-overlays 1 --top-fraction 0.15 --calibrated-fractions outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions.csv --faithfulness-fractions 0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.0 --faithfulness-baseline black --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness
+```
+
+### Outputs
+
+- Detailed threshold sweep output: `outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds`
+  - `threshold_metrics.csv`: `304` rows = `16` methods x `19` top-fraction thresholds.
+  - Case folder: `case_000_1294_test_1_`.
+- Faithfulness/localization output: `outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness`
+  - `metrics.csv`: `16` rows.
+  - `faithfulness_curves.csv`: `336` rows = `16` methods x `21` fractions.
+  - `faithfulness_summary.csv`, `faithfulness_curves.png`, `faithfulness_auc_bars.png`, and family plots.
+  - Case folder: `case_000_1294_test_1`, with source-stemmed files such as `1294_test_1_gradient_shap_signed.png`, `1294_test_1_occlusion_negative_selected.png`, and `1294_test_1_faithfulness_curves.png`.
+
+### Initial Case-019 Metrics From 64-Sample Diagnostic
+
+| Method | Top fraction | IoU | Dice | Precision-at-fraction | Negative overlap | Negative avoidance |
+|---|---:|---:|---:|---:|---:|---:|
+| `grad_cam_plus_plus` | `0.40` | `0.071599` | `0.133631` | `0.071599` |  |  |
+| `gradient_shap` | `0.55` | `0.035746` | `0.069025` | `0.036310` |  |  |
+| `gradient_shap_negative` | `0.55` | `0.028639` | `0.055684` | `0.028639` | `0.028639` | `0.971361` |
+| `occlusion` | `0.40` | `0.025967` | `0.050620` | `0.027120` |  |  |
+| `occlusion_negative` | `0.35` | `0.038525` | `0.074191` | `0.040130` | `0.040130` | `0.959870` |
+| `consensus` | `0.30` | `0.035416` | `0.068409` | `0.037470` | `0.028639` | `0.971361` |
+
+### Initial Faithfulness Summary For Selected Methods
+
+| Method | Insertion AUC | Deletion AUC | Deletion-drop AUC |
+|---|---:|---:|---:|
+| `grad_cam_plus_plus` | `0.599364` | `0.549776` | `0.450224` |
+| `occlusion` | `0.576264` | `0.547330` | `0.452670` |
+| `consensus` | `0.546766` | `0.525741` | `0.474259` |
+| `occlusion_negative` | `0.543164` | `0.559023` | `0.440977` |
+| `gradient_shap` | `0.505428` | `0.504260` | `0.495740` |
+| `gradient_shap_negative` | `0.506336` | `0.504899` | `0.495101` |
+
+### Interpretation To Preserve
+
+- The higher-sample `GradientSHAP` diagnostic reduces the chance that the observed map is just low-sample noise, but comparison against `32` or a repeated `64`-sample run with a different seed would be needed for a formal stability claim.
+- In this case, `Grad-CAM++` still has the strongest positive mask overlap among the inspected methods.
+- `GradientSHAP` remains weaker in faithfulness AUC for this case and stays close to the black-baseline probability behavior, which supports the earlier caution that GradientSHAP can be baseline/noise sensitive.
+- `Occlusion` and `occlusion_negative` still provide useful contradictory/suppressive-evidence diagnostics: negative evidence overlap with the true mask is not zero, so the model may treat some lesion-adjacent or lesion-overlapping signal as suppressive.
+- This remains a good candidate case for thesis discussion because it shows disagreement between positive localization, negative evidence, and faithfulness behavior.
+
 ## 2026-05-07 - Initial Thesis Planning Context
 
 ### Thesis Direction

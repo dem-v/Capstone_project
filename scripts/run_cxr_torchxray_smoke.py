@@ -74,6 +74,11 @@ def parse_args() -> argparse.Namespace:
         help="Randomly sample positive cases after filtering instead of taking the first rows.",
     )
     parser.add_argument(
+        "--case-filename",
+        default="",
+        help="Optional exact manifest filename to evaluate as a one-case targeted diagnostic.",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=20260515,
@@ -667,7 +672,13 @@ def main() -> None:
         limit=args.max_positive,
         random_sample=args.random_sample,
         seed=args.seed,
-    )[: args.max_positive]
+    )
+    if args.case_filename:
+        rows = [
+            row for row in rows
+            if row.get("filename", Path(row["image_path"]).name) == args.case_filename
+        ]
+    rows = rows[: args.max_positive]
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {manifest_path} for split={args.split}."
