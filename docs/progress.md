@@ -2368,3 +2368,63 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
 - Initial smoke wrote `2` cases and `32` metric rows to `outputs/iter_27_resume_smoke`.
 - Resume smoke reran with the same output directory and a larger candidate pool, resulting in `3` unique cases and `48` metric rows.
 - Verified `UniqueImages=3`, `Metrics=48`, `ExpectedMetrics=48`, and `progress.json` status `completed`.
+
+## 2026-05-18 - Code Quality, AI-Smell, and Optimization Review
+
+### Context
+
+- Full code review of `src/explainai_thesis/` and `scripts/` completed by Claude Opus 4.7 (1M context) under the code-quality, AI-smell, and optimization assurance protocols.
+- Goal: balanced pass over correctness, performance, and maintainability ahead of the 2026-06-04 experiment cutoff and 2026-06-21 defense window.
+- User chose: "All three, balanced" priority; "Free to refactor everything" (later constrained by `AGENT.md`); proper `pytest` suite; mixed CPU/CUDA target with `RTX 3050` on WSL Ubuntu as the typical development environment.
+
+### Findings Summary
+
+- **Correctness**: probable double sign-flip in `GradCAM.__call__` `grad_cam_plus_plus` branch (`src/explainai_thesis/xai.py`) where gradients are flipped *and* `cam = F.relu(-cam)` is reapplied, likely making `grad_cam_plus_plus_negative` ≈ `grad_cam_plus_plus_positive`.
+- **Duplicate XAI rows**: `integrated_gradients_signed` and `gradient_shap_signed` in `scripts/run_cxr_torchxray_smoke.py` currently alias their `*_positive` counterparts, producing duplicated CSV rows and overlays.
+- **Performance hotspots**: per-step Python loop in `integrated_gradients`, per-window Python loop in `occlusion_sensitivity`, wasted `normalize_map` in `pointing_game_hit`, double-thresholding in `localization_metrics`, 9-iteration Python loop in `_mask_contour`.
+- **Structural smells**: `scripts/run_cxr_torchxray_smoke.py` is `1037` lines mixing orchestration, plotting, IO, and metric logic; duplicated `resolve_device` and `NEUTRAL_IMPACT_COLOR` across modules; nested-ternary overlay parameter selection blocks; `sys.path.insert` placed after imports.
+- **Test gap**: no unit tests for metrics, manifest building, or XAI sanity.
+- **Manifest fragility**: `infer_label_from_name` substring markers like `_1_` would also match `_10_`, `_11_`, etc.
+
+### Decisions Adopted
+
+- Implement a true signed map for `integrated_gradients_signed` and `gradient_shap_signed`, computed as `positive - negative` after both polarities are evaluated independently.
+- Color convention extended for signed scalar maps: `orange` for the positive side of the signed scalar (pos - neg > 0) and `teal` for the negative side (pos - neg < 0). `Orange`/`teal` was chosen because all other natural diverging pairs were already booked by existing red, blue, violet, green, yellow, and cyan semantics defined in `AGENT.md`.
+- Switch default `--faithfulness-baseline` for `scripts/run_cxr_torchxray_smoke.py` from `zero_tensor` to `black`, aligned with the `AGENT.md` rule that `zero_tensor` could still score around `60%` pneumothorax and should remain available only as a historical option.
+- Output schema, output folder layout, and existing CLI flag names remain frozen even where internal code is restructured. The `iter_XX_<short>` ordinal naming, root-level CSVs, per-case folders with source-stem-bearing filenames, and `tp`/`fp`/`tn`/`fn` outcome subfolders are preserved.
+- Checkpoint/resume contract in `scripts/visualize_cxr_classifier_outcome_thresholds.py` is treated as sacred. Any refactor of that script is gated by a regression test that simulates kill+resume and verifies no duplicate rows.
+- Tests must run via `wsl.exe python3` and complete in under `5` minutes on `CPU` for the default suite. Anything longer is marked `@pytest.mark.slow` and excluded from the default run.
+- Documentation policy: append-only to `docs/progress.md`, no edits to frozen week 1 reports, and no new top-level docs without explicit user instruction. A throwaway plan file at `docs/refactor_plan.md` is acceptable as a temporary working artifact.
+
+### Plan Artifact
+
+- A detailed phased plan with file references and time estimates was written to `docs/refactor_plan.md` as a temporary working document for delegation and tracking.
+- Execution order: foundation and golden-output snapshot, then correctness fixes including the `grad_cam_plus_plus` polarity fix and signed-map implementation, then performance work on `integrated_gradients` and `occlusion_sensitivity`, then the structural refactor of `scripts/run_cxr_torchxray_smoke.py` under the frozen output contract, then polish including `run_meta.json` stamping and a thin classifier-loading seam for the planned stronger second model.
+
+### 2026-05-18 Follow-up: SignedAttribution Extends to All Polarity-Supporting Methods
+
+- Initial draft of the signed-map work only covered `integrated_gradients_signed` and `gradient_shap_signed`. Review surfaced that the same four-view decomposition is natural for `grad_cam`, `grad_cam_plus_plus`, and `occlusion_sensitivity` as well.
+- Today's code calls each of those methods two or three times per case to obtain different polarities. Each call repeats the full forward+backward (Grad-CAM family) or the full occlusion sweep, which is wasted compute and was the same code path that produced the `grad_cam_plus_plus` polarity double-flip.
+- Decision: introduce a `SignedAttribution` return type with `positive`, `negative`, `magnitude`, and `signed` views derived from a single underlying signed tensor. Each XAI method runs **once** per case; the four views are extracted in microseconds.
+- Expected per-case speedups: roughly 2× for Grad-CAM and Grad-CAM++, ~3× for GradientSHAP, ~3× for Occlusion before vectorization (~9-15× combined with Phase 3.2 vectorization), and IG combines a ~3× call reduction with the ~8-15× batched-step win for an overall ~24-45× speedup.
+- New first-class outputs: `grad_cam_magnitude`, `grad_cam_signed`, `grad_cam_plus_plus_magnitude`, `grad_cam_plus_plus_signed`, `occlusion_signed`, and a signed `consensus_signed` averaged from the constituent signed maps.
+- New diagnostic columns: `signed_positive_fraction` per method per case, and an `agreement_score` (cosine similarity of signed maps between method pairs) for the thesis "methods-agree-on-direction" argument.
+- Overlay count grows from ~16 to ~24 PNGs per case; disk impact roughly +50% per `iter_XX_*` folder, judged acceptable.
+- `AGENT.md` XAI Method Set section was appended with the new method names and the four-view contract description. Color Semantics already documents `orange`/`teal` for signed scalar maps.
+- Public API change: the `polarity=` keyword on XAI functions is being phased out. A deprecated keyword-preserving wrapper stays for one phase so the script refactor in Phase 2 can land independently from the `xai.py` API change.
+- Plan artifact at `docs/refactor_plan.md` was revised: Phase 1.2 scope expanded, new step `5b` for the method-dispatch refactor of `scripts/run_cxr_torchxray_smoke.py` added before batched IG (Phase 3.1), and a performance ledger added at the end. Total estimate updated to ~4-5 working days.
+
+### 2026-05-18 Scope Realignment Against Experiment Protocol and Supervisor One-Pager
+
+- Review of `docs/experiment_protocol.md` and `docs/supervisor_one_pager.md` surfaced protocol items the current code does not yet cover and a thesis-draft cutoff of `2026-06-04` that constrains how much refactor scope is affordable.
+- Gaps identified: `Eigen-CAM`/`Score-CAM` not implemented, head CT pilot not started, no radiologist review tooling, improvement experiment not formalized as a dedicated script, optional `Captum` infidelity/sensitivity not implemented, optional `LIME` not implemented, stronger second CXR model not added.
+- Refactor scope compresses to fit the deadline. `Phase 2` reduced to only the `MethodSpec` registry plus `src/explainai_thesis/cxr/io.py`; the full file split of `scripts/run_cxr_torchxray_smoke.py` is deferred to post-defense. `Phase 4` reduced to only `run_meta.json` stamping and the `load_classifier(name)` seam; full `logging` migration, `mypy --strict`, and a top-level `README.md` quickstart are deferred to post-defense.
+- `LIME` is dropped from scope and will be justified as a scope adjustment in the thesis methodology. `Captum infidelity`/`sensitivity` are kept as a conditional pull-in only if the stronger second CXR model is skipped.
+- Decisions adopted:
+  - **CT pilot shape**: off-the-shelf pretrained CT model plus a small student-annotated positive subset. No fine-tuning. New package `src/explainai_thesis/ct/` will mirror `src/explainai_thesis/cxr/`. New script `scripts/run_ct_smoke.py` will share the `MethodSpec` registry, XAI methods, faithfulness, calibration, and metrics with the CXR pipeline; only IO and model loading are CT-specific. Faithfulness baseline needs a CT-appropriate option such as `soft_tissue_window_zero` because `black` in HU space is not the same as `black` in normalized CXR space.
+  - **Extra CAM methods**: add both `Eigen-CAM` and `Score-CAM`. They register as new entries in the upcoming `MethodSpec` table and inherit the four-view `SignedAttribution` contract. `Score-CAM` gains a `--score-cam-channels-cap` argument so broad screening runs can subsample channels for speed while thesis-quality reruns use the full set.
+  - **Radiologist review tooling**: hybrid CSV plus static HTML index, not a full interactive app. New script `scripts/build_review_workbook.py` generates `<run>/review/index.html` (one card per case with the four-view overlay grid, the four-rubric scoring guide, and the seven-category failure taxonomy), `scores_template.csv` (prefilled `case_id` and `filename` columns), and `INSTRUCTIONS.md` (open `index.html`, fill `scores.csv`, save next to the template). Scoring schema codifies the protocol-defined `localization_score`, `usefulness_score`, `failure_category`, `artifact_note`, `comment` columns.
+  - **Improvement experiment**: formalized as `scripts/run_improvement_experiment.py`. Calibrates per-method top-fraction thresholds on validation, freezes them, evaluates individual methods plus `consensus` plus `consensus_signed` on the held-out test split, and emits paired-test summaries (Wilcoxon signed-rank consensus vs each individual) plus Chapter 4 box-plot figures. Discipline rule baked in: the script refuses to run if any calibration artifact is older than the test smoke it would compare against.
+  - **Stronger second CXR model**: deferred-conditional. Only attempted if Phases 0-3 and 5.1-5.4 finish by `2026-05-31`. Otherwise documented as future work and the TorchXRayVision baseline stays the documented weak external baseline.
+- Revised execution order with deadline anchors is written in `docs/refactor_plan.md`. Hard checkpoint dates: foundation+correctness by `2026-05-21`, compressed Phase 2 by `2026-05-22`, performance work by `2026-05-23`, Eigen-CAM/Score-CAM+improvement script by `2026-05-24`, CT pilot scaffold+first CT smoke by `2026-05-27`, radiologist workbook+first CXR scoring pass by `2026-05-28`, `Phase 4` minimum by `2026-05-29`, optional stronger second CXR model by `2026-05-31`, writing buffer through `2026-06-04`.
+
