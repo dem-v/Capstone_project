@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import random
 import sys
 from pathlib import Path
 
@@ -37,6 +38,12 @@ def parse_args() -> argparse.Namespace:
                         choices=["train", "test", "any"])
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--max-cases", type=int, default=0,
+                        help="Maximum number of rows to evaluate after optional random sampling; 0 evaluates all rows.")
+    parser.add_argument("--random-sample", action="store_true",
+                        help="Sample rows reproducibly before applying --max-cases.")
+    parser.add_argument("--seed", type=int, default=20260517,
+                        help="Random seed used when --random-sample is enabled.")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--high-sensitivity-min", type=float, default=0.95)
     parser.add_argument("--device", default="auto",
@@ -158,6 +165,11 @@ def main() -> None:
     if not rows:
         raise RuntimeError(
             f"No rows found in {args.manifest} for split={args.split}.")
+    if args.random_sample:
+        rows = rows.copy()
+        random.Random(args.seed).shuffle(rows)
+    if args.max_cases > 0:
+        rows = rows[:args.max_cases]
 
     device = resolve_device(args.device)
     model = xrv.models.DenseNet(weights=args.weights).to(device)
@@ -193,8 +205,18 @@ def main() -> None:
                     "filename": row.get("filename", Path(row["image_path"]).name),
                     "split": row.get("split", ""),
                     "label": label,
+                    "prediction": int(float(probability) >= args.threshold),
+                    "classifier_outcome": (
+                        "tp" if label == 1 and float(probability) >= args.threshold
+                        else "fp" if label == 0 and float(probability) >= args.threshold
+                        else "tn" if label == 0
+                        else "fn"
+                    ),
                     "xrv_pneumothorax_score": round(float(score), 8),
                     "xrv_pneumothorax_sigmoid": round(float(probability), 8),
+                    "threshold": args.threshold,
+                    "image_path": row["image_path"],
+                    "mask_path": row.get("mask_path", ""),
                 }
             )
 
@@ -239,8 +261,13 @@ def main() -> None:
                 "filename",
                 "split",
                 "label",
+                "prediction",
+                "classifier_outcome",
                 "xrv_pneumothorax_score",
                 "xrv_pneumothorax_sigmoid",
+                "threshold",
+                "image_path",
+                "mask_path",
             ],
         )
         writer.writeheader()

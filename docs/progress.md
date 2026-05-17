@@ -2,99 +2,6 @@
 
 This file keeps the project context, decisions, constraints, and next steps for the master thesis work.
 
-## 2026-05-17 - GradientSHAP Stability Note
-
-### Meaning of Stable GradientSHAP Samples
-
-- Stable `GradientSHAP` samples means using enough random baseline/noise samples so the resulting attribution map does not change materially between repeated runs.
-- Low sample counts such as `--gradshap-samples 4` or `8` are useful for smoke and sanity runs, but they are not necessarily stable enough for thesis interpretation.
-- For targeted diagnostic cases, especially contradictory examples like `case_019_1294_test_1`, compare higher sample counts such as `32`, `64`, and optionally `128`.
-
-### Practical Interpretation
-
-- `GradientSHAP` samples around baselines/noisy variants and averages attribution estimates, so it asks which pixels consistently contribute to the pneumothorax output across baseline/noise perturbations.
-- A stable configuration should produce visually similar `gradient_shap`, `gradient_shap_positive`, `gradient_shap_negative`, and `gradient_shap_signed` maps across repeated runs or increasing sample counts.
-- It should also produce similar `IoU`, `Dice`, `precision_at_fraction`, negative-overlap diagnostics, and deletion/insertion behavior.
-- Increasing samples should eventually stop changing the main interpretation; if it does not, the case should be described as unstable or sensitive to GradientSHAP sampling.
-
-### Working Sample-Count Guidance
-
-- `2-4` samples: smoke only; very unstable.
-- `8` samples: fast sanity pass; still noisy.
-- `16` samples: light diagnostic; better, but not final.
-- `32` samples: reasonable targeted diagnostic starting point.
-- `64` samples: stronger targeted diagnostic and more appropriate for selected thesis examples.
-- `128+` samples: high-confidence case study if runtime allows and the case is central to the thesis.
-
-### Thesis-Safe Wording
-
-```text
-For GradientSHAP, the number of random baseline/noise samples controls the stability of the attribution estimate. Low sample counts are useful for smoke testing but may produce unstable positive and negative maps. Therefore, clinically interesting or contradictory cases should be re-evaluated with higher sample counts and repeated seeds to confirm that the observed attribution pattern is reproducible rather than sampling noise.
-```
-
-### Immediate Diagnostic Decision
-
-- Re-run `case_019_1294_test_1` with `--gradshap-samples 64` before treating the observed `Grad-CAM++` / `GradientSHAP` / `Occlusion` disagreement as a thesis finding.
-- Use a finer occlusion stride approximating a `5%` image step on `224x224` inputs, i.e. about `11-12` pixels.
-- Keep black faithfulness baseline for consistency with the latest baseline diagnostic.
-
-## 2026-05-17 - Iteration 25: Case 019 Stable GradientSHAP Diagnostic
-
-### Code Support Added
-
-- Added `--case-filename` to `scripts/run_cxr_torchxray_smoke.py` so exact source-image diagnostics can be run without relying on sequential or random case position.
-- Added `--case-filename` to `scripts/visualize_cxr_threshold_selection.py` so detailed threshold sweeps can target exact source files.
-- Verified both scripts compile under WSL Python.
-
-### Commands Run
-
-```bash
-wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split test --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds
-
-wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 3000 --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --max-overlays 1 --top-fraction 0.15 --calibrated-fractions outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions.csv --faithfulness-fractions 0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.0 --faithfulness-baseline black --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness
-```
-
-### Outputs
-
-- Detailed threshold sweep output: `outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds`
-  - `threshold_metrics.csv`: `304` rows = `16` methods x `19` top-fraction thresholds.
-  - Case folder: `case_000_1294_test_1_`.
-- Faithfulness/localization output: `outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness`
-  - `metrics.csv`: `16` rows.
-  - `faithfulness_curves.csv`: `336` rows = `16` methods x `21` fractions.
-  - `faithfulness_summary.csv`, `faithfulness_curves.png`, `faithfulness_auc_bars.png`, and family plots.
-  - Case folder: `case_000_1294_test_1`, with source-stemmed files such as `1294_test_1_gradient_shap_signed.png`, `1294_test_1_occlusion_negative_selected.png`, and `1294_test_1_faithfulness_curves.png`.
-
-### Initial Case-019 Metrics From 64-Sample Diagnostic
-
-| Method | Top fraction | IoU | Dice | Precision-at-fraction | Negative overlap | Negative avoidance |
-|---|---:|---:|---:|---:|---:|---:|
-| `grad_cam_plus_plus` | `0.40` | `0.071599` | `0.133631` | `0.071599` |  |  |
-| `gradient_shap` | `0.55` | `0.035746` | `0.069025` | `0.036310` |  |  |
-| `gradient_shap_negative` | `0.55` | `0.028639` | `0.055684` | `0.028639` | `0.028639` | `0.971361` |
-| `occlusion` | `0.40` | `0.025967` | `0.050620` | `0.027120` |  |  |
-| `occlusion_negative` | `0.35` | `0.038525` | `0.074191` | `0.040130` | `0.040130` | `0.959870` |
-| `consensus` | `0.30` | `0.035416` | `0.068409` | `0.037470` | `0.028639` | `0.971361` |
-
-### Initial Faithfulness Summary For Selected Methods
-
-| Method | Insertion AUC | Deletion AUC | Deletion-drop AUC |
-|---|---:|---:|---:|
-| `grad_cam_plus_plus` | `0.599364` | `0.549776` | `0.450224` |
-| `occlusion` | `0.576264` | `0.547330` | `0.452670` |
-| `consensus` | `0.546766` | `0.525741` | `0.474259` |
-| `occlusion_negative` | `0.543164` | `0.559023` | `0.440977` |
-| `gradient_shap` | `0.505428` | `0.504260` | `0.495740` |
-| `gradient_shap_negative` | `0.506336` | `0.504899` | `0.495101` |
-
-### Interpretation To Preserve
-
-- The higher-sample `GradientSHAP` diagnostic reduces the chance that the observed map is just low-sample noise, but comparison against `32` or a repeated `64`-sample run with a different seed would be needed for a formal stability claim.
-- In this case, `Grad-CAM++` still has the strongest positive mask overlap among the inspected methods.
-- `GradientSHAP` remains weaker in faithfulness AUC for this case and stays close to the black-baseline probability behavior, which supports the earlier caution that GradientSHAP can be baseline/noise sensitive.
-- `Occlusion` and `occlusion_negative` still provide useful contradictory/suppressive-evidence diagnostics: negative evidence overlap with the true mask is not zero, so the model may treat some lesion-adjacent or lesion-overlapping signal as suppressive.
-- This remains a good candidate case for thesis discussion because it shows disagreement between positive localization, negative evidence, and faithfulness behavior.
-
 ## 2026-05-07 - Initial Thesis Planning Context
 
 ### Thesis Direction
@@ -1650,7 +1557,7 @@ That combination adds both a stronger visual method and a more rigorous explanat
   - too many methods are plotted together and many curves overlap almost exactly;
   - the legend is large and far from the plots;
   - the smoke run used only three fraction points, `0.0`, `0.5`, and `1.0`, making the curve shape too coarse;
-  - the y-axis is fixed to `0–1`, while the observed probabilities are compressed around `0.50–0.64`;
+  - the y-axis is fixed to `0â€“1`, while the observed probabilities are compressed around `0.50â€“0.64`;
   - positive, negative, magnitude, and consensus methods are mixed in one figure even though they answer partly different questions.
 - Meaning of the chart:
   - it is an aggregate deletion/insertion faithfulness curve plot;
@@ -1667,9 +1574,9 @@ That combination adds both a stronger visual method and a more rigorous explanat
   - it proves the plotting pipeline works;
   - it is not a thesis result because it used only one positive X-ray and three coarse fraction points;
   - no method clearly shows ideal insertion/deletion behavior in that smoke chart;
-  - the model probability remains roughly in a narrow `0.50–0.64` range across perturbations.
+  - the model probability remains roughly in a narrow `0.50â€“0.64` range across perturbations.
 - Recommended thesis-quality improvements:
-  - run on `50–100` positive test cases or another clearly defined evaluation subset;
+  - run on `50â€“100` positive test cases or another clearly defined evaluation subset;
   - use finer fractions such as `0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,0.90,1.0`;
   - separate method families in plots, for example CAM methods vs Integrated Gradients variants;
   - use `faithfulness_summary.csv` AUC values for method comparison;
@@ -1781,7 +1688,7 @@ Deletion/insertion evaluates faithfulness to the model score, not clinical corre
   - good mask overlap but weak faithfulness = visually plausible explanation may not actually control the model score.
 - Current result reading:
   - `Grad-CAM` and `Grad-CAM++` having higher faithfulness AUCs around `0.62` suggests CAM-style maps are more aligned with `TorchXRayVision` score-controlling regions under the insertion protocol;
-  - IG variants having lower AUCs around `0.55–0.57` suggests the current IG perturbation ranking behaves differently and is less favorable under hard pixel replacement;
+  - IG variants having lower AUCs around `0.55â€“0.57` suggests the current IG perturbation ranking behaves differently and is less favorable under hard pixel replacement;
   - this does not make IG useless, but indicates it gives a different, more pixel-level sensitivity view.
 - Thesis-safe wording:
 
@@ -1955,7 +1862,7 @@ wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --spl
 - Verification result:
   - WSL `py_compile` passed for `scripts/visualize_cxr_threshold_selection.py`;
   - smoke completed successfully on CUDA;
-  - `threshold_metrics.csv` contains `32` rows = `16` methods × `2` fractions;
+  - `threshold_metrics.csv` contains `32` rows = `16` methods Ã— `2` fractions;
   - verified source-stemmed PNGs exist for `gradient_shap`, `gradient_shap_signed`, `occlusion`, `occlusion_negative`, and `consensus` panels.
 
 ## 2026-05-15 - Iteration 21: Stage 3/4 Follow-up, Expanded XAI Recalibration
@@ -2188,3 +2095,276 @@ wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --
   - `Grad-CAM` is still the strongest positive-localization method in this completed random test-100 sanity run, but absolute overlap remains very low;
   - the result supports the thesis argument that off-the-shelf CXR models and visually plausible attribution maps require validation and should not be interpreted as lesion segmentations;
   - before scaling to `1000+` cases, faithfulness runtime should be optimized or separated into a smaller representative subset.
+
+## 2026-05-17 - GradientSHAP Stability Note
+
+### Meaning of Stable GradientSHAP Samples
+
+- Stable `GradientSHAP` samples means using enough random baseline/noise samples so the resulting attribution map does not change materially between repeated runs.
+- Low sample counts such as `--gradshap-samples 4` or `8` are useful for smoke and sanity runs, but they are not necessarily stable enough for thesis interpretation.
+- For targeted diagnostic cases, especially contradictory examples like `case_019_1294_test_1`, compare higher sample counts such as `32`, `64`, and optionally `128`.
+
+### Practical Interpretation
+
+- `GradientSHAP` samples around baselines/noisy variants and averages attribution estimates, so it asks which pixels consistently contribute to the pneumothorax output across baseline/noise perturbations.
+- A stable configuration should produce visually similar `gradient_shap`, `gradient_shap_positive`, `gradient_shap_negative`, and `gradient_shap_signed` maps across repeated runs or increasing sample counts.
+- It should also produce similar `IoU`, `Dice`, `precision_at_fraction`, negative-overlap diagnostics, and deletion/insertion behavior.
+- Increasing samples should eventually stop changing the main interpretation; if it does not, the case should be described as unstable or sensitive to GradientSHAP sampling.
+
+### Working Sample-Count Guidance
+
+- `2-4` samples: smoke only; very unstable.
+- `8` samples: fast sanity pass; still noisy.
+- `16` samples: light diagnostic; better, but not final.
+- `32` samples: reasonable targeted diagnostic starting point.
+- `64` samples: stronger targeted diagnostic and more appropriate for selected thesis examples.
+- `128+` samples: high-confidence case study if runtime allows and the case is central to the thesis.
+
+### Thesis-Safe Wording
+
+```text
+For GradientSHAP, the number of random baseline/noise samples controls the stability of the attribution estimate. Low sample counts are useful for smoke testing but may produce unstable positive and negative maps. Therefore, clinically interesting or contradictory cases should be re-evaluated with higher sample counts and repeated seeds to confirm that the observed attribution pattern is reproducible rather than sampling noise.
+```
+
+### Immediate Diagnostic Decision
+
+- Re-run `case_019_1294_test_1` with `--gradshap-samples 64` before treating the observed `Grad-CAM++` / `GradientSHAP` / `Occlusion` disagreement as a thesis finding.
+- Use a finer occlusion stride approximating a `5%` image step on `224x224` inputs, i.e. about `11-12` pixels.
+- Keep black faithfulness baseline for consistency with the latest baseline diagnostic.
+
+## 2026-05-17 - Iteration 25: Case 019 Stable GradientSHAP Diagnostic
+
+### Code Support Added
+
+- Added `--case-filename` to `scripts/run_cxr_torchxray_smoke.py` so exact source-image diagnostics can be run without relying on sequential or random case position.
+- Added `--case-filename` to `scripts/visualize_cxr_threshold_selection.py` so detailed threshold sweeps can target exact source files.
+- Verified both scripts compile under WSL Python.
+
+### Commands Run
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_threshold_selection.py --device auto --split test --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds
+
+wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --device auto --split test --max-positive 3000 --case-filename 1294_test_1_.png --ig-steps 16 --gradshap-samples 64 --occlusion-patch-size 32 --occlusion-stride 12 --max-overlays 1 --top-fraction 0.15 --calibrated-fractions outputs/iter_22_xai_calibration_train100_random_all_methods_dice/selected_fractions.csv --faithfulness-fractions 0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.0 --faithfulness-baseline black --output-dir outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness
+```
+
+### Outputs
+
+- Detailed threshold sweep output: `outputs/iter_25_case019_gradshap64_occlusion5pct_thresholds`
+  - `threshold_metrics.csv`: `304` rows = `16` methods x `19` top-fraction thresholds.
+  - Case folder: `case_000_1294_test_1_`.
+- Faithfulness/localization output: `outputs/iter_25_case019_gradshap64_occlusion5pct_faithfulness`
+  - `metrics.csv`: `16` rows.
+  - `faithfulness_curves.csv`: `336` rows = `16` methods x `21` fractions.
+  - `faithfulness_summary.csv`, `faithfulness_curves.png`, `faithfulness_auc_bars.png`, and family plots.
+  - Case folder: `case_000_1294_test_1`, with source-stemmed files such as `1294_test_1_gradient_shap_signed.png`, `1294_test_1_occlusion_negative_selected.png`, and `1294_test_1_faithfulness_curves.png`.
+
+### Initial Case-019 Metrics From 64-Sample Diagnostic
+
+| Method | Top fraction | IoU | Dice | Precision-at-fraction | Negative overlap | Negative avoidance |
+|---|---:|---:|---:|---:|---:|---:|
+| `grad_cam_plus_plus` | `0.40` | `0.071599` | `0.133631` | `0.071599` |  |  |
+| `gradient_shap` | `0.55` | `0.035746` | `0.069025` | `0.036310` |  |  |
+| `gradient_shap_negative` | `0.55` | `0.028639` | `0.055684` | `0.028639` | `0.028639` | `0.971361` |
+| `occlusion` | `0.40` | `0.025967` | `0.050620` | `0.027120` |  |  |
+| `occlusion_negative` | `0.35` | `0.038525` | `0.074191` | `0.040130` | `0.040130` | `0.959870` |
+| `consensus` | `0.30` | `0.035416` | `0.068409` | `0.037470` | `0.028639` | `0.971361` |
+
+### Initial Faithfulness Summary For Selected Methods
+
+| Method | Insertion AUC | Deletion AUC | Deletion-drop AUC |
+|---|---:|---:|---:|
+| `grad_cam_plus_plus` | `0.599364` | `0.549776` | `0.450224` |
+| `occlusion` | `0.576264` | `0.547330` | `0.452670` |
+| `consensus` | `0.546766` | `0.525741` | `0.474259` |
+| `occlusion_negative` | `0.543164` | `0.559023` | `0.440977` |
+| `gradient_shap` | `0.505428` | `0.504260` | `0.495740` |
+| `gradient_shap_negative` | `0.506336` | `0.504899` | `0.495101` |
+
+### Interpretation To Preserve
+
+- The higher-sample `GradientSHAP` diagnostic reduces the chance that the observed map is just low-sample noise, but comparison against `32` or a repeated `64`-sample run with a different seed would be needed for a formal stability claim.
+- In this case, `Grad-CAM++` still has the strongest positive mask overlap among the inspected methods.
+- `GradientSHAP` remains weaker in faithfulness AUC for this case and stays close to the black-baseline probability behavior, which supports the earlier caution that GradientSHAP can be baseline/noise sensitive.
+- `Occlusion` and `occlusion_negative` still provide useful contradictory/suppressive-evidence diagnostics: negative evidence overlap with the true mask is not zero, so the model may treat some lesion-adjacent or lesion-overlapping signal as suppressive.
+- This remains a good candidate case for thesis discussion because it shows disagreement between positive localization, negative evidence, and faithfulness behavior.
+- Follow-up observation: the earlier low-sample `GradientSHAP` setting appears to have worsened attribution quality substantially for this case. With `--gradshap-samples 64`, the model attention remains clinically peculiar for this TorchXRayVision baseline, but `Grad-CAM++` and `GradientSHAP` no longer show the same apparent contradiction. This supports treating low-sample `GradientSHAP` outputs as exploratory only, not thesis-grade evidence.
+
+## 2026-05-17 - Iteration 26: TorchXRayVision Baseline Consolidation Screening
+
+### Goal
+
+- Consolidate data for the current unchanged TorchXRayVision `densenet121-res224-all` baseline before moving to a stronger second pneumothorax model.
+- Screen `1000-5000` random cases and prepare balanced `tp`/`fp`/`tn`/`fn` groups for XAI metric evaluation.
+- Use the current calibrated classifier cutoff `0.62` for this consolidation pass.
+
+### Code Support Added
+
+- `scripts/evaluate_cxr_torchxray_model.py` now supports:
+  - `--max-cases`;
+  - `--random-sample`;
+  - `--seed`;
+  - `prediction`, `classifier_outcome`, `threshold`, `image_path`, and `mask_path` columns in `predictions.csv`.
+- `scripts/visualize_cxr_classifier_outcome_thresholds.py` now supports:
+  - reproducible random sampling with `--random-sample` and `--seed`;
+  - `--max-per-outcome` for balanced `tp`/`fp`/`tn`/`fn` output sets;
+  - current all-method XAI set including `GradientSHAP` and `Occlusion Sensitivity`;
+  - default classifier threshold updated to `0.62`.
+- Verified both changed scripts compile under WSL Python.
+
+### Commands Run
+
+```bash
+wsl.exe python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split test --batch-size 128 --threshold 0.62 --max-cases 5000 --random-sample --seed 20260517 --output-dir outputs/iter_26_torchxray_test5000_random_classifier_screen
+
+wsl.exe python3 scripts/evaluate_cxr_torchxray_model.py --device auto --split any --batch-size 128 --threshold 0.62 --max-cases 5000 --random-sample --seed 20260517 --output-dir outputs/iter_26_torchxray_any5000_random_classifier_screen
+
+wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device auto --split test --max-cases 300 --random-sample --seed 20260517 --threshold 0.62 --max-per-outcome 1 --ig-steps 2 --gradshap-samples 2 --occlusion-patch-size 112 --occlusion-stride 112 --fractions 0.05,0.15 --output-dir outputs/iter_26_classifier_outcome_all_methods_smoke
+```
+
+### Classifier Screening Results
+
+| Run | Rows | Positives | Negatives | ROC AUC | Average precision | Outcome counts at `0.62` |
+|---|---:|---:|---:|---:|---:|---|
+| `outputs/iter_26_torchxray_test5000_random_classifier_screen` | `1372` | `290` | `1082` | `0.771112` | `0.412016` | `TP=250`, `FP=508`, `TN=574`, `FN=40` |
+| `outputs/iter_26_torchxray_any5000_random_classifier_screen` | `5000` | `1132` | `3868` | `0.777301` | `0.443262` | `TP=1016`, `FP=1781`, `TN=2087`, `FN=116` |
+
+### Important Practical Note
+
+- The test split only contains `1372` rows, so `--max-cases 5000` on `--split test` evaluates all available test rows.
+- At threshold `0.62`, the test split has only `40` false negatives, so it is impossible to get `50-100` test-only `FN` cases without changing the threshold or using a broader split.
+- The random `any` split has enough cases for `50-100` examples per outcome group, including `FN=116`, but it mixes train and test rows and should be labelled as exploratory/consolidation rather than final held-out reporting.
+
+### Balanced Outcome XAI Smoke Verification
+
+- Output: `outputs/iter_26_classifier_outcome_all_methods_smoke`.
+- Smoke run produced one case each for `tp`, `fp`, `tn`, and `fn`.
+- `threshold_metrics.csv` contains `128` rows = `4` cases x `16` methods x `2` fractions.
+- Verified the grouped folder structure and current method set are working before launching a long balanced run.
+
+### Recommended Manual Long Run
+
+Run this manually if it is expected to exceed `30` minutes:
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device auto --split any --max-cases 5000 --random-sample --seed 20260517 --threshold 0.62 --max-per-outcome 100 --ig-steps 8 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --output-dir outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods
+```
+
+- Expected target: up to `400` cases total, capped at `100` per `tp`/`fp`/`tn`/`fn`, if enough cases are found in the candidate pool.
+- For a stricter held-out test-only run, use `--split test --max-per-outcome 40` because only `40` `FN` cases are currently available at threshold `0.62`.
+
+## 2026-05-17 - Iteration 27 Preparation: Long-Run Progress, ETA, and Checkpointing
+
+### Key Decisions Preserved From Planning Discussion
+
+- `tp`/`fp`/`tn`/`fn` outcome cases are not hand-picked: the classifier-outcome script shuffles candidate rows with a fixed seed, classifies each case at threshold `0.62`, and keeps cases until each outcome reaches the configured cap.
+- The balanced `any5000` run is reproducible with the same dataset, seed, threshold, and script version, but it should be labelled exploratory/consolidation because `--split any` mixes train and test rows.
+- `--ig-steps 8 --gradshap-samples 8` is acceptable for broad exploratory screening, but `GradientSHAP` with `8` samples is not thesis-grade for individual case interpretation.
+- Clinically important, contradictory, or thesis-worthy cases should be rerun with higher-stability settings such as `--ig-steps 16 --gradshap-samples 64`, optionally with finer occlusion settings.
+- Plain custom progress logs and checkpoints are preferred over a simple `tqdm` bar for the classifier-outcome run because the workload is outcome-balanced, stage-based, and dominated by slow selected-case XAI generation rather than by the candidate-row loop itself.
+
+### Progress/ETA Implementation Plan
+
+- Add timestamped candidate progress showing candidate index, selected count, outcome counts, elapsed time, and ETA.
+- Add per-selected-case stage messages for `Grad-CAM`, `Integrated Gradients`, `GradientSHAP`, `Occlusion`, saving, and completion.
+- Estimate ETA primarily from completed selected cases rather than candidate rows, because skipped candidates are cheap and selected XAI cases are expensive.
+- Write partial `cases.csv`, `threshold_metrics.csv`, and `progress.json` during long runs so partial results survive interruptions.
+- Add CLI controls `--progress-every` and `--checkpoint-every`.
+
+### Implementation Verification
+
+- Implemented in `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Syntax check passed: `wsl.exe python3 -m py_compile scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Smoke command with `--progress-every 5 --checkpoint-every 1` wrote timestamped progress logs, checkpoint CSVs, and `progress.json` to `outputs/iter_27_progress_eta_smoke`.
+- Smoke output selected `3` cases from `50` candidates (`TP=1`, `FP=1`, `TN=1`, `FN=0`) and wrote `96` threshold metric rows; absence of `FN` in this small smoke is expected because false negatives are rare at threshold `0.62`.
+
+### Long-Run Command To Use After Smoke Verification
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device auto --split any --max-cases 5000 --random-sample --seed 20260517 --threshold 0.62 --max-per-outcome 100 --ig-steps 8 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --progress-every 10 --checkpoint-every 1 --output-dir outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods
+```
+
+## 2026-05-17 - Iteration 27 Update: Compact Two-Line Progress Display
+
+### Goal
+
+- Reduce console verbosity for the long classifier-outcome XAI run while keeping the useful ETA/checkpoint information.
+- Keep live console progress to two lines:
+  - line 1: current stats, rewritten on each update;
+  - line 2: current selected-case/stage detail, rewritten in parallel.
+
+### Implementation
+
+- Updated `scripts/visualize_cxr_classifier_outcome_thresholds.py` with a small `LiveProgress` helper.
+- The stats line contains candidate index, kept-case count, `TP`/`FP`/`TN`/`FN` counts, elapsed time, and ETA.
+- The detail line reports the active state, such as candidate scanning, selected case metadata, completed XAI method family, checkpoint written, or case completion.
+- Checkpoint behavior is unchanged: partial `cases.csv`, `threshold_metrics.csv`, and `progress.json` are still written according to `--checkpoint-every`.
+- For non-interactive/captured output where terminal line rewriting may not render correctly, the script falls back to printing the latest two progress lines at completion while keeping final summary lines readable.
+
+### Verification
+
+- Syntax check passed: `wsl.exe python3 -m py_compile scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Smoke run completed: `outputs/iter_27_compact_progress_smoke_v2`.
+- Smoke output generated expected final files and selected `3` cases from `10` candidates (`TP=1`, `FP=1`, `TN=1`, `FN=0`), with `48` threshold metric rows.
+
+### Follow-Up Fix
+
+- Direct PowerShell/WSL console testing showed the first compact implementation still printed repeated lines instead of rewriting the same two lines.
+- Root cause: the live stats/detail strings could exceed the terminal width and wrap, so the cursor-up rewrite no longer landed on the intended two physical console rows.
+- Updated `LiveProgress` to fit each live line to the terminal width before printing, replacing overflow with an ellipsis and padding short lines so stale characters are cleared.
+- Also fixed the selected-case progress count so `kept=` reflects the newly selected case immediately.
+- Re-verified syntax with `wsl.exe python3 -m py_compile scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Smoke run completed: `outputs/iter_27_compact_progress_smoke_v3`; captured output now only shows the final two progress lines plus final summary, while interactive consoles should keep the two-line live display stable.
+
+## 2026-05-17 - Iteration 27 Update: Six-Line Live Progress Display
+
+### Decision
+
+- The two-line live display was too compact for the amount of useful state in the classifier-outcome XAI run.
+- Instead of truncating important details aggressively, use a fixed six-line live progress block.
+- This keeps the console compact and stable while preserving candidate stats, outcome counts, timing, selected-case details, and current method/checkpoint state.
+- The main alternative would be fully verbose append-only logs, but that is harder to monitor during long manual runs; checkpoint files remain the durable record.
+
+### Implementation
+
+- Updated `scripts/visualize_cxr_classifier_outcome_thresholds.py` so `LiveProgress` composes progress into up to six terminal-width-aware lines.
+- Progress text is split on logical separators such as `|`, then wrapped into the six-line block to avoid physical console wrapping that previously broke cursor rewriting.
+- The live display still rewrites in place in interactive consoles, and captured/non-interactive output prints only the latest non-empty progress lines at completion plus the final summary.
+
+### Verification
+
+- Syntax check passed: `wsl.exe python3 -m py_compile scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Smoke run completed: `outputs/iter_27_six_line_progress_smoke`.
+- Smoke output selected `3` cases from `10` candidates (`TP=1`, `FP=1`, `TN=1`, `FN=0`) and wrote `48` threshold metric rows.
+- Verified `cases.csv`, `threshold_metrics.csv`, and completed `progress.json` were written.
+
+## 2026-05-17 - Iteration 27 Update: Resume Support For Long Classifier-Outcome Runs
+
+### Why This Was Added
+
+- Checkpoint files protected partial artifacts, but stopping and restarting the long balanced run did not previously resume intentionally.
+- The long `tp`/`fp`/`tn`/`fn` XAI run can exceed interactive execution time, so it needs explicit restart safety.
+
+### Implementation
+
+- Added `--resume` to `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- On resume, the script reads existing `cases.csv` and `threshold_metrics.csv` from `--output-dir`.
+- It reconstructs current `tp`/`fp`/`tn`/`fn` counts from `cases.csv`.
+- It replays the deterministic candidate order from the same `--random-sample` and `--seed`, but skips source images already present in `cases.csv`.
+- New cases continue from the next `sample_index`, and final CSVs are rewritten without duplicating completed case rows or metric rows.
+
+### Safe Usage
+
+```bash
+wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device auto --split any --max-cases 5000 --random-sample --seed 20260517 --threshold 0.62 --max-per-outcome 100 --ig-steps 8 --gradshap-samples 8 --occlusion-patch-size 56 --occlusion-stride 56 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50 --progress-every 10 --checkpoint-every 1 --resume --output-dir outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods
+```
+
+- Resume is safest when rerun with the same dataset, split, seed, threshold, method settings, fractions, and output directory.
+- If a run was stopped mid-case before a checkpoint finished, only cases already written to `cases.csv` are considered completed.
+
+### Verification
+
+- Syntax check passed: `wsl.exe python3 -m py_compile scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Initial smoke wrote `2` cases and `32` metric rows to `outputs/iter_27_resume_smoke`.
+- Resume smoke reran with the same output directory and a larger candidate pool, resulting in `3` unique cases and `48` metric rows.
+- Verified `UniqueImages=3`, `Metrics=48`, `ExpectedMetrics=48`, and `progress.json` status `completed`.
