@@ -86,6 +86,7 @@ The four-view contract introduced on 2026-05-18 extends signed/magnitude views t
   - `artifact_note` free text.
   - `comment` free text.
 - The student-as-radiologist scoring pass on the CXR consolidated run is the first protocol-aligned clinical-assessment dataset for the thesis. CT cases will use the same schema once Phase 5.4 lands.
+- Rubric clarity is the binding constraint for keeping scoring at ~2 minutes per case across the 100-case CXR set (rater's typical CXR reading time is 1-3 minutes). The workbook must make rubric application automatic and never require scrolling, tab-switching, or re-reading `INSTRUCTIONS.md` mid-pass. Cards inline the full 4-rubric definitions and 7-category failure taxonomy with 1-2 example sentences per option, show the ground-truth mask plus the overlay grid (one row per method, four views per row in red/blue/violet/orange-teal), display the classifier outcome (`tp`/`fp`/`tn`/`fn`) and probability, and are keyboard-navigable next/prev. `INSTRUCTIONS.md` includes a 3-case warmup section to anchor the rubric before the real scoring pass.
 
 ## Improvement Experiment Discipline
 
@@ -161,6 +162,7 @@ The four-view contract introduced on 2026-05-18 extends signed/magnitude views t
 - Keep selected thresholds/fractions by metric, not only one global fraction.
 - Dice/IoU selection is for positive localization.
 - Negative avoidance selection is for suppressive/negative evidence diagnostics.
+- Calibration versioning (added 2026-05-18): the `SignedAttribution` refactor changes the underlying signed maps for Grad-CAM, IG, GradientSHAP, and Occlusion, which makes pre-refactor calibrated top-fractions statistically stale. After the refactor, a `v2` calibration must be produced and stored at `outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv`. The `v1` files are never overwritten or renamed; both versions coexist. Downstream scripts pick the version explicitly via `--calibrated-fractions`. Only `v2` calibration is used for held-out evaluation after the refactor.
 
 ## Long-Run Classifier-Outcome Workflow
 
@@ -204,11 +206,13 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
 
 - Before committing 1-2 days to a full second-model protocol run, a diagnostic A/B sweep across multiple TorchXRayVision pretrained weights answers the prior question: are the weak-localization results model-specific or method-specific.
 - Decision rule from 2026-05-18: run Stage A (same library, different weights) first on the existing calibration positive cases. Candidate weights: `densenet121-res224-chex`, `densenet121-res224-mimic_ch`, `densenet121-res224-mimic_nb`, `densenet121-res224-rsna`, with `densenet121-res224-all` as the control.
-- Stage A output folder convention: `outputs/iter_XX_diagnostic_weights_ab/<weight_name>/`, with a top-level summary CSV `weights_ab_summary.csv` containing per-weight mean IoU, Dice, pointing_hit, precision_at_fraction across methods.
-- Stage B outcome classification:
-  - All weights similarly poor: localization weakness is cross-weight-stable; full second-model integration is not pursued; thesis frames results as methodological.
-  - One weight materially better: that weight is promoted to co-primary baseline; full protocol is run on it.
-  - Inconclusive or mixed: proceed to Stage C external-model integration through the `load_classifier(name)` seam.
+- Stage A output folder convention: `outputs/iter_XX_diagnostic_weights_ab/<model_name>/`, with a top-level summary CSV `weights_ab_summary.csv` containing per-model mean IoU, Dice, pointing_hit, precision_at_fraction across methods.
+- Pre-mortem revision (2026-05-18): Stage A now includes one out-of-family external model from the start, not as a Stage C contingency. Rationale: the five in-family TorchXRayVision DenseNet-121 weights share architecture, input size, normalization, and substantially overlapping training data (CheX, MIMIC, NIH), so a uniform within-family result would only rule out within-family variance, not training-distribution mismatch. The external candidate is selected at implementation time and integrated through the `load_classifier(name)` seam.
+- Stage B outcome classification (refined with external-model context):
+  - All in-family and external models look similarly poor: localization weakness is cross-distribution-stable; full second-model integration is not pursued; thesis frames results as methodological.
+  - In-family similar but external materially better: training-distribution mismatch is the dominant factor; external model becomes co-primary baseline; full protocol is run on it.
+  - One in-family weight is materially better than the others: within-family variance is meaningful; that weight is promoted to co-primary baseline.
+  - Inconclusive or mixed: proceed to Stage C deeper external-model exploration.
 - The outcome of the Stage A sweep is recorded back into this `AGENT.md` section once the run completes, as durable thesis evidence.
 
 ## Reporting/Thesis Framing

@@ -152,17 +152,20 @@ Tests: `tests/test_manifest.py` with adversarial filenames including `case_10_ch
 
 Scientific motivation: current TorchXRayVision `densenet121-res224-all` localization on SIIM pneumothorax looks clinically weak. Before investing in protocol-completion scope (`Phase 5`), confirm whether the weakness is XAI-side (method/threshold/interpretation) or model-side (training distribution mismatch). If it is model-side, the conclusions of any further methodological work risk being attached to a broken foundation.
 
-#### Stage A — Same library, different weights (≈0.5 day)
+#### Stage A — In-family weights plus one out-of-family external model (≈1 day, revised 2026-05-18 after pre-mortem)
 
-- Reuse all current XAI methods, calibration cases, and metrics. Only change is `--weights`.
-- Candidate weights from `torchxrayvision`:
+Pre-mortem found that the original Stage A (only `torchxrayvision` weights) was structurally blind: the 5 candidate weights all share architecture, input size, normalization, and substantially overlapping training data (CheX, MIMIC, NIH). If all five looked equally weak, the diagnostic could only rule out within-family variance, not training-distribution mismatch. Stage A now includes one out-of-family external model from the start, so the answer is interpretable either way.
+
+- Reuse all current XAI methods, calibration cases, and metrics.
+- In-family candidates from `torchxrayvision` (changes only `--weights`):
   - `densenet121-res224-chex`
   - `densenet121-res224-mimic_ch`
   - `densenet121-res224-mimic_nb`
   - `densenet121-res224-rsna`
   - (control) `densenet121-res224-all` — current baseline
-- Pipeline: run `scripts/run_cxr_torchxray_smoke.py` with each weight on the same 20-30 calibration positive cases at the calibrated top-fractions for each method. Output: `outputs/iter_XX_diagnostic_weights_ab/<weight_name>/`.
-- Summary table: per-weight mean IoU, Dice, pointing_hit, precision_at_fraction across methods. Plus a per-case-per-method agreement view to surface whether one weight changes the *spatial* attribution distinctly.
+- Out-of-family external model (goes through `load_classifier(name)` seam from compressed Phase 2): one candidate from HuggingFace or a public Kaggle pneumothorax-fine-tuned model. Exact identifier decided at implementation time; selection criterion is "different training distribution and architecture from TorchXRayVision DenseNet-121, plus a usable inference API."
+- Pipeline: run `scripts/run_cxr_torchxray_smoke.py` (or `scripts/run_cxr_smoke.py` after the seam refactor) with each model on the same 20-30 calibration positive cases at the calibrated top-fractions for each method. Output: `outputs/iter_XX_diagnostic_weights_ab/<model_name>/`.
+- Summary table: per-model mean IoU, Dice, pointing_hit, precision_at_fraction across methods. Plus a per-case-per-method agreement view to surface whether one model changes the *spatial* attribution distinctly.
 
 #### Stage B — Outcome decision (≈0 days, decision-only)
 
@@ -177,10 +180,29 @@ Three outcomes:
 - Integration goes through the `load_classifier(name)` seam from compressed Phase 2 so existing scripts work unchanged.
 - Run the full diagnostic suite (calibration cases) and the held-out classifier-outcome run from the documented `iter_27` command pattern.
 
+#### Stage B outcome decision rule (refined after pre-mortem)
+
+The three outcomes are now interpretable because Stage A spans both within-family and out-of-family.
+
+1. **All models look similarly poor** (in-family AND external): cross-distribution-stable XAI behavior; thesis frames results as methodological. `Phase 5.5` does not run.
+2. **In-family models look similar but the external model is materially better**: training-distribution mismatch is the dominant factor. The external model becomes the co-primary baseline; run the full protocol on it.
+3. **One in-family weight is materially better than the others**: within-family variance is meaningful; promote that weight to co-primary baseline.
+4. **Inconclusive or mixed**: Stage C is a deeper external-model exploration with 1-2 additional candidates.
+
 #### Tests
 
 - `tests/test_load_classifier_a_b.py`: assert `load_classifier("densenet121-res224-chex")` returns a `(model, target_layer, class_idx, preprocess_fn)` tuple with `class_idx` pointing to a valid pathology head.
-- Smoke verification: identical-input parity test — same image into two weights, assert outputs are *different* (sanity-check that we are actually loading different weights, not silently caching the same checkpoint).
+- Smoke verification: identical-input parity test — same image into two models, assert outputs are *different* (sanity-check that we are actually loading different weights, not silently caching the same checkpoint).
+- Out-of-family loader test: `load_classifier("<external_model_name>")` returns a usable tuple and runs forward without architecture errors.
+
+### 1.2.5 Versioned calibration regeneration (new, added after pre-mortem)
+
+Reason: the `SignedAttribution` refactor in `Phase 1.2` changes how Grad-CAM, IG, GradientSHAP, and Occlusion compute their underlying signed map (no more post-hoc `F.relu(-cam)` polarity dance; IG/SHAP/Occlusion return raw signed attribution; Grad-CAM no longer ReLUs at the end). Existing calibrated top-fractions in earlier `outputs/iter_2*/selected_thresholds.csv` were tuned against the **v1** code and become statistically stale against the **v2** signed-attribution code.
+
+- Immediately after `Phase 1.2` lands and before any `Phase 1.7` / `Phase 5` work, rerun `scripts/calibrate_cxr_xai_thresholds.py` to produce a **versioned** calibration file at `outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv`.
+- Never overwrite or rename the v1 calibration files. Both v1 and v2 must coexist; downstream scripts pick the correct version explicitly via `--calibrated-fractions`.
+- Document both v1 and v2 in `docs/progress.md` so the thesis methodology section can cite the transition cleanly: "we recalibrated XAI top-fractions after the signed-attribution refactor on 2026-05-XX; v1 results were not used in held-out evaluation."
+- Budget: 0.5 day, slotted between `Phase 1.2` and `Phase 1.6`.
 
 #### AGENT.md updates
 
@@ -384,7 +406,17 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 - New `AGENT.md` "XAI Method Set" entries: `eigen_cam`, `score_cam` (each with the four-view positive/negative/magnitude/signed family).
 - Tests: include both in the metric-sanity and faithfulness-sanity tests.
 
-#### 5.2 Improvement experiment script
+#### 5.2 Improvement experiment script (pre-draft both narratives before running)
+
+Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substantial method disagreement. Consensus may or may not outperform the best individual method on held-out IoU/Dice. The thesis explicitly names "low-risk improvement via consensus" as a contribution, so an unfavorable outcome needs a prepared narrative.
+
+- Before running the held-out evaluation, draft **both** Discussion sub-sections in `thesis/`:
+  - Narrative A: "Consensus improves localization on held-out cases — implications for clinical XAI deployment."
+  - Narrative B: "Consensus does not improve over the best individual method — what method disagreement reveals about model and saliency behavior."
+- ~0.5 day of writing. Eliminates panic if results don't favor the preferred story and turns either outcome into a thesis-defensible finding.
+- After running the experiment, the actual results select which narrative becomes the final Discussion text; the other becomes a "we considered" footnote.
+
+
 
 - Decision (implicit from protocol "Improvement Experiment" section): formalize the consensus-vs-individual head-to-head as a dedicated script `scripts/run_improvement_experiment.py`.
 - Pipeline:
@@ -397,6 +429,9 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 
 #### 5.3 Radiologist review tooling
 
+**Pre-mortem adjustment (2026-05-18)**: the rater (student-as-radiologist) reports a typical CXR reading time of 1-3 minutes per case. With a well-designed workbook that makes the rubric instant to apply without thinking, 100 cases at ~2 minutes average ≈ 3-4 hours of actual scoring. The 1.5-day Phase 5.3 budget covers tooling build (≈1 day) + scoring pass (≈0.5 day). The 100-case target is kept. The binding constraint is **rubric clarity**, not scoring time, so the workbook design rules below are tightened accordingly.
+
+
 - Decision (2026-05-18): hybrid CSV + static HTML index, not a full interactive app.
 - New script `scripts/build_review_workbook.py`:
   - Inputs: a smoke-run output directory (e.g., `outputs/iter_27_*`).
@@ -405,6 +440,13 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
     - `scores_template.csv`: prefilled `case_id`, `filename` columns; empty score columns ready for the rater.
     - `INSTRUCTIONS.md`: opening sequence (open `index.html` in browser; review each card; fill `scores.csv` in editor; save as `scores.csv` next to the template; do not edit the template itself).
   - Static-only. No server. Browser opens local PNGs via relative paths.
+- **Rubric clarity rules (binding constraint for keeping scoring at ~2 min/case)**:
+  - Each card on `index.html` must inline the **full** 4-rubric definitions plus the 7-category failure taxonomy. The rater must never need to scroll, switch tabs, or re-read `INSTRUCTIONS.md` mid-pass.
+  - Each rubric option must show 1-2 example sentences ("`correct`: heatmap peak inside lesion AND overlap region clearly anatomically aligned").
+  - Each card must show: the ground-truth mask, the overlay grid (one row per method, four views per row in red/blue/violet/orange-teal), the classifier outcome label (`tp`/`fp`/`tn`/`fn`), and the classifier probability.
+  - Failure-category dropdown options must be in a fixed, memorable order matching the protocol; the same order in `scores_template.csv` so the rater's eye-to-keyboard pattern is identical across cases.
+  - Cards must be navigable by keyboard (next/prev) so the rater never leaves the keyboard during a pass.
+  - `INSTRUCTIONS.md` must include a 3-case warmup section ("score these 3 first to anchor the rubric") so consistency drift is bounded.
 - Scoring schema (matches `docs/experiment_protocol.md` Radiologist Review section):
   - `localization_score` ∈ {correct, partial, incorrect, none}
   - `usefulness_score` ∈ {useful, potentially_useful, misleading, not_useful}
@@ -416,6 +458,7 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 #### 5.4 Head CT pilot
 
 - Decision (2026-05-18): **off-the-shelf pretrained CT model + small annotated subset**, not fine-tuning.
+- **Hour-1 model-availability check (added after pre-mortem)**: the first hour of `Phase 5.4` is reserved for validating that a usable public CT hemorrhage classifier actually exists and runs end-to-end on one example slice. If no off-the-shelf model is found, immediately fall back to qualitative external validation (per `docs/experiment_protocol.md` Week-3 fallback rule) instead of sliding into a 4-5 day fine-tuning detour. Decision is binary and made within hour 1; do not let the search-for-a-model phase consume more than half a day.
 - New package layout: `src/explainai_thesis/ct/` mirrors `src/explainai_thesis/cxr/`.
   - `ct/io.py`: HU windowing for DICOM input, slice-level preprocessing, resize to the CT model's expected input size.
   - `ct/models.py`: thin wrapper conforming to the `load_classifier(name)` seam from Phase 4. Initial candidate: a public RSNA-IHD pretrained classifier; alternatives shortlisted below.
@@ -442,19 +485,27 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 |---|---|---|---|---|
 | 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | 2026-05-19 |
 | 2 | Phase 1 correctness: tests, polarity fix, signed maps, manifest fix, faithfulness default | 2 | medium | 2026-05-21 |
-| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | 2026-05-22 |
-| 4 | Phase 3.1 + 3.2 + 3.3 + 3.4 (batched IG, vectorized occlusion, dead compute, mask contour) | 1 | medium | 2026-05-23 |
-| 5 | **Phase 1.7 diagnostic A/B (multiple TorchXRayVision weights on shared calibration cases)** | 0.5-1 | low | 2026-05-24 |
-| 6 | Diagnostic outcome decision; optional Phase 1.7 second cut on external model | 0-2 | medium | 2026-05-25 to 2026-05-26 |
-| 7 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | 2026-05-26 to 2026-05-27 |
-| 8 | Phase 5.2 improvement experiment script | 0.5 | low | 2026-05-27 |
-| 9 | Phase 5.4 CT pilot scaffold + first CT smoke | 2-3 | high | 2026-05-30 |
-| 10 | Phase 5.3 radiologist review workbook + first scoring pass on CXR | 1.5 | low | 2026-06-01 |
+| 2b | Phase 1.2.5 versioned calibration regeneration (v2) | 0.5 | low | 2026-05-22 (AM) |
+| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | 2026-05-22 (PM) to 2026-05-23 |
+| 4 | Phase 3.1 + 3.2 + 3.3 + 3.4 (batched IG, vectorized occlusion, dead compute, mask contour) | 1 | medium | 2026-05-24 |
+| 5 | **Phase 1.7 Stage A: in-family weights + 1 out-of-family external model on shared calibration cases** | 1 | medium | 2026-05-25 |
+| 6 | Stage B outcome decision; optional Stage C deeper external-model exploration | 0-2 | medium | 2026-05-25 to 2026-05-27 |
+| 7 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | 2026-05-27 |
+| 8 | Phase 5.2 improvement experiment script + pre-draft both Discussion narratives | 1 | low | 2026-05-28 |
+| 9 | Phase 5.4 CT pilot: **hour-1 model-availability check** then scaffold + first CT smoke (or fallback) | 2-3 | high | 2026-05-31 |
+| 10 | Phase 5.3 radiologist review workbook + 100-case scoring pass on CXR | 1.5 | low | 2026-06-02 |
 | 11 | Phase 4 minimum: `run_meta.json` stamping + `load_classifier` seam audit | 0.5 | low | 2026-06-02 |
 | 12 | Phase 5.5 stronger second CXR model full protocol (conditional on Phase 1.7 outcome) | 1-2 | medium | 2026-06-03 |
-| 13 | Buffer for figures, thesis tables, draft writing | 2-3 | low | 2026-06-04 |
+| 13 | Final figures, results tables, finalize thesis writing | 1-2 | low | 2026-06-04 |
+
+**Parallel track: thesis writing starts on 2026-05-19**, not in the final buffer. The methodology chapter can be written as soon as `Phase 1.2` lands (signed-attribution semantics decided); the results chapter populates as each phase's CSVs land. Only the Discussion and Conclusions chapters wait for the improvement-experiment results. Net effect: by 2026-06-04, the draft is ready not because there is a writing-only buffer, but because writing has happened concurrently.
 
 Hard deadline: full thesis draft `2026-06-04`. Final corrections/formatting/defense window `2026-06-05` to `2026-06-21`.
+
+### External coordination tasks (added after pre-mortem)
+
+- **AI-tooling disclosure policy**: confirm with the supervisor this week which institutional policy governs disclosure of `GPT-5.5`, `Codex`, `Claude Sonnet 4.6`, `Claude Opus 4.7`, `Junie`, etc. in the thesis (per `AGENT.md` line 34). Result: a methods-section paragraph naming the tools and roles. Done before 2026-05-22 so it does not block draft writing.
+- **Polarity-fix supervisor communication**: if the supervisor has seen earlier figures with the buggy `grad_cam_plus_plus_negative` overlays, email proactively with the corrected example after `Phase 1.1` lands, framing it as instrument calibration with before/after.
 
 ### Items explicitly downgraded
 
