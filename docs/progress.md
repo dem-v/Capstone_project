@@ -2428,3 +2428,83 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
   - **Stronger second CXR model**: deferred-conditional. Only attempted if Phases 0-3 and 5.1-5.4 finish by `2026-05-31`. Otherwise documented as future work and the TorchXRayVision baseline stays the documented weak external baseline.
 - Revised execution order with deadline anchors is written in `docs/refactor_plan.md`. Hard checkpoint dates: foundation+correctness by `2026-05-21`, compressed Phase 2 by `2026-05-22`, performance work by `2026-05-23`, Eigen-CAM/Score-CAM+improvement script by `2026-05-24`, CT pilot scaffold+first CT smoke by `2026-05-27`, radiologist workbook+first CXR scoring pass by `2026-05-28`, `Phase 4` minimum by `2026-05-29`, optional stronger second CXR model by `2026-05-31`, writing buffer through `2026-06-04`.
 
+## 2026-05-18 - Iteration 28 Preparation: Review Candidate Mining From Iteration 27
+
+### Context
+
+- The balanced long-run output `outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods` completed with `400` selected cases: `100` each for `tp`, `fp`, `tn`, and `fn`.
+- It contains `64,000` threshold metric rows: `400 cases x 16 methods x 10 fractions`.
+- First-pass aggregate review showed very weak positive localization overall; `grad_cam` was strongest by mean Dice among positive-label applicable rows, but still only around `0.045` mean Dice and `0.024` mean IoU.
+- Because broad screening used `--gradshap-samples 8`, selected thesis-quality or contradictory cases should still be rerun with higher-stability settings before final interpretation.
+
+### Implementation
+
+- Added `scripts/select_cxr_review_candidates.py` to mine ranked case lists from an existing classifier-outcome run.
+- The script reads `cases.csv` and `threshold_metrics.csv`, then writes ranked CSVs for:
+  - best `tp` cases by Dice/IoU;
+  - suspicious `tp` cases with low localization despite positive prediction;
+  - `fp` cases with high classifier score, used as a proxy for strong false-positive evidence because negatives have no mask-localization metrics;
+  - `fn` cases with relatively good localization but classifier score below threshold;
+  - positive-label cases with unusually high negative evidence inside the mask.
+- It also writes `selected_manual_review_cases.csv` and `run_selected_high_stability_diagnostics.ps1` with one PowerShell command per selected case.
+
+### Generated Output
+
+- Command run:
+
+```bash
+wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods --output-dir outputs/iter_28_review_candidate_selection
+```
+
+- Output folder: `outputs/iter_28_review_candidate_selection`.
+- Generated artifacts:
+  - `best_tp_by_dice_iou.csv`
+  - `suspicious_tp_low_dice_positive_prediction.csv`
+  - `fp_high_classifier_score_strong_positive_evidence_proxy.csv`
+  - `fn_good_localization_low_classifier_score.csv`
+  - `high_negative_evidence_inside_mask.csv`
+  - `selected_manual_review_cases.csv`
+  - `run_selected_high_stability_diagnostics.ps1`
+
+### Selected Manual-Review Cases
+
+| Rank | Category | File | Outcome | Score | Best method | Best Dice | Best IoU | Negative method | Max negative overlap |
+|---:|---|---|---|---:|---|---:|---:|---|---:|
+| 1 | best TP | `4052_train_1_.png` | `tp` | `0.6322` | `grad_cam` | `0.4667` | `0.3044` | `grad_cam_plus_plus_negative` | `0.2078` |
+| 2 | best TP | `2541_train_1_.png` | `tp` | `0.6238` | `occlusion` | `0.3784` | `0.2334` | `occlusion_negative` | `0.2755` |
+| 3 | suspicious TP | `1556_train_1_.png` | `tp` | `0.6229` | `integrated_gradients_positive` | `0.0031` | `0.0016` | `grad_cam_negative` | `0.0024` |
+| 4 | suspicious TP | `335_train_1_.png` | `tp` | `0.6225` | `grad_cam` | `0.0068` | `0.0034` | `grad_cam_plus_plus_negative` | `0.0011` |
+| 5 | high-score FP | `3027_train_0_.png` | `fp` | `0.6343` | n/a | n/a | n/a | n/a | n/a |
+| 6 | high-score FP | `271_train_0_.png` | `fp` | `0.6323` | n/a | n/a | n/a | n/a | n/a |
+| 7 | good-localization FN | `101_test_1_.png` | `fn` | `0.6122` | `grad_cam_plus_plus` | `0.5683` | `0.3969` | `gradient_shap_negative` | `0.2002` |
+| 8 | good-localization FN | `3671_train_1_.png` | `fn` | `0.5830` | `grad_cam` | `0.4536` | `0.2934` | `occlusion_negative` | `0.3753` |
+| 9 | high negative-in-mask | `2349_train_1_.png` | `tp` | `0.6276` | `grad_cam_plus_plus` | `0.3721` | `0.2286` | `grad_cam_negative` | `0.4880` |
+| 10 | high negative-in-mask | `4228_train_1_.png` | `fn` | `0.6105` | `grad_cam_plus_plus` | `0.4032` | `0.2525` | `occlusion_negative` | `0.4104` |
+
+### Verification
+
+- Syntax check passed: `wsl.exe python3 -m py_compile scripts/select_cxr_review_candidates.py`.
+- Candidate mining read `400` cases and `64,000` metric rows.
+- All expected ranked-list CSVs and the PowerShell diagnostic command file were created.
+
+### 2026-05-18 Continuation Check: High-Stability Diagnostics Not Yet Run
+
+- Confirmed the generated manual script `outputs/iter_28_review_candidate_selection/run_selected_high_stability_diagnostics.ps1` still contains the intended `10` ordinal commands for `case_01` through `case_10`.
+- Confirmed high-stability parameters: `--ig-steps 16`, `--gradshap-samples 64`, `--occlusion-patch-size 32`, `--occlusion-stride 12`, and fractions `0.05` through `0.95`.
+- Checked for `outputs/iter_28_review_diagnostics`; the folder is not present, so the selected high-stability diagnostic outputs have not been generated yet.
+- Next manual action: from the repository root in PowerShell, run `outputs/iter_28_review_candidate_selection/run_selected_high_stability_diagnostics.ps1` and preserve the generated ordinal output directories under `outputs/iter_28_review_diagnostics/case_01_...` through `case_10_...`.
+
+### 2026-05-18 Diagnostic Second-Classifier A/B Promoted Ahead of Phase 5
+
+- Concern raised: observed poor localization on the TorchXRayVision `densenet121-res224-all` baseline could be caused by either methodology (XAI implementation, threshold choice, clinical interpretation of saliency) or by the baseline model itself (training-distribution mismatch with SIIM pneumothorax). Phase 5 protocol-completion work risks decorating a broken foundation if the model-side cause is not ruled out first.
+- Decision: introduce `Phase 1.7` diagnostic A/B between Phase 3 (performance) and Phase 5 (protocol completion). This is a small, low-risk experiment that uses already-implemented infrastructure and only swaps the `--weights` argument across multiple TorchXRayVision pretrained checkpoints.
+- Stage A (same library, different weights, ≈0.5 day): run the existing `scripts/run_cxr_torchxray_smoke.py` smoke on the same 20-30 calibration positive cases across `densenet121-res224-chex`, `densenet121-res224-mimic_ch`, `densenet121-res224-mimic_nb`, `densenet121-res224-rsna`, with `densenet121-res224-all` as the control. Output goes to `outputs/iter_XX_diagnostic_weights_ab/<weight_name>/`. Summary: per-weight mean IoU, Dice, pointing_hit, precision_at_fraction across methods.
+- Stage B (outcome decision, ≈0 days): three outcomes pre-defined.
+  - If all weights look similarly poor: localization weakness is not weight-specific; thesis frames it as cross-weight-stable XAI behavior; `Phase 5.5` does not run.
+  - If one weight is materially better: that weight becomes a co-primary baseline; run the full protocol on it; reframe analysis as "training-distribution mismatch was a meaningful factor."
+  - If mixed or inconclusive: proceed to Stage C optional external-model integration.
+- Stage C (optional external model, ≈1-2 days, only if Stage B inconclusive): CheXNet variant or pneumothorax-specific Kaggle-fine-tuned model integrated through the `load_classifier(name)` seam from compressed Phase 2.
+- `Phase 5.5` (full second-model protocol run) is now strictly conditional on the Stage B or Stage C outcome of `Phase 1.7`. If `Phase 1.7` already produces sufficient secondary-evidence weight, `Phase 5.5` does not run separately and the diagnostic sweep is the documented secondary evidence.
+- Revised checkpoint dates after the insert: `Phase 1.7` Stage A by `2026-05-24`, Stage B/C decision and optional external by `2026-05-25` to `2026-05-26`, then `Phase 5.1` and onward. Writing buffer compresses from 4-5 days to 2-3 days; judged worth the trade because a positive diagnostic outcome (similar localization across multiple training-distribution baselines) is far more thesis-defensible than running the full protocol-completion scope on a possibly-broken baseline.
+- Plan artifact `docs/refactor_plan.md` updated with full `Phase 1.7` description (stages, candidate weights, tests, AGENT.md update requirement). `AGENT.md` was updated with a new "Diagnostic A/B Protocol Before Full Second-Model Integration" section listing the candidate weights and the Stage B outcome rule. The actual Stage A results will be written back into that `AGENT.md` section once the run completes.
+

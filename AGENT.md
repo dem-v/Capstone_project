@@ -200,6 +200,17 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
 - Future model candidates include CheXNet-style DenseNet, a more recent CXR model with pneumothorax output, a pneumothorax-specific pretrained model, or a custom/fine-tuned SIIM/Kaggle classifier.
 - Any second model should go through the same protocol: classifier threshold calibration, XAI threshold calibration, localization metrics, negative evidence diagnostics, faithfulness curves, and qualitative `tp`/`fp`/`tn`/`fn` examples.
 
+## Diagnostic A/B Protocol Before Full Second-Model Integration
+
+- Before committing 1-2 days to a full second-model protocol run, a diagnostic A/B sweep across multiple TorchXRayVision pretrained weights answers the prior question: are the weak-localization results model-specific or method-specific.
+- Decision rule from 2026-05-18: run Stage A (same library, different weights) first on the existing calibration positive cases. Candidate weights: `densenet121-res224-chex`, `densenet121-res224-mimic_ch`, `densenet121-res224-mimic_nb`, `densenet121-res224-rsna`, with `densenet121-res224-all` as the control.
+- Stage A output folder convention: `outputs/iter_XX_diagnostic_weights_ab/<weight_name>/`, with a top-level summary CSV `weights_ab_summary.csv` containing per-weight mean IoU, Dice, pointing_hit, precision_at_fraction across methods.
+- Stage B outcome classification:
+  - All weights similarly poor: localization weakness is cross-weight-stable; full second-model integration is not pursued; thesis frames results as methodological.
+  - One weight materially better: that weight is promoted to co-primary baseline; full protocol is run on it.
+  - Inconclusive or mixed: proceed to Stage C external-model integration through the `load_classifier(name)` seam.
+- The outcome of the Stage A sweep is recorded back into this `AGENT.md` section once the run completes, as durable thesis evidence.
+
 ## Reporting/Thesis Framing
 
 - Separate classifier performance, positive localization against masks, negative evidence diagnostics, faithfulness/deletion-insertion metrics, and qualitative case studies.

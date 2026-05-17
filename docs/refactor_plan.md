@@ -148,6 +148,44 @@ Fix: use word-boundary regex or require exact-token matches.
 
 Tests: `tests/test_manifest.py` with adversarial filenames including `case_10_chest.png`, `image_01_pneumothorax.png`, `study_1_seg.png`.
 
+### 1.7 Diagnostic second-classifier A/B (promoted ahead of Phase 5 on 2026-05-18)
+
+Scientific motivation: current TorchXRayVision `densenet121-res224-all` localization on SIIM pneumothorax looks clinically weak. Before investing in protocol-completion scope (`Phase 5`), confirm whether the weakness is XAI-side (method/threshold/interpretation) or model-side (training distribution mismatch). If it is model-side, the conclusions of any further methodological work risk being attached to a broken foundation.
+
+#### Stage A — Same library, different weights (≈0.5 day)
+
+- Reuse all current XAI methods, calibration cases, and metrics. Only change is `--weights`.
+- Candidate weights from `torchxrayvision`:
+  - `densenet121-res224-chex`
+  - `densenet121-res224-mimic_ch`
+  - `densenet121-res224-mimic_nb`
+  - `densenet121-res224-rsna`
+  - (control) `densenet121-res224-all` — current baseline
+- Pipeline: run `scripts/run_cxr_torchxray_smoke.py` with each weight on the same 20-30 calibration positive cases at the calibrated top-fractions for each method. Output: `outputs/iter_XX_diagnostic_weights_ab/<weight_name>/`.
+- Summary table: per-weight mean IoU, Dice, pointing_hit, precision_at_fraction across methods. Plus a per-case-per-method agreement view to surface whether one weight changes the *spatial* attribution distinctly.
+
+#### Stage B — Outcome decision (≈0 days, decision-only)
+
+Three outcomes:
+1. **All weights look similar (poor localization)**: model-architecture or training-distribution is unlikely to be the lever. Issue is methodological / clinical interpretation of saliency. `Phase 5.5` does **not** run. Thesis can confidently frame results as cross-weight-stable XAI behavior. Proceed to Phase 5.
+2. **One weight is materially better at localization**: that weight becomes a co-primary baseline. Run Stage C with the better weight as the new candidate. Frame as "training-distribution mismatch was a meaningful factor."
+3. **Inconclusive / mixed**: proceed to optional external-model stage.
+
+#### Stage C (optional, only if Stage B is inconclusive or favorable) — External model (≈1-2 days)
+
+- Candidate types (decision deferred to implementation): CheXNet variant from outside `torchxrayvision`, pneumothorax-specific Kaggle-fine-tuned model, or a self-fine-tuned DenseNet on SIIM-train with a published recipe.
+- Integration goes through the `load_classifier(name)` seam from compressed Phase 2 so existing scripts work unchanged.
+- Run the full diagnostic suite (calibration cases) and the held-out classifier-outcome run from the documented `iter_27` command pattern.
+
+#### Tests
+
+- `tests/test_load_classifier_a_b.py`: assert `load_classifier("densenet121-res224-chex")` returns a `(model, target_layer, class_idx, preprocess_fn)` tuple with `class_idx` pointing to a valid pathology head.
+- Smoke verification: identical-input parity test — same image into two weights, assert outputs are *different* (sanity-check that we are actually loading different weights, not silently caching the same checkpoint).
+
+#### AGENT.md updates
+
+`Phase 1.7` outcome should be recorded in `AGENT.md` under a new "Diagnostic A/B Results" subsection, including: weights tried, calibration set used, per-weight summary metrics, and the Stage B outcome classification. This becomes thesis-defensible evidence for or against the "stronger second model needed" claim already in `AGENT.md`.
+
 ### 1.6 Faithfulness default baseline switch
 
 File: `scripts/run_cxr_torchxray_smoke.py:117`
@@ -389,10 +427,10 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 - Open subdecisions deferred to implementation time: exact CT model identifier, DICOM-source-of-truth vs PNG export, slice selection rule for IHD (single representative slice vs three-slice stack).
 - Tests: CT-specific HU windowing round-trip test; a synthetic CT-like dataset (HU-scaled `SyntheticLesionDataset`) for the smoke pipeline.
 
-#### 5.5 Stronger second pneumothorax model (time-permitting)
+#### 5.5 Stronger second pneumothorax model (time-permitting full protocol run)
 
-- Decision (deferred): only if Phases 0-3 and 5.1-5.4 finish ahead of 2026-05-31. Otherwise document as future work and rely on the TorchXRayVision baseline as the documented weak external baseline (`AGENT.md` "Stronger Second Model Needed" section).
-- If pursued: integrate one candidate (CheXNet-style DenseNet or a pneumothorax-specific Kaggle-fine-tuned model) via the `load_classifier(name)` seam. Run the full protocol on it. Add to the comparison table.
+- Decision (deferred): only if the diagnostic A/B in `Phase 1.7` identifies an alternate weight or external model materially better at localization than the documented TorchXRayVision baseline. Otherwise the diagnostic-only sweep from `Phase 1.7` is the documented secondary evidence and `Phase 5.5` does not run.
+- If pursued: integrate one candidate (CheXNet-style DenseNet or a pneumothorax-specific Kaggle-fine-tuned model) via the `load_classifier(name)` seam. Run the full protocol on it. Add to the comparison table as a co-primary baseline.
 
 #### 5.6 Captum infidelity and sensitivity (optional)
 
@@ -404,15 +442,17 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 |---|---|---|---|---|
 | 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | 2026-05-19 |
 | 2 | Phase 1 correctness: tests, polarity fix, signed maps, manifest fix, faithfulness default | 2 | medium | 2026-05-21 |
-| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` | 1 | medium | 2026-05-22 |
+| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | 2026-05-22 |
 | 4 | Phase 3.1 + 3.2 + 3.3 + 3.4 (batched IG, vectorized occlusion, dead compute, mask contour) | 1 | medium | 2026-05-23 |
-| 5 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | 2026-05-24 (morning) |
-| 6 | Phase 5.2 improvement experiment script | 0.5 | low | 2026-05-24 (eve) |
-| 7 | Phase 5.4 CT pilot scaffold + first CT smoke | 2-3 | high | 2026-05-27 |
-| 8 | Phase 5.3 radiologist review workbook + first scoring pass on CXR | 1.5 | low | 2026-05-28 |
-| 9 | Phase 4 minimum: `run_meta.json` stamping + `load_classifier` seam audit | 0.5 | low | 2026-05-29 |
-| 10 | Phase 5.5 stronger second CXR model (if time) | 1-2 | medium | 2026-05-31 |
-| 11 | Buffer for figures, thesis tables, draft writing | 4-5 | low | 2026-06-04 |
+| 5 | **Phase 1.7 diagnostic A/B (multiple TorchXRayVision weights on shared calibration cases)** | 0.5-1 | low | 2026-05-24 |
+| 6 | Diagnostic outcome decision; optional Phase 1.7 second cut on external model | 0-2 | medium | 2026-05-25 to 2026-05-26 |
+| 7 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | 2026-05-26 to 2026-05-27 |
+| 8 | Phase 5.2 improvement experiment script | 0.5 | low | 2026-05-27 |
+| 9 | Phase 5.4 CT pilot scaffold + first CT smoke | 2-3 | high | 2026-05-30 |
+| 10 | Phase 5.3 radiologist review workbook + first scoring pass on CXR | 1.5 | low | 2026-06-01 |
+| 11 | Phase 4 minimum: `run_meta.json` stamping + `load_classifier` seam audit | 0.5 | low | 2026-06-02 |
+| 12 | Phase 5.5 stronger second CXR model full protocol (conditional on Phase 1.7 outcome) | 1-2 | medium | 2026-06-03 |
+| 13 | Buffer for figures, thesis tables, draft writing | 2-3 | low | 2026-06-04 |
 
 Hard deadline: full thesis draft `2026-06-04`. Final corrections/formatting/defense window `2026-06-05` to `2026-06-21`.
 
