@@ -1,0 +1,7 @@
+# Development-only requirements. Install with:
+#   wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI \
+#       python3 -m pip install -r requirements-dev.txt
+# Runtime dependencies live in pyproject.toml / requirements.txt.
+pytest
+pytest-cov
+scipy

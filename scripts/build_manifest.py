@@ -3,12 +3,9 @@ from __future__ import annotations
 from explainai_thesis.manifest import build_manifest, write_manifest
 
 import argparse
-import sys
 from collections import Counter
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(

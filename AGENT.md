@@ -2,6 +2,12 @@
 
 This file preserves the practical repository context, experiment conventions, and decision rules accumulated during the current thesis work. Future agents should read this before making changes or running experiments.
 
+## Basic rules of code development
+- Don't assume. Don't hide confusion. Surface tradeoffs.
+- Minimum code that solves the problem. Avoid speculative.
+- Touch only what you must and cleanup only your own mess, unless allowed or requested.
+- Define success criteria. Loop until verified.
+
 ## Project Context
 
 - This repository is a master thesis project on validating explainable AI (`XAI`) methods for medical imaging.
@@ -30,6 +36,7 @@ This file preserves the practical repository context, experiment conventions, an
 - Keep writing important decisions/results to `docs/progress.md`.
 - Preserve chronological/context ordering in `docs/progress.md`; do not prepend new iteration notes above the initial context unless explicitly requested.
 - Week 1 reports are treated as frozen/submitted: do not edit `reports/weekly/week_1_report.md` or `reports/weekly/week_1_report_final.md`.
+- *_final weekly reports should not be edited unless explicitly requested.
 - If adding major tool/model/dataset decisions, keep thesis-safe wording in `docs/progress.md` for later reuse.
 - Final thesis should reference AI/development tools and exact versions where applicable, including `GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, and `Claude Opus 4.7 1M context`, plus all research models and XAI methods actually used.
 

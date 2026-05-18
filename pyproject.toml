@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "explainai_thesis"
+version = "0.1.0"
+description = "Master thesis utilities for validating explainable AI methods on medical imaging (CXR / CT)."
+requires-python = ">=3.10"
+authors = [{ name = "Dmytro Valantsevych" }]
+license = { text = "Proprietary - thesis use only" }
+
+# Runtime dependencies. Mirrors requirements.txt; kept lean so an editable
+# install in WSL does not try to re-resolve already-installed heavy wheels
+# (torch / torchxrayvision are expected to be present in the WSL env).
+dependencies = [
+    "numpy",
+    "pillow",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "tqdm",
+    "captum",
+    "torchxrayvision",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "scipy",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["explainai_thesis*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "cuda: marks tests that require a CUDA device (deselect with '-m \"not cuda\"')",
+]
