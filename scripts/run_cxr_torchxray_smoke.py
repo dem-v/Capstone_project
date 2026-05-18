@@ -23,6 +23,7 @@ from explainai_thesis.xai import (
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
+from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import (
     localization_metrics,
@@ -53,7 +54,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--weights",
         default="densenet121-res224-all",
-        help="TorchXRayVision DenseNet weights.",
+        help=(
+            "TorchXRayVision classifier weights name. Routed through "
+            "`load_classifier()`. Supported families: DenseNet-121 "
+            "(`densenet121-res224-*`, native 224x224), ResNet-50 "
+            "(`resnet50-res512-all`, native 512x512 -- pass `--image-size 512`)."
+        ),
     )
     parser.add_argument(
         "--split",
@@ -119,7 +125,7 @@ def parse_args() -> argparse.Namespace:
             "Default 'black' per AGENTS.md (Faithfulness Evaluation Rules): "
             "'zero_tensor' is historical / not recommended because it is not a "
             "true black image in the normalized TorchXRayVision input space and "
-            "can still score ~60% pneumothorax. 'black'/'white'/'case_mean' use "
+            "can still score ~60pct pneumothorax. 'black'/'white'/'case_mean' use "
             "normalized image-space baselines."
         ),
     )
@@ -702,10 +708,16 @@ def main() -> None:
             f"No positive rows with masks found in {manifest_path} for split={args.split}."
         )
 
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
-    gradcam = GradCAM(model, model.features.denseblock4)
+    # Phase 1.7 seam: route classifier loading through `load_classifier(name)`.
+    # Behaviour for the default `--weights densenet121-res224-all` is identical
+    # to the pre-seam path (same `xrv.models.DenseNet` constructor, same
+    # `.to(device).eval()`, same `model.features.denseblock4` Grad-CAM layer,
+    # same Pneumothorax pathology index). Diagnostic A/B runs simply pass a
+    # different `--weights` value; no other code in this script changes.
+    bundle = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = bundle.model
+    class_idx = bundle.class_idx
+    gradcam = GradCAM(model, bundle.target_layer)
 
     metric_rows: list[dict[str, str | int | float]] = []
     faithfulness_rows: list[dict[str, str | int | float]] = []

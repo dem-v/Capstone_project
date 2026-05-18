@@ -1557,7 +1557,7 @@ That combination adds both a stronger visual method and a more rigorous explanat
   - too many methods are plotted together and many curves overlap almost exactly;
   - the legend is large and far from the plots;
   - the smoke run used only three fraction points, `0.0`, `0.5`, and `1.0`, making the curve shape too coarse;
-  - the y-axis is fixed to `0â€“1`, while the observed probabilities are compressed around `0.50â€“0.64`;
+  - the y-axis is fixed to `0–1`, while the observed probabilities are compressed around `0.50–0.64`;
   - positive, negative, magnitude, and consensus methods are mixed in one figure even though they answer partly different questions.
 - Meaning of the chart:
   - it is an aggregate deletion/insertion faithfulness curve plot;
@@ -1574,9 +1574,9 @@ That combination adds both a stronger visual method and a more rigorous explanat
   - it proves the plotting pipeline works;
   - it is not a thesis result because it used only one positive X-ray and three coarse fraction points;
   - no method clearly shows ideal insertion/deletion behavior in that smoke chart;
-  - the model probability remains roughly in a narrow `0.50â€“0.64` range across perturbations.
+  - the model probability remains roughly in a narrow `0.50–0.64` range across perturbations.
 - Recommended thesis-quality improvements:
-  - run on `50â€“100` positive test cases or another clearly defined evaluation subset;
+  - run on `50–100` positive test cases or another clearly defined evaluation subset;
   - use finer fractions such as `0.0,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,0.90,1.0`;
   - separate method families in plots, for example CAM methods vs Integrated Gradients variants;
   - use `faithfulness_summary.csv` AUC values for method comparison;
@@ -1688,7 +1688,7 @@ Deletion/insertion evaluates faithfulness to the model score, not clinical corre
   - good mask overlap but weak faithfulness = visually plausible explanation may not actually control the model score.
 - Current result reading:
   - `Grad-CAM` and `Grad-CAM++` having higher faithfulness AUCs around `0.62` suggests CAM-style maps are more aligned with `TorchXRayVision` score-controlling regions under the insertion protocol;
-  - IG variants having lower AUCs around `0.55â€“0.57` suggests the current IG perturbation ranking behaves differently and is less favorable under hard pixel replacement;
+  - IG variants having lower AUCs around `0.55–0.57` suggests the current IG perturbation ranking behaves differently and is less favorable under hard pixel replacement;
   - this does not make IG useless, but indicates it gives a different, more pixel-level sensitivity view.
 - Thesis-safe wording:
 
@@ -2757,4 +2757,53 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 
 - The v2 calibration rerun that exercises the SPA column from 1.2.5b is brewing in parallel and writes to `outputs/iter_29_calibration_v2`.
 - Phase 1.7 Stage A (diagnostic A/B across in-family TorchXRayVision weights + one out-of-family external model) is the next code-side step; it depends on a small `load_classifier(name)` seam that can land standalone without committing to the full Phase 2 structural refactor. After Stage A: port the two remaining v1-API callers (`scripts/visualize_cxr_classifier_outcome_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`) and then activate the `polarity=` `DeprecationWarning` in `src/explainai_thesis/xai.py`.
+
+
+## 2026-05-18 - Phase 1.7 prerequisite: `load_classifier(name)` seam landed
+### Context
+- Phase 1.7 Stage A (in-family TorchXRayVision DenseNet-121 weights plus one out-of-family external model) needs a single entry point that returns `(model, target_layer, class_idx, preprocess_fn)` so the diagnostic A/B run can loop over weight names with no other code changes. The pre-seam scripts (`run_cxr_torchxray_smoke.py`, `calibrate_cxr_xai_thresholds.py`, and the two unported visualizers) each inlined `xrv.models.DenseNet(weights=...).to(device).eval()` plus a local `pathology_index` helper.
+### Changes
+- New package: `src/explainai_thesis/cxr/` with `__init__.py` and `classifier.py`. `classifier.py` exposes `ClassifierBundle` (frozen dataclass with `model`, `target_layer`, `class_idx`, `preprocess`) and `load_classifier(name, device, pathology="Pneumothorax")`. The seam has an explicit allow-list `TORCHXRAYVISION_DENSENET_WEIGHTS` of seven in-family DenseNet-121 weight ids (the five Phase 1.7 candidates plus `-nih` and `-pc`) and raises a clear `ValueError` for unknown names. `torchxrayvision` is imported lazily inside the seam so unit tests with a stub do not pay its import cost.
+- `scripts/run_cxr_torchxray_smoke.py` and `scripts/calibrate_cxr_xai_thresholds.py` now route classifier loading through `load_classifier(args.weights, device=device)`. CLI flag names, defaults, and downstream behaviour are unchanged. Both scripts still keep their local `pathology_index` helpers (currently unused at the loader call site, but referenced by other code paths in the smoke script and intentionally left in place to avoid scope creep).
+- New test file: `tests/test_load_classifier.py`. Six tests: bundle shape contract, preprocess output `[1, H, W]` float32, `ValueError` on unknown name, `ValueError` on missing pathology, `TORCHXRAYVISION_DENSENET_WEIGHTS` allow-list guardrail vs. the refactor-plan candidate list, and one `@pytest.mark.slow` real-weights parity check that loads `-all` and `-chex` and asserts the Pneumothorax-head scores differ on the same dummy input. Fast tests use a lightweight `torchxrayvision` stub installed into `sys.modules` via `monkeypatch.setitem`.
+### Design notes
+- Scope was kept strictly to the seam. The two remaining v1-`polarity=` callers (`scripts/visualize_cxr_classifier_outcome_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`) were NOT ported in this step: each has ~10 `polarity=` call sites with overlay/metric implications that warrant a separate dedicated commit. The seam is independently useful and can land alongside them later.
+- The actual Phase 1.7 Stage A orchestrator script (looping over the 5 in-family weights plus one external model, emitting `outputs/iter_XX_diagnostic_weights_ab/<model_name>/` and `weights_ab_summary.csv`) is also out of scope for this step; it depends only on this seam plus a small wrapper around the smoke loop. Deferred until the user confirms the seam looks right.
+- The `slow`-marked real-weights test was not deselected by default in this environment (no `-m 'not slow'` filter active in `pyproject.toml` / `pytest.ini`) and ran successfully (~10 s including cached checkpoint deserialization). The eight `SourceChangeWarning` entries are TorchXRayVision-internal and pre-existing; not actionable here.
+### Verification
+- `wsl.exe python3 -m py_compile src/explainai_thesis/cxr/__init__.py src/explainai_thesis/cxr/classifier.py scripts/run_cxr_torchxray_smoke.py scripts/calibrate_cxr_xai_thresholds.py tests/test_load_classifier.py` -> exit 0.
+- `wsl.exe python3 -m pytest tests/ -v` -> **43 passed in 26.76s**. Suite grew from 37 -> 43 tests; the new 6 are the load-classifier coverage. Real-weights parity assertion held: `score_all != score_chex` on the same dummy input.
+### Next
+- Phase 1.7 Stage A diagnostic A/B run script (loops over the 5 in-family weights plus one out-of-family external candidate on the calibration positive cases; emits per-model summary CSV). Depends only on this seam.
+- Port the two remaining v1-`polarity=` callers (`scripts/visualize_cxr_classifier_outcome_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`) to the `SignedAttribution` four-view contract, then activate the `polarity=` `DeprecationWarning` in `src/explainai_thesis/xai.py`.
+
+
+## 2026-05-18 — Phase 1.7 seam extended: ResNet + ResNetAE
+
+- `load_classifier` now dispatches three TorchXRayVision families behind the same `ClassifierBundle` contract:
+  - DenseNet-121 classifiers (`densenet121-res224-{all,chex,mimic_ch,mimic_nb,rsna,nih,pc}`) — unchanged.
+  - **ResNet-50 classifier** `resnet50-res512-all`: native 512x512 input, Grad-CAM `target_layer = model.model.layer4`, same `pathologies` head (Pneumothorax present).
+  - **ResNetAE autoencoder** `resnetae-101-elastic`: no class head, no `pathologies`. The seam loads it for future latent/reconstruction work but rejects the default `pathology='Pneumothorax'` call with a clear error; opt-in is `load_classifier(name, ..., pathology=None)` -> bundle with `class_idx=-1` and `target_layer = model.layer4` (deepest encoder stage).
+- Added inverse guardrail: pathology classifiers (DenseNet / ResNet) reject `pathology=None` to prevent silent runs against an undefined class head.
+- New allow-lists: `TORCHXRAYVISION_RESNET_WEIGHTS`, `TORCHXRAYVISION_AUTOENCODER_WEIGHTS`. The unknown-name `ValueError` lists all three families.
+- Live verification in WSL (real weights) before coding: ResNet outer/inner module layout = `[model] -> [conv1, bn1, relu, maxpool, layer1..4, avgpool, fc]`, output shape `[1, 18]`, Pneumothorax in `pathologies`; ResNetAE has no `pathologies`, exposes `layer4` directly on the top-level module.
+- Tests: 5 new fast stub-based cases in `tests/test_load_classifier.py` (ResNet branch with distinct class-idx, ResNetAE default-`pathology` rejection, ResNetAE opt-in with `pathology=None`, classifier-with-`pathology=None` double-guardrail, allow-list membership). `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed in 6.75 s** (was 43).
+- Out of scope this step: actually running ResNet or ResNetAE through the full smoke / calibration pipeline. ResNet would need `--image-size 512` for native resolution and the v2 calibration would have to be regenerated against it; ResNetAE is not compatible with the current Pneumothorax-target XAI pipeline and is exposed only for future feature/reconstruction-baseline work.
+
+## 2026-05-18 — progress.md encoding repair + ResNet smoke ready to run
+
+- Repaired UTF-8 mojibake in `docs/progress.md`. The file was UTF-8 but contained sequences that had been decoded as cp1252 and re-encoded as UTF-8 (classic mojibake: `â€“` for `–`, `â€”` for `—`, `â€™` for `’`, etc.) plus one stray cp1252 `0x97` byte at offset 209585 that was not valid UTF-8 at all (caused `iconv -f utf-8 -t utf-8` to abort).
+- One-shot utility: `scripts/_fix_progress_encoding.py`. Idempotent. Two passes:
+  1. Replace known six-byte mojibake sequences with the intended UTF-8 character.
+  2. Walk the remaining bytes; keep valid UTF-8 sequences verbatim and map any stray cp1252 high bytes (`0x92`-`0x97`) to their intended punctuation, silently dropping anything else.
+- Post-fix verification: `iconv -f utf-8 -t utf-8 docs/progress.md` clean; `grep -c 'â€' docs/progress.md` = 0; file shrank from 211 645 to 211 623 bytes.
+- ResNet-50 (`resnet50-res512-all`) smoke is now runnable end-to-end through the existing CLI surface — no structural script changes required because both `scripts/run_cxr_torchxray_smoke.py` and `scripts/calibrate_cxr_xai_thresholds.py` already accept `--weights` and `--image-size` and route through the Phase 1.7 `load_classifier()` seam. Two small additions:
+  - `--weights` help text in both scripts now spells out the supported families and flags the 512x512 requirement for ResNet to prevent silent double-downsampling.
+  - New orchestration wrapper `scripts/run_cxr_resnet_smoke.ps1`. Two-step pipeline:
+    1. Regenerate a ResNet-specific v2 calibration under `outputs/iter_30_calibration_v2_resnet50/` (v1 + v2 DenseNet top-fractions are statistically stale against the ResNet signed-attribution distribution).
+    2. Run the smoke under `outputs/iter_31_resnet50_smoke/` using that fresh calibration.
+  - Defaults baked into the wrapper: `--ig-steps 8 --gradshap-samples 8 --occlusion-patch-size 64 --occlusion-stride 32 --faithfulness-baseline black --classifier-threshold 0.62 --seed 20260518`. Occlusion patch/stride doubled vs. the DenseNet defaults to keep wall time bounded at 512x512.
+  - Caveat banner in the wrapper: the 0.62 classifier threshold was calibrated for DenseNet-121-all on SIIM train. ResNet-50 will likely need its own threshold sweep via `scripts/evaluate_cxr_torchxray_model.py` before any held-out reporting.
+- Verification: `wsl.exe python3 -m py_compile` clean on `scripts/_fix_progress_encoding.py`, `scripts/run_cxr_torchxray_smoke.py`, `scripts/calibrate_cxr_xai_thresholds.py`. `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed in 6.96 s** (no regressions).
+- Out of scope this step: actually executing the ResNet smoke. Per AGENTS.md long-run rule, the calibration step at `--max-positive 200` (~60-90 min CUDA) should be run manually rather than via the agent tool budget; the wrapper banner documents the wall-time estimate so the user can decide.
 

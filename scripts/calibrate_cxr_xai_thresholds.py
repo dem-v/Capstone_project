@@ -16,6 +16,7 @@ from explainai_thesis.xai import (
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
+from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.metrics import (
     localization_metrics,
     normalize_map,
@@ -35,7 +36,14 @@ def parse_args() -> argparse.Namespace:
         "--manifest", default="data/cxr_pneumothorax_manifest.csv")
     parser.add_argument(
         "--output-dir", default="outputs/cxr_xai_threshold_calibration")
-    parser.add_argument("--weights", default="densenet121-res224-all")
+    parser.add_argument(
+        "--weights",
+        default="densenet121-res224-all",
+        help=(
+            "TorchXRayVision classifier weights name (DenseNet-121 224x224 or "
+            "ResNet-50 512x512). For ResNet pass `--image-size 512`."
+        ),
+    )
     parser.add_argument("--split", default="train",
                         choices=["train", "test", "any"])
     parser.add_argument("--max-positive", type=int, default=200)
@@ -203,10 +211,13 @@ def main() -> None:
             f"No positive rows with masks found in {args.manifest} for split={args.split}.")
 
     device = resolve_device(args.device)
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
-    gradcam = GradCAM(model, model.features.denseblock4)
+    # Phase 1.7 seam: same constructor / target layer / pathology index as the
+    # pre-seam inline path; only the entry point changes. See
+    # `src/explainai_thesis/cxr/classifier.py` for the full contract.
+    bundle = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = bundle.model
+    class_idx = bundle.class_idx
+    gradcam = GradCAM(model, bundle.target_layer)
 
     metric_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
