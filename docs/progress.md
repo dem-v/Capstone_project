@@ -2636,3 +2636,34 @@ wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter
 
 - Phase 1.2-dispatch: port `scripts/run_cxr_torchxray_smoke.py` to the new API and ship the overlay/agreement/AGENTS.md updates listed in "Deferred" above as one commit.
 
+## 2026-05-18 - Phase 1.2-dispatch: CXR Smoke Ported to SignedAttribution v2
+
+### Context
+
+- Final sub-commit of Phase 1.2 per `docs/refactor_plan.md`. Goal: port `scripts/run_cxr_torchxray_smoke.py` from the pre-1.2 16-call polarity fan-out to the v2 dispatch (5 signed cores + view extraction + four-view rendering + cross-method agreement), so that the CXR pipeline matches the API already proven by Phase 1.2-core's tests.
+
+### Changes
+
+- `src/explainai_thesis/visualization.py`: added `SIGNED_POSITIVE_COLOR` (orange `[255, 140, 0]`) and `SIGNED_NEGATIVE_COLOR` (teal `[0, 160, 160]`) as the diverging palette for signed scalar maps, and a new `signed_diverging_overlay(image, signed_map, mask, output_path, alpha, contour_alpha)` function. Magnitude controls per-pixel alpha (`|value| / max(|value|)`), so weakly-signed pixels barely tint the base image and the strongest reaches full `alpha`. The ground-truth mask contour is still rendered in green for cross-view comparability. Palette choice matches `AGENTS.md` "Color Semantics": orange/teal is intentionally distinct from red/blue so a reader does not confuse a signed tug-of-war map with a pure positive- or negative-evidence map.
+- `scripts/run_cxr_torchxray_smoke.py`: 16 separate `polarity=...` calls per case collapsed to 5 signed-core calls — `gradcam.signed(...)`, `gradcam.signed(..., variant="grad_cam_plus_plus")`, `integrated_gradients_signed(...)`, `gradient_shap_signed(...)`, `occlusion_sensitivity_signed(...)`. A `consensus_signed([...])` runs on top of these. A new `signed_attributions` dict is the source of truth for the dispatch; a `methods` dict expands each family into per-view rows keyed by v2 ids (`grad_cam`, `grad_cam_negative`, `grad_cam_magnitude`, `grad_cam_signed`, …, `consensus_signed`). Each row is tagged with `view ∈ {positive, negative, magnitude, signed}` and `family ∈ {grad_cam, grad_cam_plus_plus, integrated_gradients, gradient_shap, occlusion, consensus}` to make the dispatch provenance explicit in the CSV.
+- `metrics.csv` schema bump (CXR smoke only — the Phase 0 golden snapshot on `scripts/run_smoke_test.py` stays untouched): added three columns — `view`, `family`, and `signed_positive_fraction`. The signed-view-only column reports, of the `|signed|` top-fraction selected pixels, what fraction came from the positive side (`signed > 0`); blank on all other view rows so the column is unambiguous. For signed rows, the standard IoU/Dice/pointing_hit/precision columns are computed against the `magnitude` view so they remain defined; sign-specific behavior is captured by the new column.
+- New `agreement.csv`: cosine similarity between signed maps for every unordered pair drawn from `{grad_cam, grad_cam_plus_plus, integrated_gradients, gradient_shap, occlusion}`, per case. Header row is emitted even on single-method runs so downstream tooling can rely on its presence.
+- Overlay rendering dispatches on `view_kind`: positive→red `save_overlay`, negative→blue `save_overlay`, magnitude→neutral-violet `save_overlay`, signed→orange/teal `signed_diverging_overlay`. The pre-1.2 ad-hoc branches (consensus's neutral_heatmap composition, `integrated_gradients_signed`'s negative_heatmap composition, etc.) are gone — the new dispatch is uniform across all 24 method-view rows per case. `save_selected_threshold_image` is only emitted for non-signed views (the signed overlay is itself the threshold-free communication channel).
+- `tests/test_signed_diverging_overlay.py` (new, 4 tests): pure-positive map tints to within `atol=2.0` bytes of orange; pure-negative tints to teal; all-zero map leaves the image untouched (no NaN crash); `agreement_score` returns `+1` for identical `SignedAttribution` and `-1` for negated. End-to-end CXR smoke is intentionally not in the test suite because it needs `torchxrayvision` weights and a real DenseNet forward; the integration is exercised at run time by the calibration + smoke pipelines themselves.
+
+### Design notes
+
+- `consensus_heatmap` import was removed because the new dispatch uses `consensus_signed` exclusively; the magnitude-only `consensus_heatmap` function is still exported from `xai.py` for any external caller, just not used by the smoke script anymore.
+- `is_negative_method` and `overlay_color_for_method` helpers remain in the script unused after the dispatch refactor. Left in place rather than deleted because they have no behavioral effect and removing them would touch unrelated code; they will fall away cleanly when the next phase consolidates the helper module.
+- `DeprecationWarning` on the legacy `polarity=` wrappers in `xai.py` is intentionally still **not** wired up. Three remaining internal callers — `calibrate_cxr_xai_thresholds.py`, `visualize_cxr_classifier_outcome_thresholds.py`, `visualize_cxr_threshold_selection.py` — still use the legacy API. Firing the warning now would add noise to every run of those scripts; the warning will be enabled together with their port in a later sub-phase.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile src/explainai_thesis/xai.py src/explainai_thesis/visualization.py scripts/run_cxr_torchxray_smoke.py` → exit 0.
+- `wsl.exe python3 -m pytest tests/ -v` → **23 passed in ~16 s**. Breakdown: 3 Phase 0 golden-output snapshots ✅, 2 Phase 1.1 polarity regression ✅, 14 Phase 1.2-core SignedAttribution ✅, 4 new Phase 1.2-dispatch signed-overlay/agreement tests ✅.
+- The Phase 0 golden-output snapshot on `scripts/run_smoke_test.py` (synthetic pipeline, frozen `metrics.csv` column contract) still passes — confirming the dispatch refactor is isolated to the CXR smoke script and does not regress the public synthetic-smoke contract.
+
+### Next
+
+- Phase 1.2.5: regenerate `v2` XAI threshold calibration on positive masked calibration cases against the new signed cores. Output target: `outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv`. `v1` calibration files stay in place and are never overwritten. After 1.2.5 lands, the smoke script will be rerun with `--calibrated-fractions outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv` for the first protocol-aligned v2 evaluation.
+

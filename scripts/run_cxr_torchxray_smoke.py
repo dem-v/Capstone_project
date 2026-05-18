@@ -16,12 +16,14 @@ import matplotlib.pyplot as plt
 
 from explainai_thesis.xai import (
     GradCAM,
-    consensus_heatmap,
-    gradient_shap,
-    integrated_gradients,
-    occlusion_sensitivity,
+    SignedAttribution,
+    agreement_score,
+    consensus_signed,
+    gradient_shap_signed,
+    integrated_gradients_signed,
+    occlusion_sensitivity_signed,
 )
-from explainai_thesis.visualization import save_overlay
+from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import (
     localization_metrics,
     normalize_map,
@@ -688,6 +690,7 @@ def main() -> None:
 
     metric_rows: list[dict[str, str | int | float]] = []
     faithfulness_rows: list[dict[str, str | int | float]] = []
+    agreement_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
         image = load_image(Path(row["image_path"]), args.image_size)
         mask = load_mask(Path(row["mask_path"]), args.image_size)
@@ -704,113 +707,122 @@ def main() -> None:
                 torch.sigmoid(output[0, class_idx]).detach().cpu().item()
             )
 
-        cam_map = gradcam(model_input, class_idx=class_idx)
-        cam_plus_plus_map = gradcam(
+        # Phase 1.2-dispatch: 5 signed cores per case (one forward/backward
+        # or one occlusion sweep each) replace the pre-1.2 16-call polarity
+        # fan-out. The four views (positive/negative/magnitude/signed) are
+        # derived in microseconds from each SignedAttribution.
+        gradcam_attr = gradcam.signed(model_input, class_idx=class_idx)
+        gradcam_pp_attr = gradcam.signed(
             model_input, class_idx=class_idx, variant="grad_cam_plus_plus"
         )
-        negative_cam_map = gradcam(
-            model_input, class_idx=class_idx, polarity="negative"
-        )
-        negative_cam_plus_plus_map = gradcam(
-            model_input,
-            class_idx=class_idx,
-            polarity="negative",
-            variant="grad_cam_plus_plus",
-        )
-        ig_map = integrated_gradients(
+        ig_attr = integrated_gradients_signed(
             model, model_input, class_idx=class_idx, steps=args.ig_steps
         )
-        ig_positive_map = integrated_gradients(
-            model,
-            model_input,
-            class_idx=class_idx,
-            steps=args.ig_steps,
-            polarity="positive",
-        )
-        ig_negative_map = integrated_gradients(
-            model,
-            model_input,
-            class_idx=class_idx,
-            steps=args.ig_steps,
-            polarity="negative",
-        )
-        gradient_shap_map = gradient_shap(
+        gradshap_attr = gradient_shap_signed(
             model,
             model_input,
             class_idx=class_idx,
             samples=args.gradshap_samples,
             stdevs=args.gradshap_stdevs,
         )
-        gradient_shap_positive_map = gradient_shap(
-            model,
-            model_input,
-            class_idx=class_idx,
-            samples=args.gradshap_samples,
-            stdevs=args.gradshap_stdevs,
-            polarity="positive",
-        )
-        gradient_shap_negative_map = gradient_shap(
-            model,
-            model_input,
-            class_idx=class_idx,
-            samples=args.gradshap_samples,
-            stdevs=args.gradshap_stdevs,
-            polarity="negative",
-        )
-        occlusion_map = occlusion_sensitivity(
+        occlusion_attr = occlusion_sensitivity_signed(
             model,
             model_input,
             class_idx=class_idx,
             patch_size=args.occlusion_patch_size,
             stride=args.occlusion_stride,
-            polarity="magnitude",
         )
-        occlusion_positive_map = occlusion_sensitivity(
-            model,
-            model_input,
-            class_idx=class_idx,
-            patch_size=args.occlusion_patch_size,
-            stride=args.occlusion_stride,
-            polarity="positive",
+        consensus_attr = consensus_signed(
+            [gradcam_attr, ig_attr, gradshap_attr, occlusion_attr]
         )
-        occlusion_negative_map = occlusion_sensitivity(
-            model,
-            model_input,
-            class_idx=class_idx,
-            patch_size=args.occlusion_patch_size,
-            stride=args.occlusion_stride,
-            polarity="negative",
-        )
-        consensus = consensus_heatmap([cam_map, ig_map, gradient_shap_map, occlusion_map])
 
-        methods = {
-            "grad_cam": cam_map,
-            "grad_cam_plus_plus": cam_plus_plus_map,
-            "grad_cam_negative": negative_cam_map,
-            "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
-            "integrated_gradients": ig_map,
-            "integrated_gradients_positive": ig_positive_map,
-            "integrated_gradients_negative": ig_negative_map,
-            "integrated_gradients_signed": ig_positive_map,
-            "gradient_shap": gradient_shap_map,
-            "gradient_shap_positive": gradient_shap_positive_map,
-            "gradient_shap_negative": gradient_shap_negative_map,
-            "gradient_shap_signed": gradient_shap_positive_map,
-            "occlusion": occlusion_map,
-            "occlusion_positive": occlusion_positive_map,
-            "occlusion_negative": occlusion_negative_map,
-            "consensus": consensus,
+        # SignedAttribution registry — the source of truth for the v2 dispatch.
+        # Each entry is (method-family id, SignedAttribution). The smoke loop
+        # below expands each family into per-view rows.
+        signed_attributions: dict[str, SignedAttribution] = {
+            "grad_cam": gradcam_attr,
+            "grad_cam_plus_plus": gradcam_pp_attr,
+            "integrated_gradients": ig_attr,
+            "gradient_shap": gradshap_attr,
+            "occlusion": occlusion_attr,
+            "consensus": consensus_attr,
         }
 
-        for method_name, heatmap in methods.items():
+        # methods: v2 method id -> (heatmap tensor, view kind, family id).
+        # `view kind` ∈ {"positive", "negative", "magnitude", "signed"} and
+        # drives both the metrics row and the overlay color choice.
+        methods: dict[str, tuple[torch.Tensor, str, str]] = {}
+        for family, attr in signed_attributions.items():
+            # Positive view — canonical localization heatmap, [0, 1].
+            methods[family] = (
+                normalize_map(attr.positive), "positive", family,
+            )
+            # Negative view — suppressive evidence, [0, 1].
+            methods[f"{family}_negative"] = (
+                normalize_map(attr.negative), "negative", family,
+            )
+            # Magnitude view — only meaningful for the gradient-flavor methods
+            # and Grad-CAM(++). Consensus and IG/GradientSHAP all expose it.
+            methods[f"{family}_magnitude"] = (
+                normalize_map(attr.magnitude), "magnitude", family,
+            )
+            # Signed view — tug-of-war diverging map. Rendered with the
+            # orange/teal palette by `signed_diverging_overlay`. Used in
+            # metrics.csv but with `signed_positive_fraction` instead of the
+            # standard top-fraction selection (see below).
+            methods[f"{family}_signed"] = (
+                attr.signed, "signed", family,
+            )
+
+        # Back-compat tensors for downstream consumers that haven't been
+        # ported yet (e.g. the negative_evidence_metrics block below uses
+        # the family.negative view as the "negative evidence" reference).
+        cam_map = methods["grad_cam"][0]
+        negative_cam_map = methods["grad_cam_negative"][0]
+        ig_map = methods["integrated_gradients"][0]
+        ig_negative_map = methods["integrated_gradients_negative"][0]
+        gradient_shap_map = methods["gradient_shap"][0]
+        gradient_shap_negative_map = methods["gradient_shap_negative"][0]
+        occlusion_map = methods["occlusion"][0]
+
+        # Cross-method agreement (cosine similarity between signed maps) —
+        # one row per unordered pair, per case. Per AGENTS.md, reported when
+        # more than one signed-capable method is run on the same case.
+        agreement_families = ["grad_cam", "grad_cam_plus_plus",
+                              "integrated_gradients", "gradient_shap",
+                              "occlusion"]
+        for i, family_a in enumerate(agreement_families):
+            for family_b in agreement_families[i + 1:]:
+                agreement_rows.append({
+                    "sample_id": sample_idx,
+                    "filename": row.get("filename", Path(row["image_path"]).name),
+                    "split": row.get("split", ""),
+                    "method_a": family_a,
+                    "method_b": family_b,
+                    "agreement_score": round(
+                        agreement_score(
+                            signed_attributions[family_a],
+                            signed_attributions[family_b],
+                        ),
+                        6,
+                    ),
+                })
+
+        for method_name, (heatmap, view_kind, family) in methods.items():
             top_fraction = calibrated_fractions.get(
                 method_name, args.top_fraction)
+            # localization_metrics expects a [0, 1] map. For the signed view
+            # we feed the magnitude as a stand-in so the standard IoU/Dice/
+            # pointing_hit/precision columns are still defined; signed-
+            # specific behavior is captured by `signed_positive_fraction`.
+            metrics_input = signed_attributions[family].magnitude \
+                if view_kind == "signed" else heatmap
             metrics = localization_metrics(
-                heatmap, mask, fraction=top_fraction)
+                metrics_input, mask, fraction=top_fraction)
             for faithfulness_row in faithfulness_curve_rows(
                 model,
                 model_input,
-                heatmap,
+                metrics_input,
                 class_idx,
                 faithfulness_fractions,
                 faithfulness_baseline,
@@ -825,55 +837,43 @@ def main() -> None:
                 }
                 faithfulness_rows.append(enriched_faithfulness_row)
                 case_faithfulness_rows.append(enriched_faithfulness_row)
+
+            # negative-evidence diagnostics: only meaningful for the
+            # negative view (`*_negative`) — the signed view is reported
+            # separately via `signed_positive_fraction`.
             negative_metrics = {
                 "negative_mask_overlap_fraction": "",
                 "negative_mask_avoidance_fraction": "",
             }
-            if is_negative_method(method_name):
+            if view_kind == "negative":
                 negative_metrics = {
                     key: round(value, 6)
                     for key, value in negative_evidence_metrics(
-                        heatmap,
-                        mask,
-                        top_fraction,
+                        heatmap, mask, top_fraction,
                     ).items()
                 }
-            elif method_name == "consensus":
-                negative_fraction = calibrated_fractions.get(
-                    "grad_cam_negative", args.top_fraction
-                )
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        negative_cam_map,
-                        mask,
-                        negative_fraction,
-                    ).items()
-                }
-            elif method_name == "integrated_gradients_signed":
-                negative_fraction = calibrated_fractions.get(
-                    "integrated_gradients_negative", args.top_fraction
-                )
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        ig_negative_map,
-                        mask,
-                        negative_fraction,
-                    ).items()
-                }
-            elif method_name == "gradient_shap_signed":
-                negative_fraction = calibrated_fractions.get(
-                    "gradient_shap_negative", args.top_fraction
-                )
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        gradient_shap_negative_map,
-                        mask,
-                        negative_fraction,
-                    ).items()
-                }
+
+            # signed_positive_fraction: of the |signed| top-fraction
+            # selected pixels, what fraction came from the positive side
+            # (`signed > 0`)? Defined only on `*_signed` rows; blank
+            # elsewhere to keep the column unambiguous.
+            if view_kind == "signed":
+                signed_tensor = signed_attributions[family].signed
+                abs_map = signed_tensor.abs()
+                selected = threshold_top_fraction(abs_map, fraction=top_fraction)
+                selected_count = float(selected.sum().item())
+                if selected_count > 0:
+                    positive_count = float(
+                        (selected & (signed_tensor > 0)).sum().item()
+                    )
+                    signed_positive_fraction: str | float = round(
+                        positive_count / selected_count, 6
+                    )
+                else:
+                    signed_positive_fraction = 0.0
+            else:
+                signed_positive_fraction = ""
+
             metric_rows.append(
                 {
                     "sample_id": sample_idx,
@@ -882,69 +882,54 @@ def main() -> None:
                     "xrv_pneumothorax_score": round(score, 6),
                     "xrv_pneumothorax_sigmoid": round(probability, 6),
                     "method": method_name,
+                    "view": view_kind,
+                    "family": family,
                     "top_fraction": round(top_fraction, 6),
                     **{key: round(value, 6) for key, value in metrics.items()},
                     **negative_metrics,
+                    "signed_positive_fraction": signed_positive_fraction,
                 }
             )
+
             if sample_idx < args.max_overlays:
                 case_dir = output_dir / safe_case_name(sample_idx, row)
                 source_stem = safe_source_stem(row)
                 case_dir.mkdir(parents=True, exist_ok=True)
-                save_overlay(
-                    image,
-                    heatmap,
-                    mask,
-                    case_dir / f"{source_stem}_{method_name}.png",
-                    heatmap_color=overlay_color_for_method(method_name),
-                    negative_heatmap=(
-                        negative_cam_map if method_name == "consensus"
-                        else ig_negative_map if method_name == "integrated_gradients_signed"
-                        else gradient_shap_negative_map if method_name == "gradient_shap_signed"
-                        else None
-                    ),
-                    neutral_heatmap=(
-                        consensus_heatmap([ig_map, gradient_shap_map, occlusion_map])
-                        if method_name == "consensus"
-                        else None
-                    ),
-                )
-                selected_mask = threshold_top_fraction(
-                    heatmap, fraction=top_fraction)
-                negative_selected_mask = (
-                    threshold_top_fraction(
-                        ig_negative_map,
-                        fraction=calibrated_fractions.get(
-                            "integrated_gradients_negative", args.top_fraction
-                        ),
+                overlay_path = case_dir / f"{source_stem}_{method_name}.png"
+                if view_kind == "signed":
+                    # Orange/teal diverging palette per AGENTS.md.
+                    signed_diverging_overlay(
+                        image,
+                        signed_attributions[family].signed,
+                        mask,
+                        overlay_path,
                     )
-                    if method_name == "integrated_gradients_signed"
-                    else threshold_top_fraction(
-                        gradient_shap_negative_map,
-                        fraction=calibrated_fractions.get(
-                            "gradient_shap_negative", args.top_fraction
-                        ),
+                else:
+                    color = {
+                        "positive": "red",
+                        "negative": "blue",
+                        "magnitude": "neutral",
+                    }[view_kind]
+                    save_overlay(
+                        image,
+                        heatmap,
+                        mask,
+                        overlay_path,
+                        heatmap_color=color,
                     )
-                    if method_name == "gradient_shap_signed"
-                    else None
-                )
-                neutral_selected_mask = (
-                    threshold_top_fraction(ig_map, fraction=calibrated_fractions.get("integrated_gradients", args.top_fraction))
-                    | threshold_top_fraction(gradient_shap_map, fraction=calibrated_fractions.get("gradient_shap", args.top_fraction))
-                    | threshold_top_fraction(occlusion_map, fraction=calibrated_fractions.get("occlusion", args.top_fraction))
-                    if method_name == "consensus"
-                    else None
-                )
-                save_selected_threshold_image(
-                    image,
-                    selected_mask,
-                    mask,
-                    case_dir / f"{source_stem}_{method_name}_selected.png",
-                    negative_style=is_negative_method(method_name),
-                    neutral_style=method_name in {"integrated_gradients", "gradient_shap", "occlusion"},
-                    negative_selected_mask=negative_selected_mask,
-                    neutral_selected_mask=neutral_selected_mask,
-                )
+                # Selected-threshold image only for positive/negative/magnitude
+                # views; the signed view is communicated by the overlay itself.
+                if view_kind != "signed":
+                    selected_mask = threshold_top_fraction(
+                        heatmap, fraction=top_fraction)
+                    save_selected_threshold_image(
+                        image,
+                        selected_mask,
+                        mask,
+                        case_dir / f"{source_stem}_{method_name}_selected.png",
+                        negative_style=(view_kind == "negative"),
+                        neutral_style=(view_kind == "magnitude"),
+                    )
 
         if faithfulness_fractions and sample_idx < args.max_overlays:
             case_dir = output_dir / safe_case_name(sample_idx, row)
@@ -959,6 +944,11 @@ def main() -> None:
     gradcam.remove_hooks()
 
     metrics_path = output_dir / "metrics.csv"
+    # Phase 1.2-dispatch schema bump: added `view` and `family` (v2 dispatch
+    # provenance) plus `signed_positive_fraction` (signed-view-only column).
+    # The Phase 0 golden-output snapshot is on `scripts/run_smoke_test.py`
+    # (synthetic), not this CXR script, so this schema change does not
+    # regress the frozen public contract guarded by `test_golden_outputs.py`.
     fieldnames = [
         "sample_id",
         "filename",
@@ -966,6 +956,8 @@ def main() -> None:
         "xrv_pneumothorax_score",
         "xrv_pneumothorax_sigmoid",
         "method",
+        "view",
+        "family",
         "top_fraction",
         "iou",
         "dice",
@@ -973,11 +965,31 @@ def main() -> None:
         "precision_at_fraction",
         "negative_mask_overlap_fraction",
         "negative_mask_avoidance_fraction",
+        "signed_positive_fraction",
     ]
     with metrics_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(metric_rows)
+
+    # Cross-method agreement: cosine similarity between signed maps,
+    # per unordered method pair, per case. Empty file emitted on
+    # single-method runs so downstream tooling can rely on its presence.
+    agreement_path = output_dir / "agreement.csv"
+    with agreement_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "sample_id",
+                "filename",
+                "split",
+                "method_a",
+                "method_b",
+                "agreement_score",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(agreement_rows)
 
     if faithfulness_fractions:
         faithfulness_path = output_dir / "faithfulness_curves.csv"
