@@ -34,7 +34,7 @@ Interpretation:
 - the result strengthens the thesis motivation: explanation maps should be evaluated quantitatively and clinically rather than accepted as visually plausible.
 
 Next technical step:
-- add a stronger third explanation method, preferably Grad-CAM++ / Score-CAM or Captum GradientSHAP;
+- add one stronger CAM-family explanation method, preferably Grad-CAM++, while keeping heavier SHAP-style methods for a later iteration;
 - run threshold calibration on a validation subset;
 - compare calibrated explanation masks on held-out test cases;
 - decide whether the classifier should be fine-tuned specifically for pneumothorax before final XAI comparison.
@@ -101,7 +101,7 @@ The first practical problem is pneumothorax classification on chest X-rays, beca
 - Test a simple improvement strategy, such as consensus heatmaps or threshold calibration.
 - Prepare the work so it can later evolve toward radiology-aware LLM explanations or knowledge distillation.
 
-## Initial Research Methodology / MVP
+## Research Methodology / MVP
 
 Initial MVP:
 - a reproducible Python environment;
@@ -109,9 +109,17 @@ Initial MVP:
 - manifest builder for image/mask datasets;
 - defined primary dataset and next model baseline.
 
+Research methodology used at this stage:
+- start with a controlled synthetic task to verify that the explanation pipeline behaves correctly when the true lesion location is known;
+- move to a public chest X-ray pneumothorax dataset with image-level labels and segmentation masks, so explanation quality can be measured objectively;
+- use a pretrained TorchXRayVision DenseNet baseline first, rather than training a new model immediately, to separate pipeline feasibility from later model-improvement work;
+- compare explanation maps with masks using IoU, Dice, pointing-game hit rate, and precision-at-fraction;
+- treat visual overlays as qualitative evidence only after the quantitative mask-based checks are available;
+- keep the initial method set small: Grad-CAM, Integrated Gradients, and a simple consensus heatmap.
+
 Next experimental MVP:
 - run a TorchXRayVision model or DenseNet-style chest X-ray baseline on the Kaggle pneumothorax dataset;
-- generate first real-data Grad-CAM / Integrated Gradients / SHAP-style outputs;
+- generate first real-data Grad-CAM, Integrated Gradients, and consensus outputs;
 - compare heatmaps against pneumothorax masks.
 
 ## Initial MVP Flow and Smoke Test Results
@@ -184,6 +192,13 @@ Planned answer:
 - These maps will be normalized, overlaid on images, thresholded, compared with masks, scored quantitatively, and reviewed clinically.
 - The output will support both explanation validation and future work on radiology-aware natural-language explanations.
 
+Actual answer after the Week 2 experiments:
+- The first real-data outputs are Grad-CAM, Integrated Gradients, and consensus heatmaps for pneumothorax-positive chest X-rays.
+- The outputs can be saved as overlays for visual inspection and as thresholded masks for quantitative comparison with pneumothorax masks.
+- On the early real-data runs, the pretrained TorchXRayVision model produced valid pneumothorax scores and heatmaps, but the uncalibrated localization metrics were weak.
+- This means the research question remains valid: the project should not assume that a plausible-looking heatmap is clinically meaningful.
+- The next answer to test is whether calibration, a stronger CAM-family method, and larger positive/negative evaluation make the explanations more stable before adding heavier later methods.
+
 ## Hypotheses Before Testing
 
 - H1: Different XAI methods will produce different localization quality on the same classifier and dataset.
@@ -234,10 +249,11 @@ Planned mitigation:
 
 ## Plan for Next Week
 
-- Run the TorchXRayVision evaluation on a larger positive and negative subset.
-- Aggregate real-data explanation metrics by method.
-- Add one more explanation method, preferably Grad-CAM++ / Score-CAM or GradientSHAP.
-- Calibrate heatmap thresholds on validation masks and test on held-out masks.
-- Decide whether to fine-tune a pneumothorax-specific classifier or keep TorchXRayVision as the pretrained baseline.
-- Build literature matrix.
+- Run the TorchXRayVision evaluation beyond the first positive-only smoke tests, including a larger positive subset and later positive/negative classifier-outcome checks.
+- Aggregate real-data explanation metrics by method and use them to identify representative good and poor localization cases.
+- Add one stronger CAM-family method, preferably Grad-CAM++, before considering heavier SHAP-style methods in a later report.
+- Calibrate heatmap thresholds on validation masks and compare calibrated masks on held-out cases.
+- Evaluate whether the pretrained TorchXRayVision classifier is sufficiently calibrated for pneumothorax or whether thresholding/fine-tuning/model comparison is needed.
+- Prepare the Week 3 report around the work that follows this stage: larger outcome-based evaluation, candidate case selection, higher-stability diagnostics, and the decision about whether weak localization is model-specific.
+- Build the literature matrix.
 - Draft Chapter 1 and start Chapter 2.
