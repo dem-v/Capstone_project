@@ -2824,3 +2824,31 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - **Week 3 report**: `reports/weekly/week_3_report.md` already covers iterations 17-28 (expanded XAI set, calibration, faithfulness baseline diagnostic, balanced consolidated run, review candidate mining, refactor plan). Closing addendum appended to capture (a) the Phase 1.7-seam landing (DenseNet + ResNet-50 + ResNetAE through `load_classifier`), (b) the `signed_prediction_alignment` fieldnames fix, (c) the `scripts/run_all_models_smoke.ps1` orchestrator outcome (8 OK, 1 skipped for missing pneumothorax head, 1 skipped for being an autoencoder), (d) the supervisor sync decisions, and (e) the next-iteration plan. `week_3_report_final.md` continues to be respected as the frozen submitted version per AGENTS.md.
 - Verification: `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed, 4 deselected** (no regressions). No code changes in this decision-logging pass.
 
+
+### 2026-05-18 (Phase 1.7 Stage A kickoff) - MONAI picked as out-of-family external; Stage A orchestrator landed
+
+- **Out-of-family model decision**: MONAI Model Zoo CXR bundle selected over the Tier-1 alternative (Google CXR Foundation / ELIXR) on risk-adjusted grounds.
+  - Rationale: MONAI bundles ship a pneumothorax-aware classification head out of the box, so the "off-the-shelf baseline" rule in AGENTS.md is satisfied without a SIIM-train linear probe (which would have required supervisor sign-off). `BundleWorkflow` exposes `(model, preprocess, postprocess)` cleanly, MIT-licensed, versioned, thesis-citable.
+  - Honest tradeoff recorded: several MONAI CXR bundles are DenseNet-121 or EfficientNet, so the architecture axis may only be partially covered. Training-distribution + preprocessing axes are still meaningfully different from TorchXRayVision (different normalization range, MONAI `Compose` transforms vs. TorchXRayVision `[-1024, 1024]`). Stage B decision rule still resolves cleanly: in-family + MONAI both poor -> methodological framing; MONAI materially better -> training-distribution mismatch is the dominant lever.
+  - Concrete bundle name + version + commit hash are NOT yet committed; selection happens at integration time via `python3 -m monai.bundle download` + `configs/metadata.json` inspection to confirm a `Pneumothorax` label exists. AGENTS.md will be updated with the chosen bundle id once verified.
+- **Stage A orchestrator**: `scripts/run_stage_a_diagnostic_ab.ps1` (this commit). Chains three sub-steps per in-family model, mirroring the per-model pipeline committed in the 2026-05-18 supervisor-sync entry:
+  1. `scripts/evaluate_cxr_torchxray_model.py --weights <name>` -> per-model classifier-threshold sweep (best F1, Youden's J, high-sensitivity) on the train split.
+  2. `scripts/calibrate_cxr_xai_thresholds.py --weights <name>` -> per-model v2 XAI calibration on positive masked calibration cases; writes `outputs/iter_33_stage_a_diagnostic_ab/<model>/calibration_v2/calibrated_thresholds_v2.csv`.
+  3. `scripts/run_cxr_torchxray_smoke.py --weights <name> --calibrated-fractions ...` -> per-model smoke + faithfulness on a fixed positive-cases set, writing under `outputs/iter_33_stage_a_diagnostic_ab/<model>/smoke/`.
+  - Working set: `densenet121-res224-{all, chex, mimic_ch, mimic_nb, nih, pc}` + `resnet50-res512-all`. `rsna` and `resnetae` are skipped with reasons mirroring `run_all_models_smoke.ps1`. MONAI external model is appended once the bundle is picked and a `load_classifier` branch lands; the in-family sweep can start without it.
+  - Defaults: `--ig-steps 8 --gradshap-samples 8`, occlusion patch/stride scaled with image size (56/56 at 224x224; 64/32 at 512x512), `--faithfulness-baseline black`, `--seed 20260518`. Per-model classifier thresholds picked by the sweep are passed into the smoke step automatically (currently best-F1; the script writes all three operating points to its CSV so reruns can switch).
+  - `-DryRun` switch prints the WSL command for each step without executing — used for review before committing many hours of GPU time.
+  - Aggregator: top-level `weights_ab_summary.csv` at the run root with one row per model containing mean IoU, Dice, pointing_hit, precision_at_fraction across methods (positive view, calibrated fraction by Dice). Builds by reading each `<model>/smoke/metrics.csv` after the loop finishes; the script emits this even if some models failed (failed rows have status=fail and NaN metrics).
+- **Wall-time estimate** (per AGENTS.md long-run rule): per-model calibration at `--max-positive 200` is ~60-90 min on CUDA; per-model smoke at the documented positive set is another ~30-45 min on CUDA. Six DenseNet weights + one ResNet-50 = ~12-16 h total. This is well past the 30 min agent-tool budget, so the orchestrator is committed and run by the user manually:
+  ```powershell
+  pwsh scripts/run_stage_a_diagnostic_ab.ps1
+  pwsh scripts/run_stage_a_diagnostic_ab.ps1 -DryRun    # review commands first
+  pwsh scripts/run_stage_a_diagnostic_ab.ps1 -Models densenet121-res224-all,densenet121-res224-chex
+  ```
+- **Refactor plan**: `docs/refactor_plan.md` §1.7 Stage A annotated with the MONAI decision and the explicit three-step per-model pipeline used by the new orchestrator.
+- **Verification**: `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed, 4 deselected** (no regressions). PowerShell parse check on the new orchestrator script passed (`pwsh -NoProfile -Command "Get-Command scripts/run_stage_a_diagnostic_ab.ps1"`).
+- **Next**:
+  1. User runs the Stage A orchestrator manually; expected output: `outputs/iter_33_stage_a_diagnostic_ab/<model>/{threshold_sweep,calibration_v2,smoke}/...` and the top-level `weights_ab_summary.csv`.
+  2. After the in-family sweep completes, pick the MONAI bundle (`monai.bundle download` + label inspection), add a new family branch in `load_classifier`, and append the bundle to the orchestrator's `-Models` list.
+  3. Apply Stage B decision rule from AGENTS.md / refactor_plan §1.7 once the summary CSV is in.
+

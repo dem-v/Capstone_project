@@ -165,9 +165,23 @@ Pre-mortem found that the original Stage A (only `torchxrayvision` weights) was 
   - `densenet121-res224-mimic_nb`
   - `densenet121-res224-rsna`
   - (control) `densenet121-res224-all` — current baseline
-- Out-of-family external model (goes through `load_classifier(name)` seam from compressed Phase 2): one candidate from HuggingFace or a public Kaggle pneumothorax-fine-tuned model. Exact identifier decided at implementation time; selection criterion is "different training distribution and architecture from TorchXRayVision DenseNet-121, plus a usable inference API."
+- Out-of-family external model (goes through `load_classifier(name)` seam from compressed Phase 2): **MONAI Model Zoo CXR bundle (decided 2026-05-18)**. Concrete bundle id is picked at integration time via `python3 -m monai.bundle download <name>` + `configs/metadata.json` inspection to confirm a `Pneumothorax` classification label. Rationale: MONAI bundles ship pneumothorax-aware classifier heads out of the box (no SIIM-train linear probe needed; the "off-the-shelf baseline" rule in `AGENT.md` is preserved), are MIT-licensed and versioned (thesis-citable by bundle id + version + commit hash), and use a different training mixture and preprocessing pipeline than TorchXRayVision. Honest caveat: several MONAI CXR bundles are DenseNet-121 or EfficientNet, so the architecture axis may be only partially covered; the training-distribution + preprocessing axes are the meaningful out-of-family contrast. Rejected Tier-1 alternative: Google CXR Foundation / ELIXR (would have needed a SIIM-train linear probe -> supervisor sign-off, deferred).
 - Pipeline: run `scripts/run_cxr_torchxray_smoke.py` (or `scripts/run_cxr_smoke.py` after the seam refactor) with each model on the same 20-30 calibration positive cases at the calibrated top-fractions for each method. Output: `outputs/iter_XX_diagnostic_weights_ab/<model_name>/`.
 - Summary table: per-model mean IoU, Dice, pointing_hit, precision_at_fraction across methods. Plus a per-case-per-method agreement view to surface whether one model changes the *spatial* attribution distinctly.
+
+#### Stage A per-model pipeline (committed 2026-05-18)
+
+Each model in the working set goes through three sub-steps, orchestrated by `scripts/run_stage_a_diagnostic_ab.ps1`:
+
+1. **Classifier-threshold sweep** — `scripts/evaluate_cxr_torchxray_model.py --weights <name>` on the train split. Writes per-model best-F1 / Youden's-J / high-sensitivity operating points under `outputs/iter_33_stage_a_diagnostic_ab/<model>/threshold_sweep/`. The historical `0.62` is DenseNet-`all`-specific and must not be reused for the other weights.
+2. **v2 XAI calibration** — `scripts/calibrate_cxr_xai_thresholds.py --weights <name>` on positive masked calibration cases. Writes `outputs/iter_33_stage_a_diagnostic_ab/<model>/calibration_v2/calibrated_thresholds_v2.csv`. v1 calibration files are statistically stale post-`SignedAttribution` refactor and stay frozen.
+3. **Smoke + faithfulness** — `scripts/run_cxr_torchxray_smoke.py --weights <name> --calibrated-fractions <v2-csv> --classifier-threshold <best-F1-from-step-1>`. Writes `outputs/iter_33_stage_a_diagnostic_ab/<model>/smoke/`.
+
+Working set: `densenet121-res224-{all, chex, mimic_ch, mimic_nb, nih, pc}` + `resnet50-res512-all` + (once integrated) one MONAI CXR bundle. `densenet121-res224-rsna` and `resnetae-101-elastic` are auto-skipped (no Pneumothorax head / no class head).
+
+Aggregator emits `outputs/iter_33_stage_a_diagnostic_ab/weights_ab_summary.csv`: one row per model with mean IoU, Dice, pointing_hit, precision_at_fraction across methods (positive view, Dice-selected calibrated fraction). Failed models leave a `status=fail` row with NaN metrics rather than aborting the sweep.
+
+Wall-time: ~12-16 h CUDA for the in-family sweep (per-model calibration ~60-90 min, per-model smoke ~30-45 min). Past the 30 min agent-tool budget; the orchestrator is shipped and the user runs it manually per AGENTS.md.
 
 #### Stage B — Outcome decision (≈0 days, decision-only)
 
