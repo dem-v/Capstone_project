@@ -2592,3 +2592,47 @@ wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter
 
 - Phase 1.2 — `SignedAttribution` four-view refactor across Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, and Consensus, including the new cross-method `agreement_score`, four-overlay rendering per case, and the `test_signed_*` test family.
 
+## 2026-05-18 - Phase 1.2-core: SignedAttribution API + Signed Method Cores
+
+### Context
+
+- Phase 1.2 is being split into two atomic sub-commits per session-time risk discussion: `1.2-core` (this commit, library-only, no behavior change for unported callers) and `1.2-dispatch` (smoke-script port + four-overlay rendering + `agreement.csv` emission, in the next sub-commit). The split protects the repo from a half-landed state — after this commit the editable install, the Phase 0 golden-output snapshot test, and the Phase 1.1 polarity regression tests all continue to pass.
+
+### Bug pattern motivating the refactor
+
+- Pre-1.2, every polarity-supporting method (`integrated_gradients`, `gradient_shap`, `occlusion_sensitivity`, `GradCAM.__call__`) ran a full forward+backward (or full occlusion sweep) **once per polarity**. For IG and GradientSHAP this meant 3× the compute; for occlusion (the slowest method) it also meant 3× the GPU time. More importantly, the polarity logic was duplicated across methods in slightly different ways — that asymmetry was the same code shape that produced the Grad-CAM++ double-flip fixed in Phase 1.1.
+
+### Changes
+
+- `src/explainai_thesis/metrics.py`: added `normalize_signed_map(values, eps)` — divides by `max(|values|)` to rescale to `[-1, 1]` while preserving sign and the zero crossing. The existing `normalize_map` (min-max to `[0, 1]`, sign-destroying) is unchanged and remains the contract for `threshold_top_fraction`, `pointing_game_hit`, and the deprecated `polarity=` wrappers.
+- `src/explainai_thesis/xai.py` (full rewrite):
+  - New `SignedAttribution` frozen dataclass with `raw` ∈ `[-1, 1]` and four derived views: `positive = raw.clamp(min=0)`, `negative = raw.clamp(max=0).abs()`, `magnitude = raw.abs()`, `signed = raw`. Also a `view(name)` lookup helper for the smoke-script dispatch in 1.2-dispatch.
+  - New signed cores: `GradCAM.signed`, `integrated_gradients_signed`, `gradient_shap_signed`, `occlusion_sensitivity_signed`. Each runs the underlying forward/backward/sweep **once per case** and returns a `SignedAttribution`. For Grad-CAM specifically, the `F.relu` polarity gate is gone from the core — the signed `cam = (weights * activations).sum()` is interpolated and normalized as-is.
+  - New sign-aware consensus: `consensus_signed(list[SignedAttribution]) → SignedAttribution`. The existing magnitude-only `consensus_heatmap(list[Tensor]) → Tensor` is preserved unchanged for backward compatibility with the pre-1.2 smoke-script dispatch.
+  - New `agreement_score(SignedAttribution, SignedAttribution) → float`: cosine similarity over the `raw` maps. Identical maps score `+1`, negated maps score `-1`, shape mismatch raises.
+  - Deprecated thin wrappers on `GradCAM.__call__(..., polarity=...)`, `integrated_gradients(..., polarity=...)`, `gradient_shap(..., polarity=...)`, `occlusion_sensitivity(..., polarity=...)`: each routes through its `*_signed` core then calls `_project_legacy(view)` which re-applies `normalize_map` to match the pre-1.2 `[0, 1]` contract exactly. Two design notes: (a) the deprecation `warnings.warn` helper exists but is intentionally not fired yet — every unported caller is internal to this repo, so warnings would only add noise; the warning will be wired up in 1.2-dispatch alongside the smoke-script port. (b) Phase 0 golden-output snapshot tests over `scripts/run_smoke_test.py` continue to pass unchanged, confirming the wrapper's numerical equivalence.
+- `tests/test_signed_attribution.py` (new, 14 tests): covers `normalize_signed_map` (unit max-abs + all-zero edge case), the `SignedAttribution` four-view algebra (`positive - negative == signed`, `positive + negative == magnitude`, unknown-view raises), per-method signed-view differentiation (Grad-CAM, IG, GradientSHAP), the occlusion view-algebra contract, the legacy-wrapper shape/range regression guard, the signed-consensus direction-preservation property, and the agreement-score sentinel cases.
+
+### Test-design note
+
+- `test_occlusion_sensitivity_signed_view_contract_holds` deliberately does *not* assert `signed != magnitude`. On the trained tiny-CNN + synthetic-lesion fixture, occluding any patch always *lowers* the class-1 score, so `delta` is all-positive and `signed == magnitude` exactly. That's the correct behavior of the method, not a regression. The general "signed ≠ magnitude" assertion is enforced for Grad-CAM, IG, and GradientSHAP, where the trained tiny CNN does emit bidirectional gradients on this fixture.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile src/explainai_thesis/xai.py src/explainai_thesis/metrics.py scripts/run_cxr_torchxray_smoke.py scripts/run_smoke_test.py` → exit 0.
+- `wsl.exe python3 -m pytest tests/ -v` → **19 passed in 15.48s**. Breakdown: 3 Phase 0 golden-output snapshots ✅, 2 Phase 1.1 polarity regression ✅, 14 new Phase 1.2-core SignedAttribution tests ✅.
+- The frozen `metrics.csv` column contract from `scripts/run_smoke_test.py` (Phase 0 golden-output schema test) still passes — confirming the deprecated wrappers preserve the pre-refactor output contract bit-for-bit at the public boundary.
+
+### Deferred to Phase 1.2-dispatch
+
+- `scripts/run_cxr_torchxray_smoke.py` dispatch refactor (16 separate calls → 5 signed calls + view extraction).
+- Four-overlay rendering per polarity-supporting method (`*_positive.png`, `*_negative.png`, `*_magnitude.png`, `*_signed.png`) — needs a new `signed_diverging_overlay` in `src/explainai_thesis/visualization.py`.
+- New `agreement.csv` output with cross-method cosine similarity per case.
+- New `signed_positive_fraction` column on `*_signed` rows of the CXR `metrics.csv` schema (note: this is a CXR-smoke schema bump, **not** a `run_smoke_test.py` schema bump — Phase 0 golden snapshot stays untouched).
+- `AGENTS.md` "XAI Method Set" section: append `grad_cam_magnitude`, `grad_cam_signed`, `grad_cam_plus_plus_magnitude`, `grad_cam_plus_plus_signed`, `occlusion_magnitude`, `occlusion_signed`, `consensus_signed`.
+- Wire up `DeprecationWarning` firing on the legacy wrappers once all internal callers are ported.
+
+### Next
+
+- Phase 1.2-dispatch: port `scripts/run_cxr_torchxray_smoke.py` to the new API and ship the overlay/agreement/AGENTS.md updates listed in "Deferred" above as one commit.
+

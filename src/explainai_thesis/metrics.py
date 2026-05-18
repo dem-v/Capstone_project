@@ -11,6 +11,20 @@ def normalize_map(values: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     return (values - v_min) / (v_max - v_min + eps)
 
 
+def normalize_signed_map(values: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    """Scale a signed map to ``[-1, 1]`` while preserving the sign.
+
+    Used as the canonical normalization for ``SignedAttribution.raw``. The
+    output divides by ``max(|values|)`` so that the most extreme positive or
+    negative pixel becomes ``+1`` or ``-1`` and the zero crossing is
+    preserved (unlike ``normalize_map`` which is a min-max rescale that
+    destroys the sign). ``eps`` guards the all-zero edge case.
+    """
+    values = values.detach().float()
+    scale = values.abs().max()
+    return values / (scale + eps)
+
+
 def threshold_top_fraction(heatmap: torch.Tensor, fraction: float = 0.15) -> torch.Tensor:
     """Keep the hottest fraction of pixels as a binary explanation mask."""
     if not 0 < fraction <= 1:
