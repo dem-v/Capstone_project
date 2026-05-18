@@ -2561,3 +2561,34 @@ wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter
 
 - Phase 1 (Grad-CAM++ polarity double-flip fix in `src/explainai_thesis/xai.py:61-81`, then `SignedAttribution` four-view refactor across Grad-CAM / Grad-CAM++ / Integrated Gradients / GradientSHAP / Occlusion / Consensus, plus the corresponding metric and faithfulness tests). Phase 0 acceptance is met, so Phase 1 is unblocked.
 
+## 2026-05-18 - Phase 1.1: Grad-CAM++ Polarity Double-Flip Fixed
+
+### Context
+
+- First substep of Phase 1 per `docs/refactor_plan.md`. Goal: eliminate the double sign flip in the `grad_cam_plus_plus` branch of `GradCAM.__call__` so that negative-polarity Grad-CAM++ output is genuinely the negative-evidence map rather than a copy of the positive-evidence map.
+
+### Bug
+
+- Pre-fix, `src/explainai_thesis/xai.py:61-81` applied polarity twice on the `grad_cam_plus_plus` path: once pre-weight via `gradients = self.gradients if polarity == "positive" else -self.gradients`, and again post-weight via `cam = F.relu(-cam)`. The two sign flips cancelled, so `polarity="negative"` returned the same map as `polarity="positive"`. This explains the "all overlays look the same color" anomaly observed in earlier iterations and any blue-overlay figures already shown to the supervisor.
+
+### Changes
+
+- `src/explainai_thesis/xai.py`: removed the pre-weight gradient flip in the `grad_cam_plus_plus` branch (`gradients = self.gradients` unconditionally). Polarity is now applied exactly once, post-weight, via the existing `F.relu(cam)` / `F.relu(-cam)` block — identical to the standard `grad_cam` branch. Added an inline comment documenting the historical bug.
+- `tests/test_gradcam_polarity.py` (new): two regression tests. The tests use a tiny two-conv CNN briefly trained (60 SGD steps) on `(bright-square, class=1) vs (blank, class=0)` so the gradient w.r.t. class 1 is principled rather than random.
+  - `test_gradcam_plus_plus_negative_differs_from_positive`: asserts positive and negative Grad-CAM++ maps are not numerically equal (`atol=1e-6`). This is the direct guard against the double-flip regression — pre-fix the two maps were bit-equal and this test would have failed immediately.
+  - `test_gradcam_plus_plus_negative_does_not_peak_inside_lesion`: probabilistic assertion that the argmax of the negative-polarity map falls outside the lesion mask in more than half of 5 synthetic positive cases. Matches the wording in `docs/refactor_plan.md` substep 1.1.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile src/explainai_thesis/xai.py tests/test_gradcam_polarity.py` clean.
+- `wsl.exe python3 -m pytest tests/test_gradcam_polarity.py -v` → 2 passed in 5.71s.
+- `wsl.exe python3 -m pytest tests/ -v` → 5 passed in 12.09s (3 Phase 0 golden-output snapshots + 2 new polarity regression tests). No previously-green test regressed.
+
+### Deferred to a separate step
+
+- CXR before/after overlay comparison on one positive case (per `docs/refactor_plan.md` 1.1 "Regression" line) was not produced in this commit because it requires a manual CXR run with the `densenet121-res224-all` weights and writes into `outputs/`; that artifact is the natural payload of the supervisor-communication email called out in the pre-mortem (`Phase 1.1` proactive before/after notification). The synthetic regression is fully covered by `tests/test_gradcam_polarity.py`.
+
+### Next
+
+- Phase 1.2 — `SignedAttribution` four-view refactor across Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, and Consensus, including the new cross-method `agreement_score`, four-overlay rendering per case, and the `test_signed_*` test family.
+

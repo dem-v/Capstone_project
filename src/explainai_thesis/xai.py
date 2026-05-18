@@ -59,7 +59,13 @@ class GradCAM:
                 "Grad-CAM hooks did not capture activations/gradients.")
 
         if variant == "grad_cam_plus_plus":
-            gradients = self.gradients if polarity == "positive" else -self.gradients
+            # Polarity is applied once, post-weight, via the F.relu(±cam)
+            # block below — same as the standard grad_cam branch. The
+            # earlier pre-weight `gradients = -self.gradients` flip combined
+            # with the post-weight `F.relu(-cam)` produced a double sign
+            # flip that made the negative-polarity Grad-CAM++ output
+            # numerically equivalent to its positive-polarity output.
+            gradients = self.gradients
             gradients_power_2 = gradients.pow(2)
             gradients_power_3 = gradients_power_2 * gradients
             denominator = 2 * gradients_power_2 + (

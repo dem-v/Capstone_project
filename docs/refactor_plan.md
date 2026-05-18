@@ -41,7 +41,7 @@ Acceptance: `py_compile` clean across all 8 modified scripts ✅, `wsl.exe pytho
 
 ## Phase 1 — Correctness
 
-### 1.1 Fix `grad_cam_plus_plus` polarity double-flip
+### 1.1 Fix `grad_cam_plus_plus` polarity double-flip ✅ Done 2026-05-18
 
 File: `src/explainai_thesis/xai.py:61-81`
 
@@ -54,6 +54,8 @@ Tests:
 - `test_gradcam_negative_does_not_peak_inside_lesion`: argmax of the negative map should not fall inside the lesion mask on average across the synthetic test split (probabilistic, allow > 0.5 of cases outside).
 
 Regression: rerun synthetic smoke and one CXR positive case, attach the before/after overlays to `docs/progress.md` for thesis-defense audit trail.
+
+**Implementation notes (2026-05-18):** Pre-weight gradient flip removed; polarity now applied exactly once via the post-weight `F.relu(±cam)` block. Tests live in `tests/test_gradcam_polarity.py` and use a briefly-trained tiny CNN (60 SGD steps) so class-1 gradients are principled. Full suite: 5 passed in 12.09s. CXR before/after overlay regression deferred to the supervisor-communication step (`Phase 1.1` pre-mortem item) — synthetic regression is fully covered by `tests/test_gradcam_polarity.py`.
 
 ### 1.2 SignedAttribution: extend the four-view contract to every polarity-supporting method
 
