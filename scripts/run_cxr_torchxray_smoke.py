@@ -1015,6 +1015,7 @@ def main() -> None:
         "negative_mask_overlap_fraction",
         "negative_mask_avoidance_fraction",
         "signed_positive_fraction",
+        "signed_prediction_alignment",
     ]
     with metrics_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)

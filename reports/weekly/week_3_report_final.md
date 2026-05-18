@@ -340,13 +340,4 @@ Execution of the refactor and protocol-completion plan from `docs/refactor_plan.
 - Phase 4 minimum: `run_meta.json` stamping in every output, `load_classifier` seam audit.
 - Parallel thesis writing track starting 2026-05-19: methodology chapter as soon as Phase 1.2 lands, results chapter populates from CSVs as each phase finishes, Discussion and Conclusions wait for the improvement experiment.
 
-Deadline anchors:
-- Phase 0 + Phase 1 by 2026-05-21.
-- Phase 1.2.5 + compressed Phase 2 by 2026-05-23.
-- Phase 3 performance by 2026-05-24.
-- Phase 1.7 Stage A diagnostic A/B and Stage B decision by 2026-05-27.
-- Phase 5.1 + 5.2 by 2026-05-28.
-- Phase 5.4 CT pilot or qualitative fallback by 2026-05-31.
-- Phase 5.3 radiologist review by 2026-06-02.
-- Optional Phase 5.5 full second-model protocol (conditional on Phase 1.7 outcome) by 2026-06-03.
-- Final figures, tables, and thesis-draft completion by 2026-06-04.
+

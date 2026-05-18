@@ -339,30 +339,138 @@ External-coordination risks:
 - Earlier figures shown to the supervisor may have used buggy `grad_cam_plus_plus_negative` overlays. After the polarity fix lands in `Phase 1.1`, a before/after comparison will be sent proactively, framed as instrument calibration.
 - Institutional disclosure policy for AI tooling (GPT-5.5, Codex, Claude Sonnet 4.6, Claude Opus 4.7, Junie) needs explicit confirmation with the supervisor this week so the methodology paragraph can be drafted before `2026-05-22`.
 
+## Week 3 Update - Closing Pass: Phase 1.7 Seam, Orchestrator Sweep, and Supervisor Sync
+
+The second half of Week 3 executed the foundation work the report's earlier "Planning Pass" section committed to, and the iteration closed with a supervisor sync that set the next-iteration target. This section is the closing addendum; deeper detail lives in `docs/progress.md` (entries dated `2026-05-18`).
+
+### Phase 0 + Phase 1 foundation landed
+
+- `pyproject.toml` plus editable install (`pip install -e .`); `sys.path.insert(0, str(ROOT / "src"))` removed from 8 scripts. `requirements-dev.txt`, `tests/conftest.py`, golden-output snapshot.
+- Phase 1.1 Grad-CAM++ polarity double-flip fixed; `tests/test_gradcam_polarity.py` added.
+- Phase 1.2 four-view `SignedAttribution` contract rolled out to Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, and Consensus. Cross-method `agreement_score` and orange / teal signed-diverging overlays added.
+- Phase 1.2.5 v2 calibration produced at `outputs/iter_29_calibration_v2/calibrated_thresholds_v2.csv`. v1 artifacts preserved per the versioning rule in `AGENTS.md`.
+- Phase 1.2.5b new `signed_prediction_alignment` (SPA) column plus `--classifier-threshold` flag (default `0.62`) in both smoke and calibration scripts; SPA aggregated into summaries as a report-only column.
+- Phase 1.3 / 1.4 / 1.5 / 1.6: `tests/test_metrics.py` (8 tests), `tests/test_faithfulness.py` (Grad-CAM > random insertion AUC), `tests/test_manifest.py` (6 tests), manifest label inference switched to token-bounded regex, faithfulness baseline default flipped from `zero_tensor` -> `black`.
+- Test suite end-of-week: `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed, 4 deselected**.
+
+### Phase 1.7 `load_classifier()` seam landed (3 model families)
+
+`src/explainai_thesis/cxr/classifier.py` exposes a single `load_classifier(name, device, pathology) -> ClassifierBundle(model, target_layer, class_idx, preprocess)` entry point. Three explicit allow-lists:
+
+- `TORCHXRAYVISION_DENSENET_WEIGHTS` (7 entries): `densenet121-res224-{all, chex, mimic_ch, mimic_nb, rsna, nih, pc}`. `target_layer = model.features.denseblock4`, 224x224 native.
+- `TORCHXRAYVISION_RESNET_WEIGHTS` (1 entry): `resnet50-res512-all`. `target_layer = model.model.layer4`, 512x512 native, same `pathologies` head.
+- `TORCHXRAYVISION_AUTOENCODER_WEIGHTS` (1 entry): `resnetae-101-elastic`. No class head, no `pathologies`; the seam exposes it for future feature / reconstruction work but rejects the default `pathology='Pneumothorax'` call with a clear error. Opt-in only via `pathology=None`, yielding `class_idx=-1` and `target_layer = model.layer4`.
+- Inverse guardrail: classifiers reject `pathology=None`, autoencoders reject any non-`None` pathology - mistakes fail fast at the seam, not at the wrong scalar.
+- `scripts/run_cxr_torchxray_smoke.py` and `scripts/calibrate_cxr_xai_thresholds.py` both routed through the seam without changing their CLI flag names or defaults.
+- Tests: 10 fast stub-based cases in `tests/test_load_classifier.py` (bundle shape, preprocess `[1, H, W]` `float32`, unknown-name error, missing-pathology error, allow-list guardrails for each family, ResNet branch with distinct `class_idx`, ResNetAE default-`pathology` rejection, ResNetAE opt-in with `pathology=None`) plus one `@pytest.mark.slow` real-weights parity test confirming `-all` and `-chex` produce different Pneumothorax-head scores on the same input.
+
+### `scripts/run_all_models_smoke.ps1` orchestrator and the 9-model sweep
+
+A single PowerShell orchestrator was added to smoke-test every supported classifier weight behind the seam in one command, mirroring the three allow-lists. Per-model image-size / occlusion config (DenseNet 224 / 56 / 56, ResNet 512 / 64 / 32), continue-on-failure, top-level `sweep_summary.csv`, `-DryRun` and `-Models` subset support.
+
+Outcome of the first full run on CUDA against `--max-positive 6 --split test` (`outputs/iter_32_all_models_smoke/<weights_name>/`):
+
+| Model | Status | Wall time | Notes |
+| --- | --- | ---: | --- |
+| `densenet121-res224-all` | OK | 31 s | Baseline / control |
+| `densenet121-res224-chex` | OK | 24 s | |
+| `densenet121-res224-mimic_ch` | OK | 26 s | |
+| `densenet121-res224-mimic_nb` | OK | 23 s | |
+| `densenet121-res224-rsna` | skipped | n/a | Classifier head has no `Pneumothorax` class; head is RSNA Pneumonia (`['Pneumonia', 'Lung Opacity', ...]`). Skip list `$NoPneumothoraxWeights` in the orchestrator. |
+| `densenet121-res224-nih` | OK | 26 s | |
+| `densenet121-res224-pc` | OK | 28 s | |
+| `resnet50-res512-all` | OK | 58 s | 512x512 native; doubled occlusion patch / stride |
+| `resnetae-101-elastic` | skipped | n/a | No `pathologies`, no class score for the pneumothorax XAI pipeline to attribute against. See "ResNetAE decision" below. |
+
+Two bug fixes were required to land the sweep:
+- `scripts/run_cxr_torchxray_smoke.py` `metrics.csv` `fieldnames` was missing `signed_prediction_alignment`; added (calibration script already had it). All 8 working models then completed cleanly.
+- `densenet121-res224-rsna`'s cached weights file was 0 bytes from an interrupted download; re-downloaded; the model loads cleanly but has no `Pneumothorax` head - a real model-capability limitation, not a code bug. The skip list in the orchestrator now records it as `skipped` with reason rather than treating it as a failure.
+
+`docs/progress.md` was also repaired in-place: cp1252 double-encoded en / em dashes and curly quotes plus one stray `0x97` byte were corrected via a small idempotent `scripts/_fix_progress_encoding.py`; `iconv -f utf-8 -t utf-8 docs/progress.md` is now clean.
+
+### ResNetAE decision (final for this iteration)
+
+ResNetAE stays disabled in the orchestrator. The honest reason was surfaced in the supervisor sync rather than papered over: the pneumothorax XAI pipeline is hard-wired to a per-class scalar target (`output[0, class_idx]`); ResNetAE has no class head and emits a `[1, 1, H, W]` reconstruction tensor. Enabling it requires a reconstruction-error or latent-norm scalar wrapper (e.g. anomaly-score head) and a dedicated `scripts/run_cxr_autoencoder_smoke.py` - that is a real new experiment, not a flag flip. The seam still loads ResNetAE uniformly (`load_classifier(..., pathology=None)`) so the future experiment can reuse the bundle without re-implementing model loading.
+
+### Supervisor sync outcomes
+
+The supervisor flagged four directions; all four are now logged with explicit scope:
+
+1. **Attention layer for weight coefficients - confirmed (1b)**: attention-weighted combination of XAI maps, not architectural attention inside the off-the-shelf classifier (the latter is forbidden by the AGENTS.md off-the-shelf-baseline rule for the current TorchXRayVision weights). Deliverable: a new `consensus_attention` method in the `MethodSpec` registry after Phase 2, with per-method weights `alpha_m` derived from `agreement_score` or mask-IoU on calibration cases. Current unweighted `consensus` / `consensus_signed` stays alongside as the unweighted baseline for a paired comparison.
+2. **Continue with different models - confirmed**: the in-family DenseNet-121 sweep plus ResNet-50 is the **committed next iteration**. Steps per model: (a) v2 XAI threshold calibration via `scripts/calibrate_cxr_xai_thresholds.py --weights <name>`; (b) classifier-threshold sweep via `scripts/evaluate_cxr_torchxray_model.py --weights <name>` (the current `0.62` is DenseNet-`all`-calibrated and does not transfer); (c) smoke + faithfulness via `scripts/run_cxr_torchxray_smoke.py --weights <name> --calibrated-fractions <v2-csv>`; (d) top-level `weights_ab_summary.csv` aggregating mean IoU / Dice / pointing_hit / precision_at_fraction across methods per model, per AGENTS.md "Diagnostic A/B Protocol Before Full Second-Model Integration". One out-of-family external model remains pending selection and can be appended after the in-family sweep without blocking it.
+3. **Combining and correlating metrics - confirmed all three sub-deliverables**: (a) within-method view combinations (e.g. positive IoU minus negative overlap as a single clinical-utility score on existing CSVs), (b) attention-weighted cross-method consensus (item 1b), (c) `scripts/analyze_metric_correlations.py` emitting a Spearman / Pearson heatmap over (IoU, Dice, pointing_hit, precision_at_fraction, faithfulness insertion / deletion AUC, SPA, `agreement_score`) from any existing `metrics.csv`. The correlation matrix is the smallest piece and lands first.
+4. **Metric correlation with radiologic classification - proceed as planned**: blocked on the planned `scripts/build_review_workbook.py` (static HTML index, `scores_template.csv`, `INSTRUCTIONS.md` with the four rubrics and seven-category failure taxonomy from `docs/experiment_protocol.md`). Once the workbook ships, the workflow is workbook -> 100-case scoring pass on `outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods/` -> a small `scripts/correlate_metrics_vs_rubrics.py` doing the Spearman / Kendall joins against `localization_score` and `usefulness_score`.
+
+### In-progress / not-yet-done inventory at end of Week 3
+
+| Item | State | Blocking |
+| --- | --- | --- |
+| Phase 1.7 `load_classifier()` seam | done | - |
+| Phase 1.7 Stage A diagnostic A/B run on real data | **next iteration** | manual CUDA time per model (~30-90 min each) |
+| Out-of-family external model selection | pending | identifying a suitable public pneumothorax / SIIM-finetuned checkpoint |
+| Port `scripts/visualize_cxr_classifier_outcome_thresholds.py` to `SignedAttribution` API | pending | - |
+| Port `scripts/visualize_cxr_threshold_selection.py` to `SignedAttribution` API | pending | - |
+| Activate `polarity=` `DeprecationWarning` in `src/explainai_thesis/xai.py` | pending | the two ports above |
+| Phase 2 structural refactor (frozen output / CLI contract) | not started | - |
+| Phase 5.1 Eigen-CAM, Score-CAM | not started | Phase 2 `methods.py` registry |
+| `consensus_attention` method (supervisor item 1b) | not started | Phase 2 `methods.py` registry |
+| `scripts/analyze_metric_correlations.py` (supervisor item 3) | not started | - (does not depend on Phase 2) |
+| `scripts/build_review_workbook.py` (supervisor item 4) | not started | - |
+| `scripts/run_improvement_experiment.py` | not started | per-model v2 calibration outcomes |
+| CT secondary pipeline scaffolding | not started | - |
+
+### Verification at end of Week 3
+
+- `wsl.exe python3 -m py_compile` clean on every script and source file touched this week.
+- `wsl.exe python3 -m pytest tests/ -m 'not slow'` -> **44 passed, 4 deselected**; opt-in slow real-weights parity test passed when run.
+- `iconv -f utf-8 -t utf-8 docs/progress.md` clean; `grep -c 'mojibake-sequence' docs/progress.md` = 0.
+- Phase 0 golden-output snapshot still passes against the smoke reference run.
+
 ## Plan for Next Week
 
-Execution of the refactor and protocol-completion plan from `docs/refactor_plan.md`, in deadline-anchored order:
+Phase 0, Phase 1 (1.1 - 1.6), Phase 1.2.5 v2 calibration, and the Phase 1.7 `load_classifier()` seam all landed inside Week 3, ahead of the original deadline anchors. The Week 4 plan therefore shifts from "build the foundation" to "use the foundation to produce thesis evidence", with the diagnostic A/B sweep as the committed first iteration.
 
-- Phase 0 foundation: `pyproject.toml`, `pip install -e .`, remove `sys.path.insert`, `pytest` + `ruff` + `mypy` dev requirements, golden-output snapshot test.
-- Phase 1 correctness: metric unit tests, manifest label-inference fix, `grad_cam_plus_plus` polarity fix, signed-attribution four-view contract for Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, and Consensus.
-- Phase 1.2.5 versioned calibration: regenerate calibrated top-fractions as `v2` against the refactored signed maps; preserve `v1`.
-- Compressed Phase 2: `MethodSpec` registry, `src/explainai_thesis/cxr/io.py`, `load_classifier(name)` seam.
-- Phase 3 performance: batched IG, vectorized Occlusion, dropped wasted `normalize_map` calls, vectorized mask-contour.
-- Phase 1.7 Stage A diagnostic A/B: five in-family TorchXRayVision weights plus one out-of-family external model, on the calibration cases. Stage B decision rule writes back into `AGENT.md`.
-- Phase 5.1 add `Eigen-CAM` and `Score-CAM` via the new registry.
-- Phase 5.2 improvement-experiment script with pre-drafted Discussion narratives for both outcomes.
-- Phase 5.4 CT pilot: hour-1 model-availability check; scaffold or qualitative fallback.
-- Phase 5.3 radiologist review workbook with binding rubric-clarity rules; 100-case scoring pass on the consolidated CXR run.
+### Committed next iteration: Phase 1.7 Stage A diagnostic A/B on real data
+
+Loop the in-family classifier weights (working set: `densenet121-res224-{all, chex, mimic_ch, mimic_nb, nih, pc}` plus `resnet50-res512-all`; `densenet121-res224-rsna` and `resnetae-101-elastic` stay skipped for the documented model-capability reasons) through four steps each, all via the existing `load_classifier()` seam:
+
+1. **Classifier threshold sweep** via `scripts/evaluate_cxr_torchxray_model.py --weights <name>` to derive a model-specific best-F1 / Youden's-J / high-sensitivity threshold. The current `0.62` is DenseNet-`all`-calibrated and does not transfer.
+2. **v2 XAI threshold calibration** via `scripts/calibrate_cxr_xai_thresholds.py --weights <name>` on the positive masked calibration cases. Output under `outputs/iter_XX_calibration_v2_<weights>/calibrated_thresholds_v2.csv`.
+3. **Smoke + faithfulness** via `scripts/run_cxr_torchxray_smoke.py --weights <name> --calibrated-fractions <v2-csv> --classifier-threshold <model-specific>` on the existing positive-cases set, with the per-model image-size / occlusion config from `scripts/run_all_models_smoke.ps1`.
+4. **Top-level summary CSV** `weights_ab_summary.csv` at `outputs/iter_XX_diagnostic_weights_ab/` aggregating mean IoU, Dice, pointing_hit, and precision_at_fraction across methods per model, per AGENTS.md "Diagnostic A/B Protocol Before Full Second-Model Integration". Stage B decision (whether to promote a model to co-primary baseline) writes back into AGENTS.md.
+
+Out-of-family external model selection is deliberately deferred until after the in-family sweep so the choice is informed by Stage A spread rather than guessed.
+
+### Supervisor follow-ups, in execution order
+
+- **Item 3a (metric-metric correlation matrix)** - `scripts/analyze_metric_correlations.py`: Spearman / Pearson heatmap over (IoU, Dice, pointing_hit, precision_at_fraction, faithfulness insertion / deletion AUC, SPA, `agreement_score`) for any existing `metrics.csv`. Cheap (~2-3 h), no pipeline dependency, gives an immediate Chapter 4 figure. Can run in parallel with the Stage A sweep.
+- **Item 4 prerequisite** - `scripts/build_review_workbook.py`: static HTML index plus `scores_template.csv` plus `INSTRUCTIONS.md` per AGENTS.md "Radiologist Review Workflow", with the four rubrics and seven-category failure taxonomy from `docs/experiment_protocol.md` inlined. Unblocks the 100-case scoring pass on the existing `outputs/iter_27_classifier_outcome_any5000_balanced100_all_methods/` consolidated run.
+- **Item 4 downstream** - `scripts/correlate_metrics_vs_rubrics.py`: pandas join of `scores.csv` to `metrics.csv` plus Spearman / Kendall reports against `localization_score` and `usefulness_score`, plus Wilcoxon for `usefulness in {useful, potentially_useful}` vs `{misleading, not_useful}`.
+- **Item 1b (`consensus_attention`)** - new method in the `MethodSpec` registry after Phase 2's `methods.py` lands. Weights `alpha_m` derived from `agreement_score` or mask-IoU on calibration cases; unweighted `consensus` / `consensus_signed` stays as the paired-comparison baseline.
+
+### Remaining engineering follow-ups (smaller, non-blocking)
+
+- Port `scripts/visualize_cxr_classifier_outcome_thresholds.py` and `scripts/visualize_cxr_threshold_selection.py` to the `SignedAttribution` API, then activate the `polarity=` `DeprecationWarning` in `src/explainai_thesis/xai.py`.
+- Phase 2 structural refactor of `scripts/run_cxr_torchxray_smoke.py` (1037 -> ~150 lines) into the planned `src/explainai_thesis/{faithfulness,cli/common,cxr/io,cxr/methods,visualization_cxr,io}.py` modules; frozen output / CLI contract.
+- Phase 5.1 Eigen-CAM + Score-CAM via the new `MethodSpec` registry (depends on Phase 2).
 - Phase 4 minimum: `run_meta.json` stamping in every output, `load_classifier` seam audit.
-- Parallel thesis writing track starting 2026-05-19: methodology chapter as soon as Phase 1.2 lands, results chapter populates from CSVs as each phase finishes, Discussion and Conclusions wait for the improvement experiment.
+- CT secondary pipeline scaffolding (Phase 5.4) - hour-1 model-availability check; scaffold or qualitative fallback.
 
-Deadline anchors:
-- Phase 0 + Phase 1 by 2026-05-21.
-- Phase 1.2.5 + compressed Phase 2 by 2026-05-23.
-- Phase 3 performance by 2026-05-24.
-- Phase 1.7 Stage A diagnostic A/B and Stage B decision by 2026-05-27.
-- Phase 5.1 + 5.2 by 2026-05-28.
-- Phase 5.4 CT pilot or qualitative fallback by 2026-05-31.
-- Phase 5.3 radiologist review by 2026-06-02.
-- Optional Phase 5.5 full second-model protocol (conditional on Phase 1.7 outcome) by 2026-06-03.
-- Final figures, tables, and thesis-draft completion by 2026-06-04.
+### Deadline anchors (revised against Week 3 actuals)
+
+- Phase 1.7 Stage A real-data sweep complete and Stage B decision written into AGENTS.md by **2026-05-24**.
+- `scripts/analyze_metric_correlations.py` first heatmap (item 3a) by **2026-05-22**.
+- `scripts/build_review_workbook.py` and the 100-case scoring pass by **2026-05-28** (item 4).
+- Phase 2 structural refactor by **2026-05-26** (now the gating step for Phase 5.1 and `consensus_attention`).
+- Phase 5.1 Eigen-CAM + Score-CAM by **2026-05-28**.
+- `consensus_attention` (item 1b) by **2026-05-30**.
+- `scripts/run_improvement_experiment.py` plus held-out evaluation by **2026-06-02**.
+- Phase 5.4 CT pilot or qualitative fallback by **2026-05-31**.
+- Optional Phase 5.5 full second-model protocol, conditional on Stage B outcome, by **2026-06-03**.
+- Final figures, tables, and thesis-draft completion by **2026-06-04**.
+
+### Parallel thesis writing track
+
+- Methodology chapter: drafted in parallel with the Stage A sweep, since the seam, SignedAttribution contract, calibration, and faithfulness baseline rules are all stable.
+- Results chapter: populates from CSVs as each Stage A model finishes; the `weights_ab_summary.csv` is the first results-chapter table.
+- Discussion and Conclusions: wait for the improvement experiment outcome plus the radiologist scoring pass; both Discussion narratives ("consensus improves" vs "consensus does not improve") are pre-drafted to remove pressure to overstate either result.
