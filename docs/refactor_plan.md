@@ -380,7 +380,6 @@ Occlusion alone is the biggest absolute saving; IG is the biggest relative.
 - Renaming any existing `outputs/iter_XX_*` folder.
 - Renaming any CLI flag in the documented `iter_27` long-run command pattern.
 - Touching the Week 1 frozen reports.
-- LIME (protocol "optional, only if time").
 
 ---
 
@@ -475,9 +474,16 @@ Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substan
 - Decision (deferred): only if the diagnostic A/B in `Phase 1.7` identifies an alternate weight or external model materially better at localization than the documented TorchXRayVision baseline. Otherwise the diagnostic-only sweep from `Phase 1.7` is the documented secondary evidence and `Phase 5.5` does not run.
 - If pursued: integrate one candidate (CheXNet-style DenseNet or a pneumothorax-specific Kaggle-fine-tuned model) via the `load_classifier(name)` seam. Run the full protocol on it. Add to the comparison table as a co-primary baseline.
 
-#### 5.6 Captum infidelity and sensitivity (optional)
+#### 5.6 Captum infidelity and sensitivity (conditional)
 
-- Protocol-marked optional. Pull in only if Phase 5.5 is skipped and there is time left. Implementation is small (`captum.metrics.infidelity` and `captum.metrics.sensitivity_max`); fits naturally next to the existing deletion/insertion faithfulness writer.
+- Protocol-marked optional. Pull in if Phase 5.5 is skipped and there is time left, or as a parallel low-cost add-on if the rest of Phase 5 lands ahead of schedule. Implementation is small (`captum.metrics.infidelity` and `captum.metrics.sensitivity_max`); fits naturally next to the existing deletion/insertion faithfulness writer.
+- Gives the thesis a second faithfulness probe alongside deletion/insertion, which strengthens the H8 "faithfulness vs localization" test by triangulating across two faithfulness families.
+
+#### 5.7 LIME (conditional, low priority)
+
+- Protocol-marked optional ("only if implementation time is low"). Kept on the menu rather than dropped: if the rest of Phase 5 lands by 2026-06-01 and the buffer holds, a small LIME pass on a sub-sampled positive set provides a third explanation family (region-level surrogate) for cross-method comparison.
+- Implementation via `lime.lime_image.LimeImageExplainer`; expensive per case because LIME generates many perturbed forward passes. Time-budget controls: cap to ~10-20 representative thesis-quality cases, not the full balanced run. No registry integration needed beyond a thin wrapper that returns a `SignedAttribution`-shaped map.
+- If skipped, justify in the thesis methodology as a scope adjustment per the protocol's explicit "only if implementation time is low" clause. The cross-method comparison still holds across Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, Eigen-CAM, and Score-CAM, which is a stronger method panel than the protocol's required minimum.
 
 ### Revised execution order with deadline anchors
 
@@ -509,6 +515,9 @@ Hard deadline: full thesis draft `2026-06-04`. Final corrections/formatting/defe
 
 ### Items explicitly downgraded
 
-- LIME (protocol optional): drop. Justify as scope adjustment in thesis.
-- Captum infidelity/sensitivity (protocol optional): pull in only if Phase 5.5 is dropped.
 - Full `logging` migration, `mypy --strict`, full file-split of `run_cxr_torchxray_smoke.py`: defer to post-defense.
+
+### Items kept on the menu but conditional (added 2026-05-18)
+
+- LIME (`Phase 5.7`): kept as a low-priority conditional add-on. Activated only if the rest of Phase 5 lands by 2026-06-01 and the writing buffer holds. If skipped, justify in the thesis methodology under the protocol's "only if implementation time is low" clause.
+- Captum infidelity / sensitivity (`Phase 5.6`): kept as a conditional pull-in either when `Phase 5.5` is skipped or as a parallel add-on if the rest of Phase 5 lands ahead of schedule. Strengthens the H8 "faithfulness vs localization" test by triangulating across two faithfulness families.
