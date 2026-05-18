@@ -3,7 +3,7 @@
 Created: 2026-05-18
 Owner: Dmytro Valantsevych
 Reviewer model: Claude Opus 4.7 (1M context)
-Status: Draft, awaiting user go-ahead to start Phase 0.
+Status: Phase 0 completed 2026-05-18 (commit `99275dd`). Phases 1+ pending.
 
 This file is a temporary working artifact. It mirrors the plan accepted in conversation and is intended for task delegation. Once the work is completed and the resulting decisions are reflected in `docs/progress.md`, this file may be deleted.
 
@@ -27,15 +27,15 @@ This file is a temporary working artifact. It mirrors the plan accepted in conve
 
 Goal: establish the safety net so later phases can move fast.
 
-- [ ] Add `pyproject.toml` declaring the `explainai_thesis` package; install with `pip install -e .` so `sys.path.insert` is no longer needed.
-- [ ] Remove `sys.path.insert(0, str(ROOT / "src"))` blocks from all scripts.
-- [ ] Add `requirements-dev.txt` with `pytest`, `pytest-cov`, `ruff`, `mypy`, `scipy`.
-- [ ] Create `tests/conftest.py` with reusable fixtures: small deterministic synthetic case (8 samples, seed locked), a known mask/known heatmap pair for metric tests.
-- [ ] Add `tests/test_golden_outputs.py`: run smoke on 2 synthetic cases, snapshot `os.listdir(output_dir)` and CSV header to a fixture file. Fail if any future change perturbs the schema.
-- [ ] Add `.github/workflows/ci.yml` running `ruff check`, `mypy`, and `pytest -m "not slow and not cuda"` on `ubuntu-latest`.
-- [ ] Add a `Makefile` (or `tasks.json`) with targets `test`, `test-fast`, `lint`, `compile-check` that all route through `wsl.exe python3` for local use.
+- [x] Add `pyproject.toml` declaring the `explainai_thesis` package; install with `pip install -e .` so `sys.path.insert` is no longer needed. *(Done 2026-05-18.)*
+- [x] Remove `sys.path.insert(0, str(ROOT / "src"))` blocks from all scripts. *(Done 2026-05-18; 8 scripts cleaned.)*
+- [x] Add `requirements-dev.txt` with `pytest`, `pytest-cov`, `scipy`. *(Done 2026-05-18. `ruff` and `mypy` intentionally deferred — lint/type tooling not adopted in this thesis pass.)*
+- [x] Create `tests/conftest.py` with reusable fixtures. *(Done 2026-05-18: `repo_root` fixture + autouse `torch.manual_seed(0)`. Synthetic-case and known-mask/heatmap fixtures deferred to Phase 1, where the metric/faithfulness tests that need them are written.)*
+- [x] Add `tests/test_golden_outputs.py`: snapshot smoke output schema. *(Done 2026-05-18: 3 structural snapshot tests over `run_smoke_test.py` — column contract, value ranges in `[0, 1]`, overlay PNG layout. Bit-equal numerical comparison deliberately avoided — CPU floating-point not portable across BLAS/torch versions.)*
+- [ ] ~~Add `.github/workflows/ci.yml`~~ **Deferred to post-Phase-5** (per user decision 2026-05-18: CI workflow is optional for a thesis repo on the 2026-06-04 deadline; local `wsl.exe python3 -m pytest` is the canonical check until then).
+- [ ] ~~Add a `Makefile` (or `tasks.json`)~~ **Deferred to post-Phase-5** (per user decision 2026-05-18, same rationale as CI).
 
-Acceptance: `make test` green, `py_compile` clean across all scripts, golden snapshot recorded.
+Acceptance: `py_compile` clean across all 8 modified scripts ✅, `wsl.exe python3 -m pytest tests/ -v` → 3 passed in 10.42s ✅, editable install resolves `import explainai_thesis` from `src/` ✅. Phase 0 committed as `99275dd "Phase 0 refactor"` (note: `tests/` directory itself was still untracked at commit time; fold into a Phase 0 follow-up commit or roll into Phase 1).
 
 ---
 
@@ -489,7 +489,7 @@ Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substan
 
 | # | Step | Days | Risk | Cumulative |
 |---|---|---|---|---|
-| 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | 2026-05-19 |
+| 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | 2026-05-19 | ✅ **Done 2026-05-18** (`99275dd`); CI + Makefile deferred to post-Phase-5.
 | 2 | Phase 1 correctness: tests, polarity fix, signed maps, manifest fix, faithfulness default | 2 | medium | 2026-05-21 |
 | 2b | Phase 1.2.5 versioned calibration regeneration (v2) | 0.5 | low | 2026-05-22 (AM) |
 | 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | 2026-05-22 (PM) to 2026-05-23 |

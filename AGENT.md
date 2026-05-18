@@ -5,7 +5,7 @@ This file preserves the practical repository context, experiment conventions, an
 ## Basic rules of code development
 - Don't assume. Don't hide confusion. Surface tradeoffs.
 - Minimum code that solves the problem. Avoid speculative.
-- Touch only what you must and cleanup only your own mess, unless allowed or requested.
+- Touch only what you must, and clean up only your own mess, unless explicitly requested otherwise.
 - Define success criteria. Loop until verified.
 
 ## Project Context
@@ -24,6 +24,7 @@ This file preserves the practical repository context, experiment conventions, an
 - For commands that need project-root certainty, use `wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 ...`.
 - Known WSL environment from previous runs: Python `3.10.12`, CUDA-capable PyTorch, and `torchxrayvision==1.4.0`.
 - If a run is expected to exceed about `30` minutes, provide the command for manual execution instead of relying on short agent tool execution.
+- Package install (added 2026-05-18, Phase 0 refactor): the `explainai_thesis` package is installed editably from `pyproject.toml`. On a fresh clone, run `wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 -m pip install -e . --no-deps --no-build-isolation` once. This requires `setuptools>=68` in the WSL user site (upgrade with `python3 -m pip install --user --upgrade "setuptools>=68" wheel` if needed). After this, scripts import `explainai_thesis` directly; the historical `sys.path.insert(0, str(ROOT / "src"))` bootstrap has been removed from all scripts and must not be reintroduced. Dev tools: `python3 -m pip install -r requirements-dev.txt` (pytest, pytest-cov, scipy). Local test command: `wsl.exe python3 -m pytest tests/ -v`.
 
 ## Dataset Context
 
@@ -38,7 +39,7 @@ This file preserves the practical repository context, experiment conventions, an
 - Week 1 reports are treated as frozen/submitted: do not edit `reports/weekly/week_1_report.md` or `reports/weekly/week_1_report_final.md`.
 - *_final weekly reports should not be edited unless explicitly requested.
 - If adding major tool/model/dataset decisions, keep thesis-safe wording in `docs/progress.md` for later reuse.
-- Final thesis should reference AI/development tools and exact versions where applicable, including `GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, and `Claude Opus 4.7 1M context`, plus all research models and XAI methods actually used.
+- Final thesis should reference AI/development tools and exact versions where applicable, including `GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, and `Claude Opus 4.7`, plus all research models and XAI methods actually used.
 
 ## Output Folder Naming and Layout
 
@@ -70,9 +71,11 @@ This file preserves the practical repository context, experiment conventions, an
 
 ## XAI Method Set and Semantics
 
-Current integrated XAI methods include `grad_cam`, `grad_cam_negative`, `grad_cam_plus_plus`, `grad_cam_plus_plus_negative`, `integrated_gradients`, `integrated_gradients_positive`, `integrated_gradients_negative`, `integrated_gradients_signed`, `gradient_shap`, `gradient_shap_positive`, `gradient_shap_negative`, `gradient_shap_signed`, `occlusion`, `occlusion_positive`, `occlusion_negative`, and `consensus`.
+Pre-refactor (v1, current as of 2026-05-18 pre-Phase-1.2) integrated XAI methods are `grad_cam`, `grad_cam_negative`, `grad_cam_plus_plus`, `grad_cam_plus_plus_negative`, `integrated_gradients`, `integrated_gradients_positive`, `integrated_gradients_negative`, `integrated_gradients_signed`, `gradient_shap`, `gradient_shap_positive`, `gradient_shap_negative`, `gradient_shap_signed`, `occlusion`, `occlusion_positive`, `occlusion_negative`, and `consensus`. These names appear in current `outputs/iter_*` CSVs and overlays.
 
-The four-view contract introduced on 2026-05-18 extends signed/magnitude views to every polarity-supporting method. The full method set, after that refactor lands, additionally includes `grad_cam_magnitude`, `grad_cam_signed`, `grad_cam_plus_plus_magnitude`, `grad_cam_plus_plus_signed`, `occlusion_signed`, and `consensus_signed`. Each polarity-supporting method emits a single `SignedAttribution` per case and the four views (`positive`, `negative`, `magnitude`, `signed`) are derived from the same underlying tensor; the `polarity=` keyword in `xai.py` is being phased out as part of that refactor. Cross-method `agreement_score` (cosine similarity between signed maps) is also reported when more than one signed-capable method is run on the same case.
+Post-refactor (v2, after Phase 1.2 of `docs/refactor_plan.md` lands) the primary method ids collapse to one entry per family: `grad_cam`, `grad_cam_plus_plus`, `integrated_gradients`, `gradient_shap`, `occlusion`, `consensus`, plus the planned `eigen_cam` and `score_cam`. The polarity-suffix names (`*_positive`, `*_negative`) retire as standalone method ids and become view selectors on a single `SignedAttribution` per case. The four views (`positive`, `negative`, `magnitude`, `signed`) are derived from the same underlying tensor; the `polarity=` keyword in `xai.py` is removed. The new view-suffixed overlay/metric outputs are `grad_cam_magnitude`, `grad_cam_signed`, `grad_cam_plus_plus_magnitude`, `grad_cam_plus_plus_signed`, `integrated_gradients_signed` (kept), `gradient_shap_signed` (kept), `occlusion_signed`, and `consensus_signed`. Cross-method `agreement_score` (cosine similarity between signed maps) is reported when more than one signed-capable method is run on the same case.
+
+Versioning discipline: v1 outputs are never overwritten or renamed. v2 outputs live alongside v1 in new `outputs/iter_XX_*` folders. Held-out evaluation after Phase 1.2 uses only v2.
 
 `Eigen-CAM` and `Score-CAM` were added to the planned method set on 2026-05-18 to close the corresponding gap against `docs/experiment_protocol.md`. Each registers as a `MethodSpec` entry with the same four-view `SignedAttribution` contract. `Score-CAM` accepts a `--score-cam-channels-cap` flag so broad screening runs can subsample activation channels for speed while thesis-quality reruns use the full set.
 
@@ -235,4 +238,5 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
 - Do not renumber old output folders once referenced.
 - Be careful with transient files such as `.output.txt`; if present, treat as a likely tool artifact unless the user says otherwise.
 - When changing scripts, run at least WSL syntax checks: `wsl.exe python3 -m py_compile <changed_python_files>`.
+- When changing `src/explainai_thesis/` modules or anything that affects script output schema, also run the test suite: `wsl.exe python3 -m pytest tests/ -v`.
 - For documentation-only changes, no tests are required.

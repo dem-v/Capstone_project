@@ -2529,3 +2529,35 @@ wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter
 - **Radiologist review keeps 100-case target**: the rater's typical CXR reading time is 1-3 minutes per case, so 100 cases at ~2 minutes average is comfortably under 0.5 day of focused scoring. The binding constraint is **rubric clarity**, not scoring time. Workbook design rules were tightened: cards inline the full 4-rubric definitions and 7-category failure taxonomy with example sentences per option; show ground-truth mask plus the four-view overlay grid; display classifier outcome and probability; are keyboard-navigable; `INSTRUCTIONS.md` includes a 3-case warmup section to anchor the rubric. `AGENT.md` "Radiologist Review Workflow" section was updated with these rules.
 - Revised execution order in `docs/refactor_plan.md`: `Phase 1.2.5` slots between `Phase 1` and compressed `Phase 2`; `Phase 1.7` Stage A is now 1 day (was 0.5-1) because of the added external model. Writing buffer at the end shrinks to 1-2 days because writing happens in parallel from `2026-05-19`. Deadline checkpoints remain compatible with `2026-06-04` draft cutoff and `2026-06-21` defense.
 
+## 2026-05-18 - Phase 0 Refactor Foundation Completed
+
+### Context
+
+- First step of the revised `docs/refactor_plan.md` execution order. Goal: install the safety net (editable install + structural snapshot tests) so Phase 1 (`grad_cam_plus_plus` polarity fix + `SignedAttribution` four-view refactor) can move without risking the frozen output/CLI contract.
+
+### Changes
+
+- Added `pyproject.toml` (PEP 621 metadata, `setuptools>=68` build backend, `[tool.pytest.ini_options]` with `slow` and `cuda` markers). No `readme` key because no top-level `README.md` exists yet; `README.md` itself remains deferred to post-defense per the 2026-05-18 scope realignment.
+- Added `requirements-dev.txt` listing `pytest`, `pytest-cov`, `scipy`. `ruff` and `mypy` were intentionally dropped from the Phase 0 dev requirements: lint and type-check tooling are not adopted in this thesis pass and the originally-planned CI workflow that would have run them is deferred.
+- Removed the `ROOT = Path(__file__).resolve().parents[1]` + `sys.path.insert(0, str(ROOT / "src"))` bootstrap from 8 scripts (`build_manifest.py`, `calibrate_cxr_xai_thresholds.py`, `diagnose_cxr_torchxray_baselines.py`, `evaluate_cxr_torchxray_model.py`, `run_cxr_torchxray_smoke.py`, `run_smoke_test.py`, `visualize_cxr_classifier_outcome_thresholds.py`, `visualize_cxr_threshold_selection.py`). Dead `import sys` removed in 7 of 8; kept in `visualize_cxr_classifier_outcome_thresholds.py` because that script uses `sys.stdout` for its live progress bar. Scripts now rely on the editable install of `explainai_thesis`.
+- Added `tests/__init__.py`, `tests/conftest.py` (`repo_root` session fixture + autouse `torch.manual_seed(0)` for per-test reproducibility), and `tests/test_golden_outputs.py` (3 structural snapshot tests over `scripts/run_smoke_test.py`: `metrics.csv` column contract, numeric metrics in `[0, 1]`, one overlay PNG per (sample, method) pair). Bit-equal numerical comparison was deliberately avoided: CPU floating-point output of Grad-CAM / Integrated Gradients depends on BLAS, torch version, and host architecture, so the suite snapshots the public contract, not the values.
+
+### Deferred (intentional)
+
+- `.github/workflows/ci.yml` and `Makefile`/`tasks.json` from the original Phase 0 list were both **deferred to post-Phase-5** by user decision: CI workflow is optional for a thesis repo on the `2026-06-04` deadline, and local `wsl.exe python3 -m pytest` remains the canonical pre-commit check until then. `docs/refactor_plan.md` Phase 0 checklist and the deadline-anchor table were annotated accordingly.
+- `ruff` / `mypy` dev tooling deferred for the same reason. Compilation guarantee remains `wsl.exe python3 -m py_compile <file>` per the hard constraint from `AGENT.md`.
+
+### Verification
+
+- WSL setuptools upgraded `59.6.0` → `82.0.1` in the user site (required for PEP 660 editable install; the pre-existing setuptools was older than the `setuptools>=68` declared by `pyproject.toml`'s build-system).
+- `wsl.exe python3 -m pip install -e . --no-deps --no-build-isolation` succeeded; `import explainai_thesis` now resolves through `src/` without any `sys.path` manipulation.
+- `wsl.exe python3 -m py_compile` clean on all 8 modified scripts.
+- `wsl.exe python3 scripts/run_cxr_torchxray_smoke.py --help` and `wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --help` both resolve real imports via the editable install (no `sys.path` shim).
+- `wsl.exe python3 scripts/run_smoke_test.py --output-dir <tmp> --epochs 5 --device cpu` produced the expected synthetic `metrics.csv` and per-(sample, method) overlay PNGs.
+- `wsl.exe python3 -m pytest tests/ -v` → **3 passed in 10.42s**.
+- Phase 0 committed as `99275dd "Phase 0 refactor"` on `main`. Note: the new `tests/` directory was still untracked at commit time and should be folded into a Phase 0 follow-up commit or rolled into the Phase 1 commit.
+
+### Next
+
+- Phase 1 (Grad-CAM++ polarity double-flip fix in `src/explainai_thesis/xai.py:61-81`, then `SignedAttribution` four-view refactor across Grad-CAM / Grad-CAM++ / Integrated Gradients / GradientSHAP / Occlusion / Consensus, plus the corresponding metric and faithfulness tests). Phase 0 acceptance is met, so Phase 1 is unblocked.
+
