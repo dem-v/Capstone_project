@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
 from PIL import Image
@@ -30,15 +31,26 @@ def mask_has_foreground(mask_path: Path) -> int:
     return int(extrema[1] > 0)
 
 
+_POSITIVE_TOKEN_RE = re.compile(
+    r"(?:^|[_\-])(?:1|positive|pneumo|pneumothorax)(?=$|[_\-\.])"
+)
+_NEGATIVE_TOKEN_RE = re.compile(
+    r"(?:^|[_\-])(?:0|negative|normal)(?=$|[_\-\.])"
+)
+
+
 def infer_label_from_name(path: Path) -> int | None:
+    """Infer a binary label from a filename using word-boundary tokens.
+
+    Earlier substring markers like ``_1_`` / ``_0_`` would also match
+    ``_10_``, ``_11_``, ``_100_``, ``_01_``. The regex variant requires the
+    digit/keyword to be a standalone token separated by ``_``/``-``/``.`` so
+    only exact tokens count.
+    """
     name = path.name.lower()
-    positive_markers = ("_1_", "-1-", "_positive",
-                        "-positive", "_pneumo", "-pneumo")
-    negative_markers = ("_0_", "-0-", "_negative",
-                        "-negative", "_normal", "-normal")
-    if any(marker in name for marker in positive_markers):
+    if _POSITIVE_TOKEN_RE.search(name):
         return 1
-    if any(marker in name for marker in negative_markers):
+    if _NEGATIVE_TOKEN_RE.search(name):
         return 0
     return None
 

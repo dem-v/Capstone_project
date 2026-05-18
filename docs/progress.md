@@ -2728,3 +2728,33 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - `wsl.exe python3 -m pytest tests/ -v` → **23 passed in 16.88s**. No regression vs. Phase 1.2.5 (3 golden + 2 polarity + 14 signed-attribution + 4 signed-diverging-overlay).
 - End-to-end behavior on real CXR weights is exercised by rerunning the user-side v2 calibration command from Phase 1.2.5 (no script signature change for the existing flags). The new column appears at the end of `calibration_metrics.csv`; SPA mean/std now appear in `calibration_summary.csv`. `calibrated_thresholds_v2.csv` is unchanged byte-for-byte because the selection-metric list was deliberately not extended.
 
+## 2026-05-18 - Phases 1.3 / 1.4 / 1.5 / 1.6: Correctness Test Net + Faithfulness Default Switch
+
+### Context
+
+- With Phase 1.2.5b landed and the v2 calibration re-running in parallel, the next blocker on the refactor plan is the Phase 1 correctness backlog: metric edge-case tests (1.3), a faithfulness sanity test (1.4), manifest label-inference robustness (1.5), and the default faithfulness baseline switch (1.6). All four are small, local, and unlock confident Phase 2 structural extraction by giving every refactor target a regression guard.
+
+### Changes
+
+- **Phase 1.3 — `tests/test_metrics.py`** (new, 8 tests): perfect-overlap IoU/Dice = 1.0, disjoint IoU/Dice = 0.0, pointing-game hit inside vs. outside, all-zero heatmap is well-defined (no NaN, top-fraction still selects ≥1 pixel, pointing game returns deterministic 0/1), `threshold_top_fraction(1.0)` returns an all-True mask, out-of-range fractions raise `ValueError`, `localization_metrics` returns the expected 4-key dict in `[0, 1]`. Documents the existing all-zero behavior rather than changing it — the eps-guarded `normalize_map` + `argmax(0)` semantics are now contractual.
+- **Phase 1.4 — `tests/test_faithfulness.py`** (new, 1 test): asserts mean Grad-CAM insertion-AUC > mean random-heatmap insertion-AUC across 5 fixed seeds on the tiny-CNN + bright-square synthetic case (same recipe as `tests/test_gradcam_polarity.py`). Insertion curve is implemented inline in the test (zero baseline, top-K restore by attribution rank, mean of class-1 softmax across 8 fractions) so it does not depend on the smoke-script's `faithfulness_curve_rows` helper — that helper moves into the package in Phase 2 and the test should not couple to its current location. Not marked `@pytest.mark.slow`: full 5-seed run completes in well under 1 s as part of the existing ~17 s suite.
+- **Phase 1.5 — `src/explainai_thesis/manifest.py`**: replaced the substring marker tuples (`"_1_"`, `"_0_"`, …) in `infer_label_from_name` with two compiled regexes, `_POSITIVE_TOKEN_RE` and `_NEGATIVE_TOKEN_RE`, that require the digit/keyword to appear as a standalone token bounded by `_` / `-` / `.` or string start/end. Adversarial names like `case_10_chest.png`, `case_100_chest.png`, `scan_01_chest.png` now correctly return `None` instead of being silently mislabeled. The keyword set was lightly extended to include the explicit `pneumothorax` token, matching how SIIM-derived filenames are typically built.
+- **Phase 1.5 — `tests/test_manifest.py`** (new, 6 tests): exact positive/negative tokens, the four adversarial multidigit cases from the refactor plan, the `pneumothorax` keyword path, and "no marker → None". One asymmetric case is explicitly documented: `image_01_pneumothorax.png` correctly returns label=1 because the `pneumothorax` keyword token wins, not because of the `_01_` substring — the test isolates the digit-only pathway with `scan_01_chest.png`.
+- **Phase 1.6 — `scripts/run_cxr_torchxray_smoke.py`**: `--faithfulness-baseline` default flipped from `zero_tensor` to `black`. `zero_tensor` is still accepted as a valid choice and is annotated "historical / not recommended" in the argparse help, with the `AGENTS.md` rationale (zero_tensor is not a true black image in the normalized TorchXRayVision input space and can still score ~60% pneumothorax) inlined.
+
+### Design notes
+
+- Phase 1.4 deliberately uses an inline insertion-curve implementation rather than importing from `scripts/run_cxr_torchxray_smoke.py`. Two reasons: (1) the smoke helper's signature is tuned for the CXR pipeline (faithfulness baseline strings, family bookkeeping) and inheriting that surface would slow the test and tangle scopes; (2) Phase 2 will move that helper into `src/explainai_thesis/faithfulness.py`, and a Phase 1.4 test wired to its current location would break on import the moment Phase 2 lands. The inline routine is ~15 lines and tests exactly the conceptual claim ("Grad-CAM beats random under insertion") without coupling to the production helper.
+- Phase 1.5's regex uses `re.search` (not `re.match`) so tokens anywhere in the filename count, and the trailing lookahead `(?=$|[_\-\.])` allows `.png` to terminate a token without consuming the dot. The pre-fix substring approach was already case-insensitive via `.lower()`; that behavior is preserved.
+- Phase 1.6 leaves the `zero_tensor` choice in place rather than removing it because some pre-Phase-1.6 reference runs in `outputs/iter_2*` were produced with `zero_tensor` and may need to be re-evaluated or reproduced for cross-version sanity checks during thesis writing. Removing the choice would also break the documented `--help` contract.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile scripts/run_cxr_torchxray_smoke.py src/explainai_thesis/manifest.py tests/test_metrics.py tests/test_manifest.py tests/test_faithfulness.py` → exit 0.
+- `wsl.exe python3 -m pytest tests/ -v` → **37 passed in 16.74s**. Breakdown: 3 Phase 0 golden-output + 2 Phase 1.1 polarity + 14 Phase 1.2-core SignedAttribution + 4 Phase 1.2-dispatch signed-overlay/agreement + 8 Phase 1.3 metric + 6 Phase 1.5 manifest + 1 Phase 1.4 faithfulness. No regressions; the suite grew from 23 → 37 tests in ~the same wall-clock.
+
+### Next
+
+- The v2 calibration rerun that exercises the SPA column from 1.2.5b is brewing in parallel and writes to `outputs/iter_29_calibration_v2`.
+- Phase 1.7 Stage A (diagnostic A/B across in-family TorchXRayVision weights + one out-of-family external model) is the next code-side step; it depends on a small `load_classifier(name)` seam that can land standalone without committing to the full Phase 2 structural refactor. After Stage A: port the two remaining v1-API callers (`scripts/visualize_cxr_classifier_outcome_thresholds.py`, `scripts/visualize_cxr_threshold_selection.py`) and then activate the `polarity=` `DeprecationWarning` in `src/explainai_thesis/xai.py`.
+

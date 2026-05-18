@@ -112,12 +112,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--faithfulness-baseline",
-        default="zero_tensor",
+        default="black",
         choices=["zero_tensor", "black", "white", "case_mean"],
         help=(
             "Baseline used for deletion/insertion faithfulness. "
-            "zero_tensor preserves the historical behavior; black/white/case_mean "
-            "use normalized image-space baselines."
+            "Default 'black' per AGENTS.md (Faithfulness Evaluation Rules): "
+            "'zero_tensor' is historical / not recommended because it is not a "
+            "true black image in the normalized TorchXRayVision input space and "
+            "can still score ~60% pneumothorax. 'black'/'white'/'case_mean' use "
+            "normalized image-space baselines."
         ),
     )
     parser.add_argument(
