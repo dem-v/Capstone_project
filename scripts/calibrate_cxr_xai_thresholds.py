@@ -10,12 +10,17 @@ from pathlib import Path
 
 from explainai_thesis.xai import (
     GradCAM,
-    consensus_heatmap,
-    gradient_shap,
-    integrated_gradients,
-    occlusion_sensitivity,
+    SignedAttribution,
+    consensus_signed,
+    gradient_shap_signed,
+    integrated_gradients_signed,
+    occlusion_sensitivity_signed,
 )
-from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
+from explainai_thesis.metrics import (
+    localization_metrics,
+    normalize_map,
+    threshold_top_fraction,
+)
 from PIL import Image
 import torchxrayvision as xrv
 import torch
@@ -70,6 +75,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
+    parser.add_argument(
+        "--classifier-threshold",
+        type=float,
+        default=0.62,
+        help=(
+            "Sigmoid cutoff for deriving the model's predicted class on each "
+            "case. Used only by the `signed_prediction_alignment` (SPA) column "
+            "on `*_signed` rows; does NOT affect calibrated top-fraction "
+            "selection. Default 0.62 matches the train-calibrated TorchXRayVision "
+            "cutoff documented in AGENTS.md."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -166,8 +183,6 @@ def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fr
     }
 
 
-def is_negative_or_signed_method(method_name: str) -> bool:
-    return method_name.endswith("_negative") or method_name.endswith("_signed") or method_name == "consensus"
 
 
 def main() -> None:
@@ -205,65 +220,114 @@ def main() -> None:
             probability = float(torch.sigmoid(
                 output[0, class_idx]).detach().cpu().item())
 
-        cam_map = gradcam(model_input, class_idx=class_idx)
-        cam_plus_plus_map = gradcam(
-            model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
-        negative_cam_map = gradcam(
-            model_input, class_idx=class_idx, polarity="negative")
-        negative_cam_plus_plus_map = gradcam(
-            model_input, class_idx=class_idx, polarity="negative", variant="grad_cam_plus_plus")
-        ig_map = integrated_gradients(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps)
-        ig_positive_map = integrated_gradients(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
-        ig_negative_map = integrated_gradients(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
-        gradient_shap_map = gradient_shap(
-            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs)
-        gradient_shap_positive_map = gradient_shap(
-            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs, polarity="positive")
-        gradient_shap_negative_map = gradient_shap(
-            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, stdevs=args.gradshap_stdevs, polarity="negative")
-        occlusion_map = occlusion_sensitivity(
-            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="magnitude")
-        occlusion_positive_map = occlusion_sensitivity(
-            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="positive")
-        occlusion_negative_map = occlusion_sensitivity(
-            model, model_input, class_idx=class_idx, patch_size=args.occlusion_patch_size, stride=args.occlusion_stride, polarity="negative")
-        methods = {
-            "grad_cam": cam_map,
-            "grad_cam_plus_plus": cam_plus_plus_map,
-            "grad_cam_negative": negative_cam_map,
-            "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
-            "integrated_gradients": ig_map,
-            "integrated_gradients_positive": ig_positive_map,
-            "integrated_gradients_negative": ig_negative_map,
-            "integrated_gradients_signed": ig_positive_map,
-            "gradient_shap": gradient_shap_map,
-            "gradient_shap_positive": gradient_shap_positive_map,
-            "gradient_shap_negative": gradient_shap_negative_map,
-            "gradient_shap_signed": gradient_shap_positive_map,
-            "occlusion": occlusion_map,
-            "occlusion_positive": occlusion_positive_map,
-            "occlusion_negative": occlusion_negative_map,
-            "consensus": consensus_heatmap([cam_map, ig_map, gradient_shap_map, occlusion_map]),
+        # Phase 1.2.5 (v2): 5 signed cores per case replace the pre-1.2 16-call
+        # polarity fan-out. The four views (positive/negative/magnitude/signed)
+        # are derived in microseconds from each SignedAttribution.
+        gradcam_attr = gradcam.signed(model_input, class_idx=class_idx)
+        gradcam_pp_attr = gradcam.signed(
+            model_input, class_idx=class_idx, variant="grad_cam_plus_plus"
+        )
+        ig_attr = integrated_gradients_signed(
+            model, model_input, class_idx=class_idx, steps=args.ig_steps
+        )
+        gradshap_attr = gradient_shap_signed(
+            model,
+            model_input,
+            class_idx=class_idx,
+            samples=args.gradshap_samples,
+            stdevs=args.gradshap_stdevs,
+        )
+        occlusion_attr = occlusion_sensitivity_signed(
+            model,
+            model_input,
+            class_idx=class_idx,
+            patch_size=args.occlusion_patch_size,
+            stride=args.occlusion_stride,
+        )
+        consensus_attr = consensus_signed(
+            [gradcam_attr, ig_attr, gradshap_attr, occlusion_attr]
+        )
+
+        signed_attributions: dict[str, SignedAttribution] = {
+            "grad_cam": gradcam_attr,
+            "grad_cam_plus_plus": gradcam_pp_attr,
+            "integrated_gradients": ig_attr,
+            "gradient_shap": gradshap_attr,
+            "occlusion": occlusion_attr,
+            "consensus": consensus_attr,
         }
 
-        for method_name, heatmap in methods.items():
+        # method id -> (heatmap tensor, view kind, family id).
+        methods: dict[str, tuple[torch.Tensor, str, str]] = {}
+        for family, attr in signed_attributions.items():
+            methods[family] = (normalize_map(attr.positive), "positive", family)
+            methods[f"{family}_negative"] = (
+                normalize_map(attr.negative), "negative", family,
+            )
+            methods[f"{family}_magnitude"] = (
+                normalize_map(attr.magnitude), "magnitude", family,
+            )
+            methods[f"{family}_signed"] = (attr.signed, "signed", family)
+
+        for method_name, (heatmap, view_kind, family) in methods.items():
             for fraction in fractions:
+                # For the signed view, feed magnitude into localization_metrics
+                # so the standard IoU/Dice/pointing_hit/precision columns are
+                # still defined; signed-specific behavior is captured by
+                # `signed_positive_fraction`.
+                metrics_input = (
+                    signed_attributions[family].magnitude
+                    if view_kind == "signed"
+                    else heatmap
+                )
                 metrics = localization_metrics(
-                    heatmap, mask, fraction=fraction)
+                    metrics_input, mask, fraction=fraction)
                 negative_metrics = {
                     "negative_mask_overlap_fraction": "",
                     "negative_mask_avoidance_fraction": "",
                 }
-                if is_negative_or_signed_method(method_name):
+                if view_kind == "negative":
                     negative_metrics = {
                         key: round(value, 6)
                         for key, value in negative_evidence_metrics(
                             heatmap, mask, fraction
                         ).items()
                     }
+                if view_kind == "signed":
+                    signed_tensor = signed_attributions[family].signed
+                    abs_map = signed_tensor.abs()
+                    selected = threshold_top_fraction(abs_map, fraction=fraction)
+                    selected_count = float(selected.sum().item())
+                    if selected_count > 0:
+                        positive_count = float(
+                            (selected & (signed_tensor > 0)).sum().item()
+                        )
+                        signed_positive_fraction: str | float = round(
+                            positive_count / selected_count, 6
+                        )
+                    else:
+                        signed_positive_fraction = 0.0
+                    # SPA: fraction of top-|signed| pixels whose sign matches
+                    # the model's predicted class. On `model predicts positive`
+                    # this equals SPF; on `model predicts negative` it equals
+                    # 1 - SPF. Comparable across TP/TN at high confidence and
+                    # diagnostic on FP/FN. Calibration set is positives-only,
+                    # so on this script SPA is dominated by the SPF branch;
+                    # the FN branch (sigmoid < threshold on a label=1 case)
+                    # is where the 1-SPF flip kicks in.
+                    if isinstance(signed_positive_fraction, float):
+                        if probability >= args.classifier_threshold:
+                            signed_prediction_alignment: str | float = \
+                                signed_positive_fraction
+                        else:
+                            signed_prediction_alignment = round(
+                                1.0 - signed_positive_fraction, 6
+                            )
+                    else:
+                        signed_prediction_alignment = ""
+                else:
+                    signed_positive_fraction = ""
+                    signed_prediction_alignment = ""
                 metric_rows.append(
                     {
                         "sample_id": sample_idx,
@@ -272,9 +336,13 @@ def main() -> None:
                         "xrv_pneumothorax_score": round(score, 6),
                         "xrv_pneumothorax_sigmoid": round(probability, 6),
                         "method": method_name,
+                        "view": view_kind,
+                        "family": family,
                         "top_fraction": round(fraction, 6),
                         **{key: round(value, 6) for key, value in metrics.items()},
                         **negative_metrics,
+                        "signed_positive_fraction": signed_positive_fraction,
+                        "signed_prediction_alignment": signed_prediction_alignment,
                     }
                 )
 
@@ -299,6 +367,13 @@ def main() -> None:
             "precision_at_fraction",
             "negative_mask_overlap_fraction",
             "negative_mask_avoidance_fraction",
+            # Report-only signed-view diagnostics. Aggregated mean/std over
+            # `*_signed` rows only (other views leave these blank, and the
+            # filter on `row[metric_name] != ""` excludes them naturally).
+            # These are NOT added to the selection-metric list — they must
+            # not influence calibrated top-fraction choice.
+            "signed_positive_fraction",
+            "signed_prediction_alignment",
         ]:
             values = np.asarray(
                 [float(row[metric_name]) for row in rows_for_fraction if row[metric_name] != ""],
@@ -365,12 +440,19 @@ def main() -> None:
     write_rows(output_dir / "calibration_summary.csv", summary_rows)
     write_rows(output_dir / "selected_fractions.csv", selected_rows)
     write_rows(output_dir / "selected_fractions_by_metric.csv", selected_by_metric_rows)
+    # Phase 1.2.5: v2-canonical alias. Downstream scripts (smoke,
+    # improvement experiment) consume calibrated top-fractions per
+    # (method, selection_metric) via --calibrated-fractions and rely on
+    # this filename to disambiguate v2 calibration from v1 outputs.
+    write_rows(output_dir / "calibrated_thresholds_v2.csv", selected_by_metric_rows)
 
     print(f"CXR XAI threshold calibration complete on {device}.")
     print(f"Positive calibration cases: {len(rows)}")
     print(f"Selection metric: {args.selection_metric}")
     print(
         f"Selected fractions written to: {output_dir / 'selected_fractions.csv'}")
+    print(
+        f"v2 calibrated thresholds: {output_dir / 'calibrated_thresholds_v2.csv'}")
 
 
 if __name__ == "__main__":

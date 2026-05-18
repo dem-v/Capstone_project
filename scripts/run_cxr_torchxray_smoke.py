@@ -150,6 +150,18 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "cpu", "cuda"],
         help="Execution device.",
     )
+    parser.add_argument(
+        "--classifier-threshold",
+        type=float,
+        default=0.62,
+        help=(
+            "Sigmoid cutoff for deriving the model's predicted class on each "
+            "case. Used only by the `signed_prediction_alignment` (SPA) column "
+            "on `*_signed` rows of metrics.csv; does NOT affect overlays, "
+            "calibrated top-fractions, or faithfulness. Default 0.62 matches "
+            "the train-calibrated TorchXRayVision cutoff in AGENTS.md."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -220,6 +232,10 @@ def write_metric_summary(
     optional_metric_names = [
         "negative_mask_overlap_fraction",
         "negative_mask_avoidance_fraction",
+        # Report-only signed-view diagnostics. Populated only on `*_signed`
+        # rows; the `value != ""` filter below excludes other views naturally.
+        "signed_positive_fraction",
+        "signed_prediction_alignment",
     ]
     fieldnames = ["method", "n"]
     for metric_name in metric_names + optional_metric_names:
@@ -871,8 +887,25 @@ def main() -> None:
                     )
                 else:
                     signed_positive_fraction = 0.0
+                # SPA: model-relative coherence diagnostic. On a positive
+                # prediction it equals SPF; on a negative prediction it
+                # equals 1 - SPF. Lets TN cases (model says "no", evidence
+                # should be blue-side) be summarized on the same scale as
+                # TP cases. Report-only — not used for top-fraction
+                # selection or overlay rendering.
+                if isinstance(signed_positive_fraction, float):
+                    if probability >= args.classifier_threshold:
+                        signed_prediction_alignment: str | float = \
+                            signed_positive_fraction
+                    else:
+                        signed_prediction_alignment = round(
+                            1.0 - signed_positive_fraction, 6
+                        )
+                else:
+                    signed_prediction_alignment = ""
             else:
                 signed_positive_fraction = ""
+                signed_prediction_alignment = ""
 
             metric_rows.append(
                 {
@@ -888,6 +921,7 @@ def main() -> None:
                     **{key: round(value, 6) for key, value in metrics.items()},
                     **negative_metrics,
                     "signed_positive_fraction": signed_positive_fraction,
+                    "signed_prediction_alignment": signed_prediction_alignment,
                 }
             )
 

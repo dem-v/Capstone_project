@@ -2667,3 +2667,64 @@ wsl.exe python3 scripts/select_cxr_review_candidates.py --input-dir outputs/iter
 
 - Phase 1.2.5: regenerate `v2` XAI threshold calibration on positive masked calibration cases against the new signed cores. Output target: `outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv`. `v1` calibration files stay in place and are never overwritten. After 1.2.5 lands, the smoke script will be rerun with `--calibrated-fractions outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv` for the first protocol-aligned v2 evaluation.
 
+## 2026-05-18 - Phase 1.2.5: Calibration Script Ported to SignedAttribution v2
+
+### Context
+
+- Per the `Next` line of Phase 1.2-dispatch: produce a versioned `v2` XAI threshold calibration against the new signed cores. This commit ports the calibration script itself; the actual long-running calibration on ~20-30 SIIM positive masked cases is a user-side step that produces the `outputs/iter_XX_calibration_v2/calibrated_thresholds_v2.csv` artifact.
+
+### Changes
+
+- `scripts/calibrate_cxr_xai_thresholds.py`: replaced the pre-1.2 16-call polarity fan-out with the v2 dispatch already proven on the CXR smoke script — 5 signed cores per case (`GradCAM.signed`, `integrated_gradients_signed`, `gradient_shap_signed`, `occlusion_sensitivity_signed`, plus `consensus_signed`), expanded into 24 per-method-view rows per case via the same `signed_attributions` registry + view-expansion pattern. `calibration_metrics.csv` schema bump: added `view`, `family`, and `signed_positive_fraction` columns. Signed-view rows feed `magnitude` into `localization_metrics` (same convention as the smoke script) and compute `signed_positive_fraction` directly from the `|signed|` top-fraction selection. Negative-evidence diagnostics are now gated on `view_kind == "negative"` instead of the old `is_negative_or_signed_method` helper, which was removed because it conflated negative-evidence diagnostics (only valid on `*_negative`) with signed-positive-fraction (only valid on `*_signed`).
+- New output file: `calibrated_thresholds_v2.csv` written alongside `selected_fractions_by_metric.csv`. This is the v2-canonical filename that downstream scripts (smoke, improvement experiment) consume via `--calibrated-fractions`. The pre-existing `selected_fractions.csv` / `selected_fractions_by_metric.csv` continue to be emitted for backward compatibility with v1 tooling.
+
+### Design notes
+
+- `consensus_signed` is included in the per-case rows for symmetry with the smoke script. Whether `consensus_signed` should be calibrated as a method or treated as a derived diagnostic is a downstream methodological decision; emitting the rows costs nothing and keeps the option open.
+- `DeprecationWarning` on the legacy `polarity=` wrappers in `xai.py` is still intentionally not fired. Two callers remain on the v1 API — `scripts/visualize_cxr_classifier_outcome_thresholds.py` and `scripts/visualize_cxr_threshold_selection.py` — and turning the warning on now would add noise to every run of those scripts. The warning will be enabled together with their port in the next sub-phase.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile scripts/calibrate_cxr_xai_thresholds.py` clean.
+- `wsl.exe python3 scripts/calibrate_cxr_xai_thresholds.py --help` parses without import errors (confirms the v2 import set resolves through the editable install).
+- `wsl.exe python3 -m pytest tests/ -v` → **23 passed in 14.87s**. No regression vs. Phase 1.2-dispatch (3 golden + 2 polarity + 14 signed-attribution + 4 signed-diverging-overlay).
+- End-to-end execution against real CXR weights and the SIIM positive subset is deferred to the user-side manual run below — calibration on ~20-30 positive masked cases with the documented sweep and `--gradshap-samples 64` exceeds the in-session execution budget.
+
+### Next (user-side manual run to produce the v2 calibration artifact)
+
+- The next free output slot is `outputs/iter_29_calibration_v2` (current latest is `iter_28_review_candidate_selection`). Suggested command:
+
+```
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/calibrate_cxr_xai_thresholds.py --split train --max-positive 30 --random-sample --seed 20260518 --fractions 0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95 --ig-steps 16 --gradshap-samples 64 --output-dir outputs/iter_29_calibration_v2
+```
+
+- After the run completes, `outputs/iter_29_calibration_v2/calibrated_thresholds_v2.csv` is the file the smoke script will consume via `--calibrated-fractions`. Both v1 and v2 calibration directories will then coexist as required by the refactor plan.
+
+## 2026-05-18 - Phase 1.2.5b: `signed_prediction_alignment` (SPA) Diagnostic Column
+
+### Context
+
+- After the v2 calibration run (`outputs/iter_29_calibration_v2`) the user observed that `signed_positive_fraction` (SPF) was already in `calibration_metrics.csv` (last column) but not aggregated into `calibration_summary.csv` / `calibrated_thresholds_v2.csv`, and asked whether the signed-view machinery could be extended to better characterize TN/FP cases where the model decides "no pneumothorax" and the *blue* side carries the model's reasoning.
+- Raw SPF is not directly comparable across TP and TN: on a confident TN, most top-|signed| pixels should be blue, so SPF is low — and that "low SPF" looks identical on paper to a clinically bad TP with mostly blue evidence. A model-relative reframing is needed.
+
+### Changes
+
+- New per-case column **`signed_prediction_alignment`** (SPA) on `*_signed` rows of both `metrics.csv` (smoke) and `calibration_metrics.csv` (calibration). Defined as the fraction of top-|signed| pixels whose sign matches the model's predicted class at the configured cutoff:
+  - `SPA = SPF` if `sigmoid >= --classifier-threshold` (model predicts positive).
+  - `SPA = 1 - SPF` if `sigmoid < --classifier-threshold` (model predicts negative).
+  - Blank on all other view rows so the column is unambiguous.
+- New CLI arg **`--classifier-threshold`** (default `0.62`, matching the train-calibrated TorchXRayVision cutoff documented in `AGENTS.md`) on `scripts/calibrate_cxr_xai_thresholds.py` and `scripts/run_cxr_torchxray_smoke.py`. Used only by the SPA column; does not affect overlays, faithfulness, or calibrated top-fraction selection.
+- `calibration_summary.csv` and `metrics_summary.csv` aggregators extended to include `signed_positive_fraction_mean/std` and `signed_prediction_alignment_mean/std`. Both columns are computed by filtering out empty-string cells, so non-signed rows are naturally excluded from the mean. Crucially, **neither column is added to the selection-metric list** that picks calibrated top-fractions — SPA is report-only, because adding more red-side (or blue-side) pixels to a top-K is not the right optimization target for a top-fraction threshold.
+
+### Design notes
+
+- SPA is a *model-relative coherence* diagnostic, not a correctness metric: a confidently-wrong model with red-heavy evidence still gets a high SPA. That is the intended semantics (it answers "does the explanation back the model up?" without depending on the ground-truth label).
+- The calibration script stays positives-only by design (`read_positive_rows` filters on `mask_path`), because the four selection metrics (`dice`, `iou`, `pointing_hit`, `precision_at_fraction`) are mask-relative and undefined on negatives. SPA only becomes informative on negatives in the smoke / classifier-outcome runs (which already span the full label distribution).
+- `--classifier-threshold` default `0.62` is exposed so that the same script can be rerun against alternate operating points (best `F1`, best `Youden's J`, high-sensitivity) without re-running the underlying XAI.
+
+### Verification
+
+- `wsl.exe python3 -m py_compile scripts/calibrate_cxr_xai_thresholds.py scripts/run_cxr_torchxray_smoke.py` → exit 0.
+- `wsl.exe python3 -m pytest tests/ -v` → **23 passed in 16.88s**. No regression vs. Phase 1.2.5 (3 golden + 2 polarity + 14 signed-attribution + 4 signed-diverging-overlay).
+- End-to-end behavior on real CXR weights is exercised by rerunning the user-side v2 calibration command from Phase 1.2.5 (no script signature change for the existing flags). The new column appears at the end of `calibration_metrics.csv`; SPA mean/std now appear in `calibration_summary.csv`. `calibrated_thresholds_v2.csv` is unchanged byte-for-byte because the selection-metric list was deliberately not extended.
+
