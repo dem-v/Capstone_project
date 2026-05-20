@@ -5,10 +5,10 @@ import argparse
 import csv
 import random
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import torch
-import torchxrayvision as xrv
 from PIL import Image
 from sklearn.metrics import (
     accuracy_score,
@@ -19,6 +19,8 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+
+from explainai_thesis.cxr.classifier import load_classifier
 
 
 
@@ -67,14 +69,13 @@ def read_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
     return rows
 
 
-def load_image(path: Path, image_size: int) -> torch.Tensor:
+def load_image(path: Path, image_size: int, preprocess: Callable[[np.ndarray], torch.Tensor]) -> torch.Tensor:
     image = (
         Image.open(path).convert("L").resize(
             (image_size, image_size), Image.BILINEAR)
     )
     array = np.asarray(image)
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
+    return preprocess(array)
 
 
 def pathology_index(model: torch.nn.Module, pathology: str) -> int:
@@ -169,9 +170,9 @@ def main() -> None:
         rows = rows[:args.max_cases]
 
     device = resolve_device(args.device)
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
+    classifier = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = classifier.model
+    class_idx = classifier.class_idx
 
     prediction_rows: list[dict[str, str | int | float]] = []
     labels: list[int] = []
@@ -181,7 +182,7 @@ def main() -> None:
     for batch_rows in batched(rows, args.batch_size):
         images = torch.stack(
             [
-                load_image(Path(row["image_path"]), args.image_size)
+                load_image(Path(row["image_path"]), args.image_size, classifier.preprocess)
                 for row in batch_rows
             ],
             dim=0,

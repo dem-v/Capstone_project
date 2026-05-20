@@ -14,6 +14,8 @@ Primary experiment:
 - Chest X-ray pneumothorax classification.
 - Dataset with lesion masks, preferably SIIM-ACR pneumothorax or a Kaggle derivative.
 - Purpose: full quantitative validation of explanation maps.
+- Protocol discipline: classifier-threshold calibration, XAI top-fraction calibration, and held-out evaluation are treated as separate steps. Thresholds are selected before held-out interpretation and are not tuned on final test outcomes.
+- Model-comparison discipline: the current TorchXRayVision baseline is evaluated as an off-the-shelf clinical-imaging model, then compared against alternative off-the-shelf weights/models when available. A candidate external model is accepted only if its target label, preprocessing contract, checkpoint/license, and citation metadata are explicit.
 
 Secondary pilot:
 - Head CT intracranial hemorrhage classification/localization.
@@ -46,6 +48,12 @@ Initial method list:
 Optional:
 - LIME, only if implementation time is low.
 
+Signed-attribution convention:
+- Each signed-capable method is interpreted through four derived views: positive evidence, negative evidence, magnitude/impact, and signed difference.
+- Positive evidence means image regions contributing toward the selected pneumothorax class score; negative evidence means image regions suppressing that same score.
+- Magnitude maps answer which pixels were influential, not whether they supported pneumothorax.
+- Heatmaps are model-behaviour attributions, not direct pathology segmentations or generic attention maps.
+
 ## Quantitative Metrics
 
 Classification:
@@ -66,6 +74,12 @@ Optional faithfulness:
 - Captum infidelity.
 - Captum sensitivity.
 
+Metric interpretation rules:
+- IoU, Dice, and precision-at-fraction measure overlap between selected attribution regions and the lesion mask on positive masked cases.
+- Pointing hit is a stricter peak-localization diagnostic: it is positive only if the single maximum-attribution location lies inside the lesion mask.
+- Negative evidence is not scored as better when it overlaps the lesion; separate negative-overlap and negative-avoidance diagnostics are used to describe suppressive evidence.
+- Faithfulness curves evaluate whether perturbing highly attributed pixels changes the model score as expected; this is model-behaviour evidence and is distinct from clinical localization.
+
 ## Radiologist Review
 
 Each selected positive case should receive:
@@ -82,6 +96,11 @@ Failure taxonomy:
 - attention on non-pathological high-contrast structures;
 - diffuse non-specific heatmap;
 - clinically misleading explanation.
+
+Workbook protocol:
+- A static review workbook is generated from selected cases and diagnostic visualizations.
+- Each card shows the case metadata, classifier outcome/probability, ground-truth context where available, and the method overlay grid needed for scoring.
+- The scoring CSV is kept separate from the immutable template so the review pass is reproducible and auditable.
 
 ## Improvement Experiment
 

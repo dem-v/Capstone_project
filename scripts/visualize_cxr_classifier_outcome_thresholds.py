@@ -17,9 +17,9 @@ from pathlib import Path
 from explainai_thesis.xai import (
     GradCAM,
     consensus_heatmap,
-    gradient_shap,
-    integrated_gradients,
-    occlusion_sensitivity,
+    gradient_shap_signed,
+    integrated_gradients_signed,
+    occlusion_sensitivity_signed,
 )
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
@@ -557,13 +557,13 @@ def main() -> None:
         case_dir = output_dir / outcome / case_name
         case_dir.mkdir(parents=True, exist_ok=True)
 
-        cam_map = gradcam(model_input, class_idx=class_idx)
-        cam_plus_plus_map = gradcam(
+        cam_attr = gradcam.signed(model_input, class_idx=class_idx)
+        cam_plus_plus_attr = gradcam.signed(
             model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
-        negative_cam_map = gradcam(
-            model_input, class_idx=class_idx, polarity="negative")
-        negative_cam_plus_plus_map = gradcam(
-            model_input, class_idx=class_idx, polarity="negative", variant="grad_cam_plus_plus")
+        cam_map = normalize_map(cam_attr.positive.cpu())
+        cam_plus_plus_map = normalize_map(cam_plus_plus_attr.positive.cpu())
+        negative_cam_map = normalize_map(cam_attr.negative.cpu())
+        negative_cam_plus_plus_map = normalize_map(cam_plus_plus_attr.negative.cpu())
         progress.update(
             progress_stats_line(
                 candidate_number=candidate_number,
@@ -576,12 +576,12 @@ def main() -> None:
             ),
             f"{case_detail} | Grad-CAM / Grad-CAM++ done",
         )
-        ig_map = integrated_gradients(
+        ig_attr = integrated_gradients_signed(
             model, model_input, class_idx=class_idx, steps=args.ig_steps)
-        ig_positive_map = integrated_gradients(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
-        ig_negative_map = integrated_gradients(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
+        ig_map = normalize_map(ig_attr.magnitude.cpu())
+        ig_positive_map = normalize_map(ig_attr.positive.cpu())
+        ig_negative_map = normalize_map(ig_attr.negative.cpu())
+        ig_signed_map = ig_attr.signed.cpu()
         progress.update(
             progress_stats_line(
                 candidate_number=candidate_number,
@@ -594,12 +594,12 @@ def main() -> None:
             ),
             f"{case_detail} | Integrated Gradients done",
         )
-        shap_map = gradient_shap(
+        shap_attr = gradient_shap_signed(
             model, model_input, class_idx=class_idx, samples=args.gradshap_samples)
-        shap_positive_map = gradient_shap(
-            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, polarity="positive")
-        shap_negative_map = gradient_shap(
-            model, model_input, class_idx=class_idx, samples=args.gradshap_samples, polarity="negative")
+        shap_map = normalize_map(shap_attr.magnitude.cpu())
+        shap_positive_map = normalize_map(shap_attr.positive.cpu())
+        shap_negative_map = normalize_map(shap_attr.negative.cpu())
+        shap_signed_map = shap_attr.signed.cpu()
         progress.update(
             progress_stats_line(
                 candidate_number=candidate_number,
@@ -612,30 +612,17 @@ def main() -> None:
             ),
             f"{case_detail} | GradientSHAP done",
         )
-        occlusion_map = occlusion_sensitivity(
+        occlusion_attr = occlusion_sensitivity_signed(
             model,
             model_input,
             class_idx=class_idx,
             patch_size=args.occlusion_patch_size,
             stride=args.occlusion_stride,
-            polarity="magnitude",
         )
-        occlusion_positive_map = occlusion_sensitivity(
-            model,
-            model_input,
-            class_idx=class_idx,
-            patch_size=args.occlusion_patch_size,
-            stride=args.occlusion_stride,
-            polarity="positive",
-        )
-        occlusion_negative_map = occlusion_sensitivity(
-            model,
-            model_input,
-            class_idx=class_idx,
-            patch_size=args.occlusion_patch_size,
-            stride=args.occlusion_stride,
-            polarity="negative",
-        )
+        occlusion_map = normalize_map(occlusion_attr.magnitude.cpu())
+        occlusion_positive_map = normalize_map(occlusion_attr.positive.cpu())
+        occlusion_negative_map = normalize_map(occlusion_attr.negative.cpu())
+        occlusion_signed_map = occlusion_attr.signed.cpu()
         progress.update(
             progress_stats_line(
                 candidate_number=candidate_number,
@@ -658,14 +645,15 @@ def main() -> None:
             "integrated_gradients": ig_map,
             "integrated_gradients_positive": ig_positive_map,
             "integrated_gradients_negative": ig_negative_map,
-            "integrated_gradients_signed": ig_positive_map,
+            "integrated_gradients_signed": ig_signed_map,
             "gradient_shap": shap_map,
             "gradient_shap_positive": shap_positive_map,
             "gradient_shap_negative": shap_negative_map,
-            "gradient_shap_signed": shap_positive_map,
+            "gradient_shap_signed": shap_signed_map,
             "occlusion": occlusion_map,
             "occlusion_positive": occlusion_positive_map,
             "occlusion_negative": occlusion_negative_map,
+            "occlusion_signed": occlusion_signed_map,
             "consensus": consensus,
         }
         case_rows.append(

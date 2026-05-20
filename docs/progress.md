@@ -2863,3 +2863,36 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - The correlation matrix reinforces that interpretation: `pointing_hit` has only weak rank correlation with IoU/Dice/precision-at-fraction (`Spearman` ~0.134-0.135; `Pearson` ~0.292-0.337). Treat it as a complementary peak-localization diagnostic, not an interchangeable substitute for overlap-based localization metrics.
 - Interpretation to preserve for Chapter 4: the near-zero pointing-hit distribution supports the current weak-localization reading of the TorchXRayVision DenseNet-all baseline. It should be framed as evidence that many explanation peaks are outside the radiologic lesion, not as a standalone failure of all overlap metrics. The final statement should compare this against the remaining Stage A models and, later, radiologist-review scores.
 
+
+### 2026-05-18 (MONAI external-model evidence check) - no suitable CXR pneumothorax classifier bundle found yet
+
+- Follow-up to the Stage A external-model placeholder: re-checked the official MONAI Model Zoo `dev/models` listing and `model_info.json` for CXR/chest/X-ray/pneumothorax/classification candidates before integrating any `load_classifier()` branch. The listing exposes `cxr_image_synthesis_latent_diffusion_model` as the only obvious CXR-specific bundle, plus unrelated classification bundles such as `breast_density_classification`, `endoscopic_inbody_classification`, and pathology nuclei classifiers.
+- The CXR MONAI bundle is **not** a pneumothorax classifier: its README describes a latent diffusion model for synthetic chest X-ray generation conditioned on radiology-report text, trained on MIMIC-CXR JPG images. It has preprocessing details useful for citation (`512x512`, intensity normalized to `[0, 1]`, CLIP-tokenized report text), but no pathology-classification head or `Pneumothorax` output label suitable for the current attribution target.
+- Decision update: the previous assumption that a MONAI Model Zoo CXR bundle ships a pneumothorax-aware classification head is not verified and should be treated as stale. Do **not** add a MONAI branch to `src/explainai_thesis/cxr/classifier.py` until a concrete bundle/package with a validated `Pneumothorax` label and preprocessing contract is identified.
+- Practical Stage A impact: continue the in-family TorchXRayVision sweep and ResNet-50 comparison as already orchestrated. For the out-of-family slot, search outside the current MONAI Model Zoo if needed (for example a public RSNA/SIIM pneumothorax classifier with explicit labels, license, checkpoint, preprocessing, and citable metadata). If no off-the-shelf classifier passes those checks, record the absence honestly rather than forcing a generative MONAI bundle into a classifier pipeline.
+
+
+### 2026-05-18 (Visualizer v2 API cleanup) - remaining `polarity=` callers removed from scripts
+
+- Ported the two remaining visualizer scripts away from the deprecated v1 `polarity=` keyword: `scripts/visualize_cxr_threshold_selection.py` and `scripts/visualize_cxr_classifier_outcome_thresholds.py` now call `GradCAM.signed(...)`, `integrated_gradients_signed(...)`, `gradient_shap_signed(...)`, and `occlusion_sensitivity_signed(...)` directly.
+- The scripts now compute one canonical `SignedAttribution` per method family and derive positive, negative, magnitude, and signed views from that tensor instead of recomputing separate positive/negative wrapper calls. This keeps the post-Phase-1.2 contract explicit and avoids silently drifting positive/negative maps for stochastic methods.
+- Output method names were preserved for continuity with older visualizer outputs where practical (`grad_cam_negative`, `integrated_gradients_positive`, etc.), while `integrated_gradients_signed`, `gradient_shap_signed`, and classifier-outcome `occlusion_signed` now use true signed maps instead of positive-map aliases.
+- Verification: `wsl.exe python3 -m py_compile scripts/visualize_cxr_threshold_selection.py scripts/visualize_cxr_classifier_outcome_thresholds.py` passed, and repository search under `scripts/` found no remaining `polarity=` text.
+
+
+### 2026-05-18 (Radiologist review workbook) - static workbook generator started
+
+- Added `scripts/build_review_workbook.py`, using the existing `outputs/iter_28_review_candidate_selection/selected_manual_review_cases.csv` and high-stability diagnostic folders under `outputs/iter_28_review_diagnostics/`.
+- The generator writes a static review package with `index.html`, `scores_template.csv`, and `INSTRUCTIONS.md`. The score template follows the planned schema: `case_id`, `filename`, `localization_score`, `usefulness_score`, `failure_category`, `artifact_note`, and `comment`.
+- Current workbook output: `outputs/iter_28_review_workbook/review/`, generated for 10 selected cases. It embeds available consensus threshold panels and continuous heatmaps for `grad_cam`, `grad_cam_plus_plus`, `integrated_gradients`, `gradient_shap`, `occlusion`, and `consensus`, plus inline scoring definitions and color-semantics reminders.
+- Verification: `wsl.exe python3 -m py_compile scripts/build_review_workbook.py scripts/visualize_cxr_threshold_selection.py scripts/visualize_cxr_classifier_outcome_thresholds.py` passed, and `wsl.exe python3 scripts/build_review_workbook.py --output-dir outputs/iter_28_review_workbook/review` wrote the workbook successfully.
+- Current limitation: selected review cases 5 and 6 (`3027_train_0_.png`, `271_train_0_.png`) have diagnostic directories but no PNG artifacts yet, so their cards show missing placeholders. Run their generated high-stability diagnostic commands before using the workbook as the final scoring artifact.
+
+
+### 2026-05-18 (Stage A ResNet threshold-sweep fix) - evaluator routed through classifier seam
+
+- Stage A reached `[7/7] resnet50-res512-all` and the classifier-threshold sweep failed because `scripts/evaluate_cxr_torchxray_model.py` still hard-coded `xrv.models.DenseNet(weights=args.weights)`. TorchXRayVision's ResNet checkpoint deserializes differently, so the DenseNet constructor raised `AttributeError: 'collections.OrderedDict' object has no attribute 'modules'`.
+- Fix: the evaluator now uses the existing Phase 1.7 `load_classifier(args.weights, pathology='Pneumothorax')` seam and its preprocessing function. This keeps DenseNet behavior unchanged while allowing the same threshold-sweep script to load `resnet50-res512-all` via `xrv.models.ResNet`.
+- Verification: `wsl.exe python3 -m py_compile scripts/evaluate_cxr_torchxray_model.py` passed. A targeted CPU smoke threshold sweep with `--weights resnet50-res512-all --split train --max-cases 4 --image-size 512` completed and wrote outputs under `outputs/iter_33_stage_a_diagnostic_ab/resnet50-res512-all/threshold_sweep_smoke_check/`.
+- Practical impact: rerun or resume Stage A for `resnet50-res512-all` with `-Force` for the threshold-sweep step if the previous failure left no valid `threshold_sweep/classification_metrics.csv`. The prior fallback `0.62` remains DenseNet-all calibrated and should not be used for ResNet held-out reporting once the ResNet sweep succeeds.
+

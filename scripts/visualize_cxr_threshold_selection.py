@@ -9,9 +9,9 @@ from pathlib import Path
 from explainai_thesis.xai import (
     GradCAM,
     consensus_heatmap,
-    gradient_shap,
-    integrated_gradients,
-    occlusion_sensitivity,
+    gradient_shap_signed,
+    integrated_gradients_signed,
+    occlusion_sensitivity_signed,
 )
 from explainai_thesis.visualization import save_overlay
 from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
@@ -306,66 +306,40 @@ def main() -> None:
         probability = float(torch.sigmoid(
             output[0, class_idx]).detach().cpu().item())
 
-    cam_map = gradcam(model_input, class_idx=class_idx)
-    cam_plus_plus_map = gradcam(
+    cam_attr = gradcam.signed(model_input, class_idx=class_idx)
+    cam_plus_plus_attr = gradcam.signed(
         model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
-    negative_cam_map = gradcam(
-        model_input, class_idx=class_idx, polarity="negative")
-    negative_cam_plus_plus_map = gradcam(
-        model_input, class_idx=class_idx, polarity="negative", variant="grad_cam_plus_plus")
-    ig_map = integrated_gradients(
+    cam_map = normalize_map(cam_attr.positive.cpu())
+    cam_plus_plus_map = normalize_map(cam_plus_plus_attr.positive.cpu())
+    negative_cam_map = normalize_map(cam_attr.negative.cpu())
+    negative_cam_plus_plus_map = normalize_map(cam_plus_plus_attr.negative.cpu())
+    ig_attr = integrated_gradients_signed(
         model, model_input, class_idx=class_idx, steps=args.ig_steps)
-    ig_positive_map = integrated_gradients(
-        model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="positive")
-    ig_negative_map = integrated_gradients(
-        model, model_input, class_idx=class_idx, steps=args.ig_steps, polarity="negative")
-    gradient_shap_map = gradient_shap(
+    ig_map = normalize_map(ig_attr.magnitude.cpu())
+    ig_positive_map = normalize_map(ig_attr.positive.cpu())
+    ig_negative_map = normalize_map(ig_attr.negative.cpu())
+    ig_signed_map = ig_attr.signed.cpu()
+    gradient_shap_attr = gradient_shap_signed(
         model,
         model_input,
         class_idx=class_idx,
         samples=args.gradshap_samples,
         stdevs=args.gradshap_stdevs,
     )
-    gradient_shap_positive_map = gradient_shap(
-        model,
-        model_input,
-        class_idx=class_idx,
-        samples=args.gradshap_samples,
-        stdevs=args.gradshap_stdevs,
-        polarity="positive",
-    )
-    gradient_shap_negative_map = gradient_shap(
-        model,
-        model_input,
-        class_idx=class_idx,
-        samples=args.gradshap_samples,
-        stdevs=args.gradshap_stdevs,
-        polarity="negative",
-    )
-    occlusion_map = occlusion_sensitivity(
+    gradient_shap_map = normalize_map(gradient_shap_attr.magnitude.cpu())
+    gradient_shap_positive_map = normalize_map(gradient_shap_attr.positive.cpu())
+    gradient_shap_negative_map = normalize_map(gradient_shap_attr.negative.cpu())
+    gradient_shap_signed_map = gradient_shap_attr.signed.cpu()
+    occlusion_attr = occlusion_sensitivity_signed(
         model,
         model_input,
         class_idx=class_idx,
         patch_size=args.occlusion_patch_size,
         stride=args.occlusion_stride,
-        polarity="magnitude",
     )
-    occlusion_positive_map = occlusion_sensitivity(
-        model,
-        model_input,
-        class_idx=class_idx,
-        patch_size=args.occlusion_patch_size,
-        stride=args.occlusion_stride,
-        polarity="positive",
-    )
-    occlusion_negative_map = occlusion_sensitivity(
-        model,
-        model_input,
-        class_idx=class_idx,
-        patch_size=args.occlusion_patch_size,
-        stride=args.occlusion_stride,
-        polarity="negative",
-    )
+    occlusion_map = normalize_map(occlusion_attr.magnitude.cpu())
+    occlusion_positive_map = normalize_map(occlusion_attr.positive.cpu())
+    occlusion_negative_map = normalize_map(occlusion_attr.negative.cpu())
     gradcam.remove_hooks()
 
     methods = {
@@ -376,11 +350,11 @@ def main() -> None:
         "integrated_gradients": ig_map,
         "integrated_gradients_positive": ig_positive_map,
         "integrated_gradients_negative": ig_negative_map,
-        "integrated_gradients_signed": ig_positive_map,
+        "integrated_gradients_signed": ig_signed_map,
         "gradient_shap": gradient_shap_map,
         "gradient_shap_positive": gradient_shap_positive_map,
         "gradient_shap_negative": gradient_shap_negative_map,
-        "gradient_shap_signed": gradient_shap_positive_map,
+        "gradient_shap_signed": gradient_shap_signed_map,
         "occlusion": occlusion_map,
         "occlusion_positive": occlusion_positive_map,
         "occlusion_negative": occlusion_negative_map,
