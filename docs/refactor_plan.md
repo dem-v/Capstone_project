@@ -387,11 +387,11 @@ Gradient-requiring paths (`GradCAM.signed`, `integrated_gradients_signed`, and `
 
 ## Phase 4 — Polish
 
-- [ ] Replace `print()` status lines with `logging` (INFO default; `--quiet` and `--verbose` flags).
-- [ ] Add a thin classifier-loading seam: `src/explainai_thesis/cxr/models.py:load_classifier(name) -> (model, target_layer, class_idx, preprocess_fn)`. Today returns only the TorchXRayVision DenseNet. Future: CheXNet variant drops in without touching the XAI loop.
-- [ ] Add `run_meta.json` writer: every script writes Python version, PyTorch version, torchxrayvision version, CUDA availability, git short hash, full CLI args, classifier threshold, faithfulness baseline to its output directory. Cheap, thesis-defensible.
-- [ ] Add `ruff` + `mypy` configuration to `pyproject.toml`. Aim for `mypy --strict` clean on `src/`.
-- [ ] Add `README.md` quickstart at repo root: install, run smoke, run CXR pipeline, run tests. Verify no existing `README.md` is overwritten before writing.
+- [ ] Replace `print()` status lines with `logging` (INFO default; `--quiet` and `--verbose` flags). Deferred by the compressed Phase 4 scope below.
+- [x] Add a thin classifier-loading seam: `src/explainai_thesis/cxr/classifier.py:load_classifier(name, device, pathology) -> ClassifierBundle`. Landed during Phase 1.7 and covered by `tests/test_load_classifier.py`; current supported TorchXRayVision branches include DenseNet-121, ResNet-50 classifier, and ResNetAE only when `pathology=None`.
+- [~] Add `run_meta.json` writer: `src/explainai_thesis/run_metadata.py` landed 2026-05-21 and the three primary CXR output-producing scripts (`evaluate_cxr_torchxray_model.py`, `calibrate_cxr_xai_thresholds.py`, `run_cxr_torchxray_smoke.py`) now write Python version, PyTorch version, TorchXRayVision version, CUDA availability, git short hash, full CLI args, classifier threshold, faithfulness baseline where applicable, split, and weights. Pending only for secondary/diagnostic scripts if they become thesis-primary outputs.
+- [ ] Add `ruff` + `mypy` configuration to `pyproject.toml`. Deferred by the compressed Phase 4 scope below.
+- [ ] Add `README.md` quickstart at repo root: install, run smoke, run CXR pipeline, run tests. Deferred by the compressed Phase 4 scope below; `README.md` already exists and must not be overwritten casually.
 
 ---
 

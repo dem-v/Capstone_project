@@ -38,6 +38,7 @@ from explainai_thesis.metrics import (
     normalize_map,
     threshold_top_fraction,
 )
+from explainai_thesis.run_metadata import write_run_metadata
 from PIL import Image
 import torchxrayvision as xrv
 import torch
@@ -995,6 +996,15 @@ def main() -> None:
     summary_path = output_dir / "metrics_summary.csv"
     write_metric_summary(metric_rows, summary_path)
 
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        classifier_threshold=args.classifier_threshold,
+        faithfulness_baseline=args.faithfulness_baseline,
+        weights=args.weights,
+        split=args.split,
+    )
+
     print(f"TorchXRayVision CXR smoke test complete on {device}.")
     print(f"Weights: {args.weights}")
     print(f"Positive cases evaluated: {len(rows)}")
@@ -1006,6 +1016,7 @@ def main() -> None:
         print(f"Faithfulness plot written to: {output_dir / 'faithfulness_curves.png'}")
         print(f"Faithfulness AUC bar plot written to: {output_dir / 'faithfulness_auc_bars.png'}")
     print(f"Overlay case folders written to: {output_dir}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

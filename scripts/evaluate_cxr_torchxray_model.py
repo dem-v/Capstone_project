@@ -22,6 +22,7 @@ from sklearn.metrics import (
 
 from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.run_metadata import write_run_metadata
 
 
 
@@ -283,6 +284,14 @@ def main() -> None:
         writer.writeheader()
         writer.writerow(summary)
 
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        classifier_threshold=args.threshold,
+        weights=args.weights,
+        split=args.split,
+    )
+
     print(f"TorchXRayVision model evaluation complete on {device}.")
     print(
         f"Rows evaluated: {summary['n']} ({summary['positives']} positive, {summary['negatives']} negative)"
@@ -302,6 +311,7 @@ def main() -> None:
     )
     print(f"Outputs written to: {output_dir}")
     print(f"Selected threshold candidates written to: {selected_thresholds_path}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

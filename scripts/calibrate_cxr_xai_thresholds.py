@@ -23,6 +23,7 @@ from explainai_thesis.metrics import (
     normalize_map,
     threshold_top_fraction,
 )
+from explainai_thesis.run_metadata import write_run_metadata
 from PIL import Image
 import torchxrayvision as xrv
 import torch
@@ -444,6 +445,15 @@ def main() -> None:
     # this filename to disambiguate v2 calibration from v1 outputs.
     write_rows(output_dir / "calibrated_thresholds_v2.csv", selected_by_metric_rows)
 
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        classifier_threshold=args.classifier_threshold,
+        faithfulness_baseline=None,
+        weights=args.weights,
+        split=args.split,
+    )
+
     print(f"CXR XAI threshold calibration complete on {device}.")
     print(f"Positive calibration cases: {len(rows)}")
     print(f"Selection metric: {args.selection_metric}")
@@ -451,6 +461,7 @@ def main() -> None:
         f"Selected fractions written to: {output_dir / 'selected_fractions.csv'}")
     print(
         f"v2 calibrated thresholds: {output_dir / 'calibrated_thresholds_v2.csv'}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":
