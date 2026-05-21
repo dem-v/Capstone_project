@@ -91,6 +91,70 @@ def save_overlay(
     Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
 
 
+def save_binary_selection(
+    image: torch.Tensor,
+    selected_mask: torch.Tensor,
+    true_mask: torch.Tensor,
+    output_path: str | Path,
+    *,
+    negative_style: bool = False,
+    neutral_style: bool = False,
+    negative_selected_mask: torch.Tensor | None = None,
+    neutral_selected_mask: torch.Tensor | None = None,
+) -> None:
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    base = image.detach().cpu()
+    if base.ndim == 3:
+        base = base[0]
+    gray = _to_uint8(base)
+    rgb = np.stack([gray, gray, gray], axis=-1).astype(np.float32)
+
+    pred = selected_mask.detach().cpu().bool().numpy()
+    true = true_mask.detach().cpu().bool().numpy()
+    tp = pred & true
+    fp = pred & ~true
+    fn = ~pred & true
+
+    if neutral_selected_mask is not None:
+        neutral_pred = neutral_selected_mask.detach().cpu().bool().numpy()
+        rgb[neutral_pred] = 0.50 * rgb[neutral_pred] + 0.50 * NEUTRAL_IMPACT_COLOR
+
+    if negative_selected_mask is not None:
+        negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
+        negative_inside = negative_pred & true
+        negative_outside = negative_pred & ~true
+        rgb[negative_outside] = 0.50 * rgb[negative_outside] + \
+            0.50 * np.array([0, 0, 255], dtype=np.float32)
+        rgb[negative_inside] = 0.35 * rgb[negative_inside] + \
+            0.65 * np.array([0, 255, 255], dtype=np.float32)
+
+    if negative_style:
+        selected_outside = np.array([0, 0, 255], dtype=np.float32)
+        selected_inside = np.array([0, 255, 255], dtype=np.float32)
+    elif neutral_style:
+        selected_outside = NEUTRAL_IMPACT_COLOR
+        selected_inside = NEUTRAL_IMPACT_COLOR
+    else:
+        selected_outside = np.array([255, 0, 0], dtype=np.float32)
+        selected_inside = np.array([255, 255, 0], dtype=np.float32)
+
+    rgb[fp] = 0.50 * rgb[fp] + 0.50 * selected_outside
+    rgb[tp] = 0.35 * rgb[tp] + 0.65 * selected_inside
+    rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
+
+    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
+
+
+def overlay_color_for_method(method_name: str) -> str:
+    if method_name.endswith("_negative"):
+        return "blue"
+    if method_name.endswith("_magnitude"):
+        return "neutral"
+    return "red"
+
+
 def signed_diverging_overlay(
     image: torch.Tensor,
     signed_map: torch.Tensor,

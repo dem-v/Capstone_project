@@ -23,17 +23,14 @@ from explainai_thesis.xai import (
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
-from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
-from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
+from explainai_thesis.visualization import save_binary_selection, save_overlay, signed_diverging_overlay
+from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
 from PIL import Image, ImageDraw
 import torchxrayvision as xrv
 import torch
 import numpy as np
 
 from explainai_thesis.cli.common import resolve_device
-
-
-NEUTRAL_IMPACT_COLOR = np.array([180, 0, 255], dtype=np.float32)
 
 
 def parse_args() -> argparse.Namespace:
@@ -317,59 +314,6 @@ def safe_source_stem(row: dict[str, str]) -> str:
 
 def safe_case_name(sample_idx: int, outcome: str, source_stem: str) -> str:
     return f"case_{sample_idx:03d}_{outcome}_{source_stem}"
-
-
-def save_binary_selection(
-    image: torch.Tensor,
-    selected_mask: torch.Tensor,
-    true_mask: torch.Tensor,
-    output_path: Path,
-    *,
-    negative_style: bool = False,
-    neutral_style: bool = False,
-    negative_selected_mask: torch.Tensor | None = None,
-    neutral_selected_mask: torch.Tensor | None = None,
-) -> None:
-    base = image.detach().cpu()
-    if base.ndim == 3:
-        base = base[0]
-    gray = (normalize_map(base).numpy() * 255).astype(np.uint8)
-    rgb = np.stack([gray, gray, gray], axis=-1).astype(np.float32)
-
-    pred = selected_mask.detach().cpu().bool().numpy()
-    true = true_mask.detach().cpu().bool().numpy()
-    tp = pred & true
-    fp = pred & ~true
-    fn = ~pred & true
-
-    if neutral_selected_mask is not None:
-        neutral_pred = neutral_selected_mask.detach().cpu().bool().numpy()
-        rgb[neutral_pred] = 0.50 * rgb[neutral_pred] + 0.50 * NEUTRAL_IMPACT_COLOR
-
-    if negative_selected_mask is not None:
-        negative_pred = negative_selected_mask.detach().cpu().bool().numpy()
-        negative_inside = negative_pred & true
-        negative_outside = negative_pred & ~true
-        rgb[negative_outside] = 0.50 * rgb[negative_outside] + \
-            0.50 * np.array([0, 0, 255], dtype=np.float32)
-        rgb[negative_inside] = 0.35 * rgb[negative_inside] + \
-            0.65 * np.array([0, 255, 255], dtype=np.float32)
-
-    if negative_style:
-        selected_outside = np.array([0, 0, 255], dtype=np.float32)
-        selected_inside = np.array([0, 255, 255], dtype=np.float32)
-    elif neutral_style:
-        selected_outside = NEUTRAL_IMPACT_COLOR
-        selected_inside = NEUTRAL_IMPACT_COLOR
-    else:
-        selected_outside = np.array([255, 0, 0], dtype=np.float32)
-        selected_inside = np.array([255, 255, 0], dtype=np.float32)
-
-    rgb[fp] = 0.50 * rgb[fp] + 0.50 * selected_outside
-    rgb[tp] = 0.35 * rgb[tp] + 0.65 * selected_inside
-    rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
-
-    Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
 
 
 def make_contact_sheet(image_paths: list[Path], captions: list[str], output_path: Path) -> None:

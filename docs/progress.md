@@ -2916,5 +2916,6 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Continued the low-risk Phase 2 refactor without changing CLI flags, defaults, or output schemas.
 - Added `src/explainai_thesis/faithfulness.py` and moved shared faithfulness primitives out of `scripts/run_cxr_torchxray_smoke.py`: `model_probability`, `faithfulness_baseline_tensor`, `faithfulness_curve_rows`, and `curve_auc`. Plot/summary writer extraction remains pending.
 - Added `src/explainai_thesis/cli/common.py` with shared `resolve_device(choice)` and replaced the seven duplicate script-local definitions in `scripts/run_cxr_torchxray_smoke.py`, `scripts/calibrate_cxr_xai_thresholds.py`, `scripts/evaluate_cxr_torchxray_model.py`, `scripts/diagnose_cxr_torchxray_baselines.py`, `scripts/run_smoke_test.py`, `scripts/visualize_cxr_threshold_selection.py`, and `scripts/visualize_cxr_classifier_outcome_thresholds.py`.
+- Moved duplicated binary threshold-selection rendering into `src/explainai_thesis/visualization.py` as `save_binary_selection(...)`, and moved `overlay_color_for_method(...)` there as the shared method-view color selector. The two threshold visualizer scripts now import these helpers instead of carrying local copies.
 - `docs/refactor_plan.md` now marks the faithfulness and CLI/common Phase 2 bullets as partially extracted rather than untouched.
 

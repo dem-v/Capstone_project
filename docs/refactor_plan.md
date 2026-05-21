@@ -298,11 +298,12 @@ Files to extract from `scripts/run_cxr_torchxray_smoke.py` (1037 lines → targe
   - Single dispatch loop computes all methods; eliminates the nested-ternary overlay-parameter blocks at lines 903-913 and 915-933.
   - Preserve method names exactly as listed in `AGENT.md` line 66.
 
-- [ ] `src/explainai_thesis/visualization_cxr.py`
-  - `save_selected_threshold_image`
-  - `overlay_color_for_method`
-  - `NEUTRAL_IMPACT_COLOR` (delete the duplicate in `scripts/run_cxr_torchxray_smoke.py:39`)
-  - New: `signed_diverging_overlay` for orange/teal rendering.
+- [~] `src/explainai_thesis/visualization.py`
+  - `save_binary_selection` extracted 2026-05-21 from the two threshold visualizer scripts.
+  - `overlay_color_for_method` extracted 2026-05-21.
+  - `NEUTRAL_IMPACT_COLOR` centralized in the package for the extracted helpers; additional duplicate cleanup may still remain in older script paths.
+  - `signed_diverging_overlay` for orange/teal rendering already lives in the package.
+  - Pending: broader CXR-specific visualization extraction, including any remaining selected-threshold image helpers from `scripts/run_cxr_torchxray_smoke.py`.
 
 - [ ] `src/explainai_thesis/io.py`
   - Single source of truth for output CSV column lists and field orders.
