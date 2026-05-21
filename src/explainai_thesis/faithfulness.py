@@ -4,7 +4,7 @@ import torch
 
 
 def model_probability(model: torch.nn.Module, image: torch.Tensor, class_idx: int) -> float:
-    with torch.no_grad():
+    with torch.inference_mode():
         output = model(image)
         return float(torch.sigmoid(output[0, class_idx]).detach().cpu().item())
 

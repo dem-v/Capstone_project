@@ -308,18 +308,18 @@ def integrated_gradients_signed(
     if baseline is None:
         baseline = torch.zeros_like(image)
 
-    scaled_images = [baseline + (float(i) / steps) * (image - baseline)
-                     for i in range(1, steps + 1)]
-    total_gradients = torch.zeros_like(image)
-
-    for scaled in scaled_images:
-        scaled = scaled.detach().requires_grad_(True)
-        logits = model(scaled)
-        score = logits[:, class_idx].sum()
-        gradients = torch.autograd.grad(score, scaled)[0]
-        total_gradients += gradients.detach()
-
-    avg_gradients = total_gradients / steps
+    alphas = torch.linspace(
+        1.0 / steps,
+        1.0,
+        steps,
+        device=image.device,
+        dtype=image.dtype,
+    ).view(steps, 1, 1, 1)
+    scaled = baseline + alphas * (image - baseline)
+    scaled = scaled.detach().requires_grad_(True)
+    logits = model(scaled)
+    score = logits[:, class_idx].sum()
+    avg_gradients = torch.autograd.grad(score, scaled)[0].mean(dim=0, keepdim=True)
     attribution = (image - baseline) * avg_gradients
     heatmap = attribution.sum(dim=1)[0]
     return SignedAttribution(raw=normalize_signed_map(heatmap.cpu()))
@@ -422,8 +422,6 @@ def occlusion_sensitivity_signed(
     """
     model.eval()
     _, _, height, width = image.shape
-    attribution = torch.zeros((height, width), device=image.device)
-    counts = torch.zeros((height, width), device=image.device)
     windows: list[tuple[int, int, int, int]] = []
     for top in range(0, height, stride):
         bottom = min(top + patch_size, height)
@@ -431,18 +429,25 @@ def occlusion_sensitivity_signed(
             right = min(left + patch_size, width)
             windows.append((top, bottom, left, right))
 
-    with torch.no_grad():
+    masks = torch.zeros(
+        (len(windows), 1, height, width),
+        dtype=image.dtype,
+        device=image.device,
+    )
+    for mask, (top, bottom, left, right) in zip(masks, windows):
+        mask[:, top:bottom, left:right] = 1
+
+    attribution = torch.zeros((height, width), dtype=image.dtype, device=image.device)
+    counts = masks.sum(dim=0)[0]
+
+    with torch.inference_mode():
         original_score = model(image)[:, class_idx].sum()
         for start in range(0, len(windows), batch_size):
-            batch_windows = windows[start:start + batch_size]
-            occluded_batch = image.detach().repeat(len(batch_windows), 1, 1, 1)
-            for batch_idx, (top, bottom, left, right) in enumerate(batch_windows):
-                occluded_batch[batch_idx, :, top:bottom, left:right] = baseline_value
+            batch_masks = masks[start:start + batch_size]
+            occluded_batch = image.detach() * (1 - batch_masks) + baseline_value * batch_masks
             occluded_scores = model(occluded_batch)[:, class_idx]
             deltas = original_score - occluded_scores
-            for value, (top, bottom, left, right) in zip(deltas, batch_windows):
-                attribution[top:bottom, left:right] += value
-                counts[top:bottom, left:right] += 1
+            attribution += (deltas.view(-1, 1, 1) * batch_masks[:, 0]).sum(dim=0)
     attribution = attribution / torch.clamp(counts, min=1)
     return SignedAttribution(raw=normalize_signed_map(attribution.detach().cpu()))
 

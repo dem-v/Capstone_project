@@ -25,11 +25,12 @@ def _to_uint8(values: torch.Tensor) -> np.ndarray:
 
 def _mask_contour(mask: np.ndarray) -> np.ndarray:
     padded = np.pad(mask, 1, mode="constant", constant_values=False)
-    eroded = mask.copy()
-    for y_offset in range(3):
-        for x_offset in range(3):
-            eroded &= padded[y_offset: y_offset +
-                             mask.shape[0], x_offset: x_offset + mask.shape[1]]
+    neighborhoods = [
+        padded[y_offset: y_offset + mask.shape[0], x_offset: x_offset + mask.shape[1]]
+        for y_offset in range(3)
+        for x_offset in range(3)
+    ]
+    eroded = np.logical_and.reduce(neighborhoods)
     return mask & ~eroded
 
 

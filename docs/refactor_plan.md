@@ -321,13 +321,13 @@ Acceptance per script:
 
 ## Phase 3 — Performance
 
-### 3.1 Batch Integrated Gradients
+### 3.1 Batch Integrated Gradients `[done 2026-05-21]`
 
-File: `src/explainai_thesis/xai.py:104-115`
+File: `src/explainai_thesis/xai.py`
 
-Current: Python loop over `steps`, one forward+backward per step.
+Replaced the Python loop over `steps` with a single batched forward/backward over `[steps, C, H, W]` in `integrated_gradients_signed(...)`. This preserves the previous Riemann-sum sampling points and returns the same normalized `SignedAttribution.raw` map while avoiding one model call per IG step.
 
-New: single batched forward+backward over `[steps, C, H, W]`.
+Implemented core shape:
 
 ```python
 alphas = torch.linspace(1.0 / steps, 1.0, steps, device=image.device).view(steps, 1, 1, 1)
@@ -340,40 +340,48 @@ attribution = (image - baseline) * grads
 
 Expected speedup: 8–15×. VRAM check: `steps=16` × 224×224 × DenseNet-121 ≈ comfortably under 4 GB.
 
-Add `tests/test_ig_batched_matches_loop.py` asserting old-vs-new produce numerically equivalent attributions within tolerance.
+Regression coverage lives in `tests/test_signed_attribution.py::test_integrated_gradients_batched_matches_loop_formula`, which recomputes the prior loop formula and asserts numerical equivalence within tolerance.
 
-### 3.2 Vectorize Occlusion Sensitivity
+### 3.2 Vectorize Occlusion Sensitivity `[done 2026-05-21]`
 
 File: `src/explainai_thesis/xai.py:181-204`
 
-Pre-build occlusion masks `[n_windows, 1, H, W]` once, broadcast-multiply with image, keep `batch_size` chunking for VRAM.
+Pre-build occlusion masks `[n_windows, 1, H, W]` once, use mask-broadcasted occluded batches, and keep `batch_size` chunking for VRAM. Per-window image mutation and per-window attribution accumulation were replaced by tensor operations while preserving the same window grid, baseline fill value, per-pixel averaging, and signed normalization semantics.
 
 Expected speedup: 3–5×.
 
-Equivalence test with the existing loop implementation.
+Regression coverage lives in `tests/test_signed_attribution.py::test_occlusion_sensitivity_vectorized_matches_loop_formula`, which recomputes the previous per-window loop formula and asserts numerical equivalence within tolerance.
 
-### 3.3 Strip wasted compute in metrics
+### 3.3 Strip wasted compute in metrics `[done 2026-05-21]`
 
 File: `src/explainai_thesis/metrics.py`
 
-- `pointing_game_hit`: drop the `normalize_map` call (argmax invariant under monotonic normalization).
-- `localization_metrics`: compute `pred_mask` once, reuse for `iou_score`, `dice_score`, and `precision_at_fraction` (currently re-thresholds).
+- `pointing_game_hit` now uses the raw `argmax` without `normalize_map` because the maximum location is invariant under the prior min-max normalization.
+- `localization_metrics` now computes `pred_mask` once and reuses it for `iou_score`, `dice_score`, and `precision_for_mask`, avoiding duplicate top-fraction thresholding.
+- Existing `tests/test_metrics.py` coverage locks the flat-heatmap pointing-game behavior and verifies precision reuse from the precomputed top-fraction mask.
 
-### 3.4 Vectorize `_mask_contour`
+### 3.4 Vectorize `_mask_contour` `[done 2026-05-21]`
 
 File: `src/explainai_thesis/visualization.py:19-26`
 
-Replace nested 3×3 Python loop with `scipy.ndimage.binary_erosion(mask, iterations=1)`. ~50× faster; net runtime impact small but improves readability.
+Replaced the nested 3×3 Python erosion loop with a NumPy `logical_and.reduce` over shifted padded views. This preserves the no-new-runtime-dependency constraint (`scipy` is dev-only in `pyproject.toml`) while removing the per-pixel loop and keeping output semantics unchanged.
 
-### 3.5 Cache consensus heatmaps
+### 3.5 Cache consensus heatmaps `[done 2026-05-21]`
 
 File: `scripts/run_cxr_torchxray_smoke.py` main loop
 
-The neutral-overlay consensus (`consensus_heatmap([ig_map, gradient_shap_map, occlusion_map])`) is recomputed per method iteration. Compute once before the loop.
+The original Phase 3.5 note referred to a pre-v2 pattern where the neutral-overlay consensus (`consensus_heatmap([ig_map, gradient_shap_map, occlusion_map])`) could be recomputed during per-method iteration. The current post-Phase-1.2 smoke loop already computes one `consensus_attr = consensus_signed([...])` per case before `iter_method_views(...)`, then expands that cached signed attribution into all consensus views with the same shared dispatch path as the individual methods. Repository search confirms `scripts/run_cxr_torchxray_smoke.py` no longer calls `consensus_heatmap`.
 
-### 3.6 `torch.inference_mode()` audit
+No code change was needed for this item; it is reconciled as completed by the v2 `SignedAttribution` dispatch refactor.
 
-Wrap any forward-only code path that currently has implicit grad tracking (parts of `gradient_shap` post-hoc, occlusion already uses `torch.no_grad`).
+### 3.6 `torch.inference_mode()` audit `[done 2026-05-21]`
+
+Audited package-level forward-only paths and replaced the remaining `torch.no_grad()` contexts with `torch.inference_mode()` where no autograd metadata is needed:
+
+- `src/explainai_thesis/faithfulness.py::model_probability(...)`.
+- `src/explainai_thesis/xai.py::occlusion_sensitivity_signed(...)` original and occluded-score forward passes.
+
+Gradient-requiring paths (`GradCAM.signed`, `integrated_gradients_signed`, and `gradient_shap_signed`) intentionally remain outside `inference_mode()`.
 
 ---
 

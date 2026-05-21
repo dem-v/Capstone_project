@@ -187,6 +187,30 @@ def test_integrated_gradients_signed_views_differ() -> None:
     assert not torch.allclose(attribution.signed, attribution.magnitude, atol=1e-6)
 
 
+def test_integrated_gradients_batched_matches_loop_formula() -> None:
+    """Phase 3.1 guard: batched IG must preserve the prior loop formula."""
+    model = _trained_model()
+    image, _ = _synthetic_positive_case()
+    steps = 8
+    baseline = torch.full_like(image, 0.05)
+
+    actual = integrated_gradients_signed(
+        model, image, class_idx=1, steps=steps, baseline=baseline,
+    )
+
+    total_gradients = torch.zeros_like(image)
+    for i in range(1, steps + 1):
+        scaled = baseline + (float(i) / steps) * (image - baseline)
+        scaled = scaled.detach().requires_grad_(True)
+        score = model(scaled)[:, 1].sum()
+        gradients = torch.autograd.grad(score, scaled)[0]
+        total_gradients += gradients.detach()
+    attribution = (image - baseline) * (total_gradients / steps)
+    expected = normalize_signed_map(attribution.sum(dim=1)[0].cpu())
+
+    assert torch.allclose(actual.raw, expected, atol=1e-6)
+
+
 def test_gradient_shap_signed_views_differ() -> None:
     model = _trained_model()
     image, _ = _synthetic_positive_case()
@@ -222,6 +246,43 @@ def test_occlusion_sensitivity_signed_view_contract_holds() -> None:
     assert float(attribution.positive.min()) >= 0.0
     assert float(attribution.negative.min()) >= 0.0
     assert float(attribution.magnitude.min()) >= 0.0
+
+
+def test_occlusion_sensitivity_vectorized_matches_loop_formula() -> None:
+    """Phase 3.2 guard: vectorized occlusion must preserve the prior loop formula."""
+    model = _trained_model()
+    image, _ = _synthetic_positive_case(image_size=16, lesion_size=4)
+    patch_size = 5
+    stride = 3
+    baseline_value = 0.25
+
+    actual = occlusion_sensitivity_signed(
+        model,
+        image,
+        class_idx=1,
+        patch_size=patch_size,
+        stride=stride,
+        baseline_value=baseline_value,
+        batch_size=4,
+    )
+
+    _, _, height, width = image.shape
+    attribution = torch.zeros((height, width), device=image.device)
+    counts = torch.zeros((height, width), device=image.device)
+    with torch.no_grad():
+        original_score = model(image)[:, 1].sum()
+        for top in range(0, height, stride):
+            bottom = min(top + patch_size, height)
+            for left in range(0, width, stride):
+                right = min(left + patch_size, width)
+                occluded = image.detach().clone()
+                occluded[:, :, top:bottom, left:right] = baseline_value
+                delta = original_score - model(occluded)[:, 1].sum()
+                attribution[top:bottom, left:right] += delta
+                counts[top:bottom, left:right] += 1
+    expected = normalize_signed_map((attribution / torch.clamp(counts, min=1)).cpu())
+
+    assert torch.allclose(actual.raw, expected, atol=1e-6)
 
 
 # --------------------------------------------------------------------------- #
