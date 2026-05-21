@@ -85,6 +85,23 @@ def parse_args() -> argparse.Namespace:
         default="outputs/iter_28_review_diagnostics",
         help="Root prefix for generated high-stability diagnostic output folders.",
     )
+    parser.add_argument(
+        "--weights",
+        default="densenet121-res224-all",
+        help="Classifier weights to pass to generated diagnostic commands.",
+    )
+    parser.add_argument(
+        "--image-size",
+        type=int,
+        default=224,
+        help="Image size to pass to generated diagnostic commands; use 512 for resnet50-res512-all.",
+    )
+    parser.add_argument(
+        "--max-selected",
+        type=int,
+        default=10,
+        help="Maximum number of manual-review cases selected across categories.",
+    )
     return parser.parse_args()
 
 
@@ -167,11 +184,32 @@ def strongest_negative_rows(metrics: list[dict[str, str]]) -> dict[str, dict[str
     return strongest
 
 
+def signed_diagnostic_rows(metrics: list[dict[str, str]]) -> dict[str, dict[str, object]]:
+    diagnostics: dict[str, dict[str, object]] = {}
+    for row in metrics:
+        method = row.get("method", "")
+        view = row.get("view", "")
+        if view != "signed" and not method.endswith("_signed"):
+            continue
+        key = case_key(row)
+        signed_positive_fraction = as_float(row.get("signed_positive_fraction"), default=-1.0)
+        current = diagnostics.get(key)
+        if current is None or signed_positive_fraction > float(current["max_signed_positive_fraction"]):
+            diagnostics[key] = {
+                "signed_method": method,
+                "signed_top_fraction": row.get("top_fraction", ""),
+                "max_signed_positive_fraction": signed_positive_fraction,
+                "signed_prediction_alignment": as_float(row.get("signed_prediction_alignment"), default=0.0),
+            }
+    return diagnostics
+
+
 def enrich_case(
     case: dict[str, str],
     category: str,
     positive: dict[str, object] | None,
     negative: dict[str, object] | None,
+    signed: dict[str, object] | None,
 ) -> dict[str, object]:
     row: dict[str, object] = {
         "category": category,
@@ -186,11 +224,15 @@ def enrich_case(
         "classifier_threshold": as_float(case.get("classifier_threshold")),
         "image_path": case.get("image_path", ""),
         "mask_path": case.get("mask_path", ""),
+        "weights": case.get("weights", ""),
+        "image_size": case.get("image_size", ""),
     }
     if positive:
         row.update(positive)
     if negative:
         row.update(negative)
+    if signed:
+        row.update(signed)
     return row
 
 
@@ -216,6 +258,8 @@ def diagnostic_command(row: dict[str, object], args: argparse.Namespace, rank: i
         "wsl.exe python3 scripts/visualize_cxr_threshold_selection.py "
         "--device auto "
         "--split any "
+        f"--weights {args.weights} "
+        f"--image-size {args.image_size} "
         f"--case-filename {filename} "
         f"--ig-steps {args.ig_steps} "
         f"--gradshap-samples {args.gradshap_samples} "
@@ -237,10 +281,19 @@ def main() -> None:
     cases_by_key = {case_key(row): row for row in cases}
     positive_by_case = best_positive_rows(metrics)
     negative_by_case = strongest_negative_rows(metrics)
+    signed_by_case = signed_diagnostic_rows(metrics)
 
     enriched: list[dict[str, object]] = []
     for key, case in cases_by_key.items():
-        enriched.append(enrich_case(case, "all_cases", positive_by_case.get(key), negative_by_case.get(key)))
+        enriched.append(
+            enrich_case(
+                case,
+                "all_cases",
+                positive_by_case.get(key),
+                negative_by_case.get(key),
+                signed_by_case.get(key),
+            )
+        )
 
     tp = [row for row in enriched if row["classifier_outcome"] == "tp"]
     fp = [row for row in enriched if row["classifier_outcome"] == "fp"]
@@ -255,6 +308,11 @@ def main() -> None:
         key=lambda row: float(row["max_negative_mask_overlap_fraction"]),
         reverse=True,
     )
+    signed_model_aligned = sorted(
+        [row for row in enriched if "max_signed_positive_fraction" in row],
+        key=lambda row: (float(row["signed_prediction_alignment"]), float(row["max_signed_positive_fraction"])),
+        reverse=True,
+    )
 
     ranked_lists = {
         "best_tp_by_dice_iou": best_tp,
@@ -262,6 +320,7 @@ def main() -> None:
         "fp_high_classifier_score_strong_positive_evidence_proxy": strong_fp,
         "fn_good_localization_low_classifier_score": good_fn,
         "high_negative_evidence_inside_mask": high_negative_overlap,
+        "signed_evidence_model_aligned": signed_model_aligned,
     }
     for name, rows in ranked_lists.items():
         write_csv(args.output_dir / f"{name}.csv", rows[: args.top_n])
@@ -274,6 +333,7 @@ def main() -> None:
         "fp_high_classifier_score_strong_positive_evidence_proxy",
         "fn_good_localization_low_classifier_score",
         "high_negative_evidence_inside_mask",
+        "signed_evidence_model_aligned",
     ]:
         rows = []
         for row in ranked_lists[name]:
@@ -282,7 +342,7 @@ def main() -> None:
             rows.append(copied)
         selected.extend(select_unique(rows, args.selected_per_category, used))
 
-    selected = selected[:12]
+    selected = selected[: args.max_selected]
     for rank, row in enumerate(selected, start=1):
         row["review_rank"] = rank
         row["diagnostic_command"] = diagnostic_command(row, args, rank)

@@ -92,6 +92,31 @@ def image_cell(path: Path | None, base: Path, caption: str) -> str:
     return f'<figure><img src="{rel}" alt="{html.escape(caption)}"><figcaption>{html.escape(caption)}</figcaption></figure>'
 
 
+def metric_table(row: dict[str, str]) -> str:
+    fields = [
+        ("Best method", "best_method"),
+        ("Best top fraction", "best_top_fraction"),
+        ("Best Dice", "best_dice"),
+        ("Best IoU", "best_iou"),
+        ("Best precision@fraction", "best_precision_at_fraction"),
+        ("Best pointing hit", "best_pointing_hit"),
+        ("Negative method", "negative_method"),
+        ("Negative overlap in mask", "max_negative_mask_overlap_fraction"),
+        ("Negative avoidance", "negative_mask_avoidance_fraction"),
+        ("Signed method", "signed_method"),
+        ("Signed positive fraction", "max_signed_positive_fraction"),
+        ("Signed prediction alignment", "signed_prediction_alignment"),
+    ]
+    rows = []
+    for label, key in fields:
+        value = row.get(key, "")
+        if value not in (None, ""):
+            rows.append(f"<tr><th>{html.escape(label)}</th><td>{html.escape(str(value))}</td></tr>")
+    if not rows:
+        return ""
+    return f'<table class="metrics"><tbody>{"".join(rows)}</tbody></table>'
+
+
 def find_image(case_dir: Path | None, filename: str) -> Path | None:
     if case_dir is None:
         return None
@@ -113,6 +138,8 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
         meta = " | ".join(
             [
                 f"category={row.get('category', '')}",
+                f"weights={row.get('weights', '')}",
+                f"image_size={row.get('image_size', '')}",
                 f"outcome={row.get('classifier_outcome', '')}",
                 f"label={row.get('label', '')}",
                 f"prediction={row.get('prediction', '')}",
@@ -125,6 +152,7 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
 <section class="card" id="{case_id}">
   <h2>{case_id}: {html.escape(row['filename'])}</h2>
   <p class="meta">{html.escape(meta)}</p>
+  {metric_table(row)}
   <div class="grid">{''.join(figures)}</div>
 </section>
 """
@@ -132,10 +160,12 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
     rubric = """
 <aside class="rubric">
   <h2>Scoring rubric</h2>
-  <p><b>localization_score</b>: correct, partial, incorrect, none.</p>
-  <p><b>usefulness_score</b>: useful, potentially_useful, misleading, not_useful.</p>
-  <p><b>failure_category</b>: correct, partial, anatomically_related, devices_text_artifacts, non_pathological_high_contrast, diffuse_non_specific, clinically_misleading.</p>
-  <p>Red/orange = positive evidence; blue/teal = negative evidence; violet = magnitude/impact; green/yellow/cyan mark mask/selection intersections where present.</p>
+  <div class="rubric-grid">
+    <div><b>localization_score</b><ul><li><code>correct</code>: main positive evidence is inside or tightly follows the pneumothorax/mask region.</li><li><code>partial</code>: some relevant lesion/pleural evidence is present, but substantial signal is missing or off-target.</li><li><code>incorrect</code>: dominant evidence is outside the clinically relevant region.</li><li><code>none</code>: no interpretable positive localization is visible.</li></ul></div>
+    <div><b>usefulness_score</b><ul><li><code>useful</code>: would help explain or audit the classifier decision.</li><li><code>potentially_useful</code>: contains some plausible signal but needs caution.</li><li><code>misleading</code>: visually persuasive but clinically points to the wrong reason.</li><li><code>not_useful</code>: too diffuse, noisy, absent, or artifact-driven.</li></ul></div>
+    <div><b>failure_category</b><ul><li><code>correct</code>: no major failure.</li><li><code>partial</code>: mixed lesion and non-lesion evidence.</li><li><code>anatomically_related</code>: plausible nearby anatomy, not the lesion itself.</li><li><code>devices_text_artifacts</code>: tubes, labels, borders, text, or markers dominate.</li><li><code>non_pathological_high_contrast</code>: ribs, diaphragm, edges, or contrast structures dominate.</li><li><code>diffuse_non_specific</code>: broad nonspecific signal.</li><li><code>clinically_misleading</code>: explanation supports an unsafe or wrong clinical story.</li></ul></div>
+  </div>
+  <p>Color semantics: red/orange = positive evidence for pneumothorax score; blue/teal = negative evidence against that score; violet = magnitude/impact; green/yellow/cyan mark mask/selection intersections where present. Heatmaps are model-behavior diagnostics, not pathology segmentations.</p>
 </aside>
 """
     return f"""<!doctype html>
@@ -148,6 +178,11 @@ body {{ font-family: Arial, sans-serif; margin: 0; background: #f6f7f9; color: #
 header, .rubric {{ position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #d8dee9; padding: 10px 18px; }}
 .card {{ margin: 18px; padding: 16px; background: #fff; border: 1px solid #d8dee9; border-radius: 8px; }}
 .meta {{ font-size: 13px; color: #4b5563; }}
+.rubric-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; font-size: 13px; }}
+.rubric ul {{ margin: 6px 0 0 18px; padding: 0; }}
+.metrics {{ border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; }}
+.metrics th, .metrics td {{ border: 1px solid #e5e7eb; padding: 4px 8px; text-align: left; }}
+.metrics th {{ background: #f3f4f6; }}
 .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }}
 figure {{ margin: 0; border: 1px solid #e5e7eb; padding: 6px; background: #fafafa; }}
 img {{ width: 100%; height: auto; display: block; }}
@@ -175,9 +210,15 @@ def write_instructions(path: Path, case_count: int) -> None:
 5. Do not edit `scores_template.csv`; keep it as the reproducible blank template.
 
 Allowed values:
-- `localization_score`: `correct`, `partial`, `incorrect`, `none`
-- `usefulness_score`: `useful`, `potentially_useful`, `misleading`, `not_useful`
-- `failure_category`: `correct`, `partial`, `anatomically_related`, `devices_text_artifacts`, `non_pathological_high_contrast`, `diffuse_non_specific`, `clinically_misleading`
+- `localization_score`: `correct` = main positive evidence matches the pneumothorax region; `partial` = some lesion/pleural evidence but incomplete/off-target; `incorrect` = dominant evidence outside the relevant region; `none` = no interpretable positive localization.
+- `usefulness_score`: `useful` = helps audit/explain the decision; `potentially_useful` = plausible but caution needed; `misleading` = visually plausible but clinically wrong reason; `not_useful` = diffuse/noisy/absent/artifact-driven.
+- `failure_category`: `correct`, `partial`, `anatomically_related`, `devices_text_artifacts`, `non_pathological_high_contrast`, `diffuse_non_specific`, `clinically_misleading`.
+
+Metric hints:
+- `Dice`, `IoU`, and `precision_at_fraction` summarize positive-mask overlap for the best available method/fraction.
+- `pointing_hit` asks whether the single strongest point lands inside the mask.
+- `negative_mask_overlap_fraction` and `negative_mask_avoidance_fraction` describe whether suppressive evidence falls inside or avoids the lesion.
+- `signed_prediction_alignment` is a report-only diagnostic: whether signed evidence direction agrees with the classifier prediction at the frozen threshold.
 """,
         encoding="utf-8",
     )

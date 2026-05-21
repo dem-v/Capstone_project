@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 
+from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
@@ -26,7 +27,6 @@ from explainai_thesis.xai import (
 from explainai_thesis.visualization import save_binary_selection, save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
 from PIL import Image, ImageDraw
-import torchxrayvision as xrv
 import torch
 import numpy as np
 
@@ -84,12 +84,11 @@ def read_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
     return rows
 
 
-def load_image(path: Path, image_size: int) -> torch.Tensor:
+def load_image(path: Path, image_size: int, preprocess) -> torch.Tensor:
     image = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.BILINEAR)
     array = np.asarray(image)
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
+    return preprocess(array)
 
 
 def load_mask(row: dict[str, str], image_size: int) -> torch.Tensor:
@@ -384,10 +383,10 @@ def main() -> None:
         rows = rows[:args.max_cases]
 
     device = resolve_device(args.device)
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
-    gradcam = GradCAM(model, model.features.denseblock4)
+    classifier = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = classifier.model
+    class_idx = classifier.class_idx
+    gradcam = GradCAM(model, classifier.target_layer)
 
     case_rows: list[dict[str, str | int | float]] = []
     metric_rows: list[dict[str, str | int | float]] = []
@@ -443,7 +442,7 @@ def main() -> None:
         row_filename = row.get("filename", Path(row["image_path"]).name)
         if args.resume and (row["image_path"] in completed_keys or row_filename in completed_keys):
             continue
-        image = load_image(Path(row["image_path"]), args.image_size)
+        image = load_image(Path(row["image_path"]), args.image_size, classifier.preprocess)
         mask = load_mask(row, args.image_size)
         model_input = image.unsqueeze(0).to(device)
 
@@ -568,6 +567,8 @@ def main() -> None:
                 "xrv_pneumothorax_score": round(score, 8),
                 "xrv_pneumothorax_sigmoid": round(probability, 8),
                 "classifier_threshold": args.threshold,
+                "weights": args.weights,
+                "image_size": args.image_size,
                 "image_path": row["image_path"],
                 "mask_path": row.get("mask_path", ""),
             }
@@ -637,6 +638,8 @@ def main() -> None:
                         "label": label,
                         "prediction": int(probability >= args.threshold),
                         "classifier_outcome": outcome,
+                        "weights": args.weights,
+                        "image_size": args.image_size,
                         "method": method_name,
                         "view": view_kind,
                         "family": family,
