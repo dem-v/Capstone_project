@@ -3,10 +3,8 @@ from __future__ import annotations
 
 import argparse
 import csv
-import random
 from collections import defaultdict
 from pathlib import Path
-import re
 
 import matplotlib
 
@@ -26,6 +24,13 @@ from explainai_thesis.xai import (
 )
 from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.cxr.io import (
+    load_binary_mask,
+    load_xray_image,
+    read_positive_masked_rows,
+    safe_case_name,
+    safe_source_stem,
+)
 from explainai_thesis.faithfulness import (
     curve_auc,
     faithfulness_baseline_tensor,
@@ -40,7 +45,6 @@ from explainai_thesis.metrics import (
 )
 from explainai_thesis.run_metadata import write_run_metadata
 from PIL import Image
-import torchxrayvision as xrv
 import torch
 import numpy as np
 
@@ -181,54 +185,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     return parser.parse_args()
-
-
-def read_positive_rows(
-    manifest_path: Path, split: str, limit: int, *, random_sample: bool = False, seed: int = 20260515
-) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    with manifest_path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            if int(row["label"]) != 1:
-                continue
-            if split != "any" and row.get("split") != split:
-                continue
-            if not row.get("mask_path"):
-                continue
-            rows.append(row)
-            if not random_sample and len(rows) >= limit:
-                break
-    if random_sample:
-        rng = random.Random(seed)
-        rng.shuffle(rows)
-    return rows
-
-
-def load_image(path: Path, image_size: int) -> torch.Tensor:
-    image = (
-        Image.open(path).convert("L").resize(
-            (image_size, image_size), Image.BILINEAR)
-    )
-    array = np.asarray(image)
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
-
-
-def load_mask(path: Path, image_size: int) -> torch.Tensor:
-    mask = Image.open(path).convert("L").resize(
-        (image_size, image_size), Image.NEAREST)
-    return torch.from_numpy(np.asarray(mask) > 0)
-
-
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}"
-        ) from exc
 
 
 def write_metric_summary(
@@ -591,20 +547,6 @@ def is_negative_method(method_name: str) -> bool:
     return method_name.endswith("_negative")
 
 
-def safe_case_name(sample_idx: int, row: dict[str, str]) -> str:
-    stem = Path(row.get("filename") or row["image_path"]).stem
-    safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
-    if not safe_stem:
-        safe_stem = "xray"
-    return f"case_{sample_idx:03d}_{safe_stem}"
-
-
-def safe_source_stem(row: dict[str, str]) -> str:
-    stem = Path(row.get("filename") or row["image_path"]).stem
-    safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
-    return safe_stem or "xray"
-
-
 def overlay_color_for_method(method_name: str) -> str:
     if method_name in {"integrated_gradients", "gradient_shap", "occlusion"}:
         return "neutral"
@@ -624,7 +566,7 @@ def main() -> None:
     calibrated_fractions = read_calibrated_fractions(
         Path(args.calibrated_fractions) if args.calibrated_fractions else None
     )
-    rows = read_positive_rows(
+    rows = read_positive_masked_rows(
         manifest_path,
         split=args.split,
         limit=args.max_positive,
@@ -657,8 +599,8 @@ def main() -> None:
     faithfulness_rows: list[dict[str, str | int | float]] = []
     agreement_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
-        image = load_image(Path(row["image_path"]), args.image_size)
-        mask = load_mask(Path(row["mask_path"]), args.image_size)
+        image = load_xray_image(Path(row["image_path"]), args.image_size)
+        mask = load_binary_mask(Path(row["mask_path"]), args.image_size)
         model_input = image.unsqueeze(0).to(device)
         faithfulness_baseline = faithfulness_baseline_tensor(
             model_input, args.faithfulness_baseline

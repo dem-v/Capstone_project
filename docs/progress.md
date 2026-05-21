@@ -2931,3 +2931,9 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Reconciled Phase 4 status in `docs/refactor_plan.md`: the `load_classifier(name)` seam is already complete via `src/explainai_thesis/cxr/classifier.py` and `tests/test_load_classifier.py`; metadata stamping is partially complete for thesis-primary CXR runs; logging, mypy/ruff, and README quickstart remain deferred by the compressed Phase 4 scope.
 - Verification: `wsl.exe python3 -m py_compile src/explainai_thesis/run_metadata.py scripts/evaluate_cxr_torchxray_model.py scripts/calibrate_cxr_xai_thresholds.py scripts/run_cxr_torchxray_smoke.py` passed. Targeted regression run `wsl.exe python3 -m pytest tests/test_load_classifier.py tests/test_faithfulness.py tests/test_signed_attribution.py -v` -> **29 passed**, with only the known TorchXRayVision serialization warnings.
 
+### 2026-05-21 (Phase 2 size-reduction pass) - CXR IO helpers extracted from smoke script
+- Added `src/explainai_thesis/cxr/io.py` and moved smoke-script-local CXR helper logic into the package: positive masked manifest row selection, TorchXRayVision-normalized X-ray loading, binary mask loading, and safe case/source stem naming.
+- Updated `scripts/run_cxr_torchxray_smoke.py` to import those helpers, reducing the file from `1023` to `966` lines while preserving CLI flags, output paths, CSV schemas, and image artifact naming.
+- Updated `docs/refactor_plan.md` to mark the CXR IO extraction as partially complete and to keep remaining row-reader/calibration-parsing extraction candidates explicit for later size-reduction passes.
+- Verification: `wsl.exe python3 -m py_compile src/explainai_thesis/cxr/io.py scripts/run_cxr_torchxray_smoke.py` passed. Full suite `wsl.exe python3 -m pytest tests/ -v` -> **52 passed**, with only known TorchXRayVision serialization warnings.
+

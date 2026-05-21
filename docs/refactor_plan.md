@@ -283,13 +283,9 @@ Files to extract from `scripts/run_cxr_torchxray_smoke.py` (1037 lines → targe
   - `resolve_device` extracted 2026-05-21 and reused by active CXR/smoke scripts.
   - Shared argparse parents for `--manifest`, `--split`, `--output-dir`, `--device`, `--seed`. CRITICAL: flag names unchanged, defaults unchanged.
 
-- [ ] `src/explainai_thesis/cxr/io.py`
-  - `load_image`
-  - `load_mask`
-  - `pathology_index`
-  - `safe_case_name`
-  - `safe_source_stem`
-  - `read_positive_rows`
+- [~] `src/explainai_thesis/cxr/io.py`
+  - `read_positive_masked_rows`, `load_xray_image`, `load_binary_mask`, `safe_case_name`, and `safe_source_stem` extracted 2026-05-21 from `scripts/run_cxr_torchxray_smoke.py` to reduce script-local CXR IO/case helpers without changing smoke outputs.
+  - Pending shared extraction candidates remain where useful: generalized row readers for non-positive cases and any other active-script CXR IO helpers discovered during future size-reduction passes.
   - `read_calibrated_fractions`
   - `parse_optional_fractions`
 
