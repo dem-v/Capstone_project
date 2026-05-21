@@ -22,6 +22,8 @@ import torchxrayvision as xrv
 import torch
 import numpy as np
 
+from explainai_thesis.cli.common import resolve_device
+
 
 NEUTRAL_IMPACT_COLOR = np.array([180, 0, 255], dtype=np.float32)
 
@@ -58,14 +60,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
-
-
-def resolve_device(choice: str) -> torch.device:
-    if choice == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if choice == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available.")
-    return torch.device(choice)
 
 
 def read_positive_rows(

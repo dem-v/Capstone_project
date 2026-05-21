@@ -10,6 +10,8 @@ import torch
 import torchxrayvision as xrv
 from PIL import Image, ImageFilter
 
+from explainai_thesis.cli.common import resolve_device
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,14 +27,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--blur-radius", type=float, default=12.0)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
-
-
-def resolve_device(choice: str) -> torch.device:
-    if choice == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if choice == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available.")
-    return torch.device(choice)
 
 
 def read_rows(manifest_path: Path, split: str, limit: int) -> list[dict[str, str]]:

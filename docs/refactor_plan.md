@@ -3,9 +3,42 @@
 Created: 2026-05-18
 Owner: Dmytro Valantsevych
 Reviewer model: Claude Opus 4.7 (1M context)
-Status: Phase 0 completed 2026-05-18 (commit `99275dd`). Phases 1+ pending.
+Status: Updated 2026-05-21. Phase 0 and Phase 1 are complete; Stage A model diagnostic is complete for TorchXRayVision candidates; Phase 2 structural extraction and Phase 3 performance work remain partially open.
 
 This file is a temporary working artifact. It mirrors the plan accepted in conversation and is intended for task delegation. Once the work is completed and the resulting decisions are reflected in `docs/progress.md`, this file may be deleted.
+
+---
+
+## Current Status Snapshot — 2026-05-21
+
+Source of truth for chronology remains `docs/progress.md`; this section prevents the original plan below from being misread as still fully pending.
+
+### Done
+
+- **Phase 0 foundation**: editable package install, script import cleanup, dev requirements, initial golden-output tests.
+- **Phase 1 correctness**: Grad-CAM++ polarity fix, `SignedAttribution` four-view contract, v2 calibration support, `signed_prediction_alignment`, metric/faithfulness/manifest tests, and faithfulness default baseline switch to `black`.
+- **Shared v2 XAI method-view cleanup**: `MethodView` / `iter_method_views(...)` in `src/explainai_thesis/xai.py`; active CXR smoke, calibration, single-image visualization, classifier-outcome visualization, review-candidate selection, and synthetic smoke paths now consume the shared v2 method-view contract.
+- **Stage A diagnostic A/B for available TorchXRayVision candidates**: seven models evaluated under `outputs/iter_33_stage_a_diagnostic_ab/`; `weights_ab_summary.csv` generated.
+- **Review workbook unblock**: missing false-positive diagnostic folders generated and `outputs/iter_28_review_workbook/review/` rebuilt for the current 10-case review set.
+- **Metric correlation tooling**: all-model Stage A correlation analysis written under `outputs/iter_35_metric_correlations_iter33_stage_a_all_models/`.
+
+### Current model-selection interpretation
+
+- `resnet50-res512-all` is the strongest tested TorchXRayVision candidate by mean Dice / IoU in Stage A.
+- Absolute localization remains weak, so this is a relative improvement only; do not describe it as clinically strong pneumothorax localization.
+- The original `densenet121-res224-all` remains a documented weak external baseline.
+
+### Blocked / deferred
+
+- The planned MONAI out-of-family branch is blocked: the checked MONAI Model Zoo CXR bundle was a generative model, not a pneumothorax classifier. Do not add a MONAI loader until a concrete checkpoint with a verified `Pneumothorax` output, license, version, and preprocessing contract is identified.
+- CI and task-runner files remain deferred until after Phase 5 per the original 2026-05-18 decision.
+
+### Next recommended work
+
+1. **Thesis-result path**: perform the 10-case radiologist-style scoring pass from `outputs/iter_28_review_workbook/review/`, then join `scores.csv` to v2 metrics for localization/usefulness correlation.
+2. **Refactor path**: finish the low-risk Phase 2 extraction that does not change outputs, especially `src/explainai_thesis/faithfulness.py` and shared CLI helpers.
+3. **Performance path**: implement and test batched Integrated Gradients and vectorized Occlusion only if runtime remains a blocker for the next thesis run.
+4. **Model path**: use `resnet50-res512-all` for targeted qualitative follow-up, while continuing to frame all off-the-shelf localization results conservatively.
 
 ---
 
@@ -236,18 +269,18 @@ Change default `--faithfulness-baseline` from `zero_tensor` to `black`. Keep `ze
 
 Files to extract from `scripts/run_cxr_torchxray_smoke.py` (1037 lines → target ~150) into the `src/explainai_thesis/` package:
 
-- [ ] `src/explainai_thesis/faithfulness.py`
-  - `faithfulness_baseline_tensor`
-  - `faithfulness_curve_rows`
-  - `curve_auc`
+- [~] `src/explainai_thesis/faithfulness.py`
+  - `faithfulness_baseline_tensor` extracted 2026-05-21.
+  - `faithfulness_curve_rows` extracted 2026-05-21.
+  - `curve_auc` extracted 2026-05-21.
   - `write_faithfulness_summary`
   - `plot_faithfulness_curves`
   - `plot_faithfulness_summary`
   - `write_faithfulness_plots`
   - `faithfulness_method_family`
 
-- [ ] `src/explainai_thesis/cli/common.py`
-  - `resolve_device`
+- [~] `src/explainai_thesis/cli/common.py`
+  - `resolve_device` extracted 2026-05-21 and reused by active CXR/smoke scripts.
   - Shared argparse parents for `--manifest`, `--split`, `--output-dir`, `--device`, `--seed`. CRITICAL: flag names unchanged, defaults unchanged.
 
 - [ ] `src/explainai_thesis/cxr/io.py`

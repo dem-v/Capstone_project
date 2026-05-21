@@ -20,6 +20,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
+from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
 
 
@@ -48,14 +49,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
     return parser.parse_args()
-
-
-def resolve_device(choice: str) -> torch.device:
-    if choice == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if choice == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available.")
-    return torch.device(choice)
 
 
 def read_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:

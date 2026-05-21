@@ -11,10 +11,8 @@ The test is intentionally self-contained:
 - Uses the tiny CNN + bright-square synthetic case from
   ``tests/test_gradcam_polarity.py`` (replicated here so the two test
   files do not couple, matching the pattern already in the repo).
-- Implements a minimal insertion curve directly against the model probe,
-  rather than importing the smoke-script helper, since
-  ``faithfulness_curve_rows`` lives in ``scripts/`` and is slated to move
-  into the package only in Phase 2.
+- Implements a minimal insertion curve directly against the model probe so
+  the sanity assertion stays independent from the production curve helper.
 
 Insertion semantics (matching ``AGENTS.md`` Faithfulness Evaluation
 Rules): start from a baseline image (here: zeros), restore the top-K

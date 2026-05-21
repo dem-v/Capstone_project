@@ -9,6 +9,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 
+from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.metrics import localization_metrics
 from explainai_thesis.models import TinyCnn
 from explainai_thesis.synthetic import SyntheticLesionDataset
@@ -33,14 +34,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"], help="Execution device.")
     return parser.parse_args()
-
-
-def resolve_device(choice: str) -> torch.device:
-    if choice == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if choice == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available.")
-    return torch.device(choice)
 
 
 def train_model(model: nn.Module, train_loader: DataLoader, device: torch.device, epochs: int) -> None:
