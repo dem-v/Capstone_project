@@ -20,6 +20,7 @@ from explainai_thesis.xai import (
     agreement_score,
     consensus_signed,
     gradient_shap_signed,
+    iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
@@ -779,42 +780,22 @@ def main() -> None:
             "consensus": consensus_attr,
         }
 
-        # methods: v2 method id -> (heatmap tensor, view kind, family id).
-        # `view kind` ∈ {"positive", "negative", "magnitude", "signed"} and
-        # drives both the metrics row and the overlay color choice.
-        methods: dict[str, tuple[torch.Tensor, str, str]] = {}
-        for family, attr in signed_attributions.items():
-            # Positive view — canonical localization heatmap, [0, 1].
-            methods[family] = (
-                normalize_map(attr.positive), "positive", family,
-            )
-            # Negative view — suppressive evidence, [0, 1].
-            methods[f"{family}_negative"] = (
-                normalize_map(attr.negative), "negative", family,
-            )
-            # Magnitude view — only meaningful for the gradient-flavor methods
-            # and Grad-CAM(++). Consensus and IG/GradientSHAP all expose it.
-            methods[f"{family}_magnitude"] = (
-                normalize_map(attr.magnitude), "magnitude", family,
-            )
-            # Signed view — tug-of-war diverging map. Rendered with the
-            # orange/teal palette by `signed_diverging_overlay`. Used in
-            # metrics.csv but with `signed_positive_fraction` instead of the
-            # standard top-fraction selection (see below).
-            methods[f"{family}_signed"] = (
-                attr.signed, "signed", family,
-            )
+        # Canonical v2 method-view expansion. `MethodView.view` ∈
+        # {"positive", "negative", "magnitude", "signed"} and drives both
+        # metrics provenance and overlay color choice.
+        method_views = iter_method_views(signed_attributions)
 
         # Back-compat tensors for downstream consumers that haven't been
         # ported yet (e.g. the negative_evidence_metrics block below uses
         # the family.negative view as the "negative evidence" reference).
-        cam_map = methods["grad_cam"][0]
-        negative_cam_map = methods["grad_cam_negative"][0]
-        ig_map = methods["integrated_gradients"][0]
-        ig_negative_map = methods["integrated_gradients_negative"][0]
-        gradient_shap_map = methods["gradient_shap"][0]
-        gradient_shap_negative_map = methods["gradient_shap_negative"][0]
-        occlusion_map = methods["occlusion"][0]
+        method_heatmaps = {method_view.method: method_view.heatmap for method_view in method_views}
+        cam_map = method_heatmaps["grad_cam"]
+        negative_cam_map = method_heatmaps["grad_cam_negative"]
+        ig_map = method_heatmaps["integrated_gradients"]
+        ig_negative_map = method_heatmaps["integrated_gradients_negative"]
+        gradient_shap_map = method_heatmaps["gradient_shap"]
+        gradient_shap_negative_map = method_heatmaps["gradient_shap_negative"]
+        occlusion_map = method_heatmaps["occlusion"]
 
         # Cross-method agreement (cosine similarity between signed maps) —
         # one row per unordered pair, per case. Per AGENTS.md, reported when
@@ -839,7 +820,11 @@ def main() -> None:
                     ),
                 })
 
-        for method_name, (heatmap, view_kind, family) in methods.items():
+        for method_view in method_views:
+            method_name = method_view.method
+            heatmap = method_view.heatmap
+            view_kind = method_view.view
+            family = method_view.family
             top_fraction = calibrated_fractions.get(
                 method_name, args.top_fraction)
             # localization_metrics expects a [0, 1] map. For the signed view

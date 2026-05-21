@@ -10,13 +10,10 @@ POSITIVE_METHODS = {
     "grad_cam",
     "grad_cam_plus_plus",
     "integrated_gradients",
-    "integrated_gradients_positive",
     "integrated_gradients_signed",
     "gradient_shap",
-    "gradient_shap_positive",
     "gradient_shap_signed",
     "occlusion",
-    "occlusion_positive",
     "consensus",
 }
 
@@ -30,6 +27,20 @@ NEGATIVE_METHODS = {
     "occlusion_negative",
     "consensus",
 }
+
+
+def is_positive_metric_row(row: dict[str, str]) -> bool:
+    view = row.get("view")
+    if view:
+        return view in {"positive", "signed"}
+    return row.get("method") in POSITIVE_METHODS
+
+
+def is_negative_metric_row(row: dict[str, str]) -> bool:
+    view = row.get("view")
+    if view:
+        return view in {"negative", "signed"}
+    return row.get("method") in NEGATIVE_METHODS
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,7 +122,7 @@ def best_positive_rows(metrics: list[dict[str, str]]) -> dict[str, dict[str, obj
     for row in metrics:
         if row.get("positive_localization_applicable") != "1":
             continue
-        if row.get("method") not in POSITIVE_METHODS:
+        if not is_positive_metric_row(row):
             continue
         key = case_key(row)
         dice = as_float(row.get("dice"))
@@ -139,7 +150,7 @@ def strongest_negative_rows(metrics: list[dict[str, str]]) -> dict[str, dict[str
     for row in metrics:
         if row.get("label") != "1":
             continue
-        if row.get("method") not in NEGATIVE_METHODS:
+        if not is_negative_metric_row(row):
             continue
         if row.get("negative_mask_overlap_fraction") in (None, ""):
             continue

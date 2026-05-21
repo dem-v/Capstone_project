@@ -13,7 +13,13 @@ from explainai_thesis.metrics import localization_metrics
 from explainai_thesis.models import TinyCnn
 from explainai_thesis.synthetic import SyntheticLesionDataset
 from explainai_thesis.visualization import save_overlay
-from explainai_thesis.xai import GradCAM, consensus_heatmap, integrated_gradients
+from explainai_thesis.xai import (
+    GradCAM,
+    SignedAttribution,
+    consensus_signed,
+    integrated_gradients_signed,
+    iter_method_views,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -98,18 +104,20 @@ def main() -> None:
             continue
 
         model_input = image.unsqueeze(0).to(device)
-        cam_map = gradcam(model_input, class_idx=1)
-        ig_map = integrated_gradients(
-            model, model_input, class_idx=1, steps=24)
-        consensus = consensus_heatmap([cam_map, ig_map])
-
-        methods = {
-            "grad_cam": cam_map,
-            "integrated_gradients": ig_map,
-            "consensus": consensus,
+        cam_attr = gradcam.signed(model_input, class_idx=1)
+        ig_attr = integrated_gradients_signed(model, model_input, class_idx=1, steps=24)
+        consensus_attr = consensus_signed([cam_attr, ig_attr])
+        signed_attributions: dict[str, SignedAttribution] = {
+            "grad_cam": cam_attr,
+            "integrated_gradients": ig_attr,
+            "consensus": consensus_attr,
         }
 
-        for method_name, heatmap in methods.items():
+        for method_view in iter_method_views(signed_attributions):
+            if method_view.view != "positive":
+                continue
+            method_name = method_view.method
+            heatmap = method_view.heatmap
             metrics = localization_metrics(heatmap, mask, fraction=0.15)
             rows.append(
                 {

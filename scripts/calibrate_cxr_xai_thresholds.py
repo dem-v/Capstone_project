@@ -13,6 +13,7 @@ from explainai_thesis.xai import (
     SignedAttribution,
     consensus_signed,
     gradient_shap_signed,
+    iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
@@ -268,19 +269,11 @@ def main() -> None:
             "consensus": consensus_attr,
         }
 
-        # method id -> (heatmap tensor, view kind, family id).
-        methods: dict[str, tuple[torch.Tensor, str, str]] = {}
-        for family, attr in signed_attributions.items():
-            methods[family] = (normalize_map(attr.positive), "positive", family)
-            methods[f"{family}_negative"] = (
-                normalize_map(attr.negative), "negative", family,
-            )
-            methods[f"{family}_magnitude"] = (
-                normalize_map(attr.magnitude), "magnitude", family,
-            )
-            methods[f"{family}_signed"] = (attr.signed, "signed", family)
-
-        for method_name, (heatmap, view_kind, family) in methods.items():
+        for method_view in iter_method_views(signed_attributions):
+            method_name = method_view.method
+            heatmap = method_view.heatmap
+            view_kind = method_view.view
+            family = method_view.family
             for fraction in fractions:
                 # For the signed view, feed magnitude into localization_metrics
                 # so the standard IoU/Dice/pointing_hit/precision columns are

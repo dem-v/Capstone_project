@@ -21,6 +21,7 @@ from explainai_thesis.metrics import (
     iou_score,
     localization_metrics,
     pointing_game_hit,
+    precision_for_mask,
     precision_at_fraction,
     threshold_top_fraction,
 )
@@ -100,3 +101,18 @@ def test_localization_metrics_returns_all_keys(lesion_mask: torch.Tensor) -> Non
     assert set(out.keys()) == {"iou", "dice", "pointing_hit", "precision_at_fraction"}
     for key, value in out.items():
         assert 0.0 <= value <= 1.0, f"{key} out of [0,1]: {value}"
+
+
+def test_localization_metrics_reuses_precision_from_top_fraction_mask(
+    lesion_mask: torch.Tensor,
+) -> None:
+    heatmap = torch.zeros(8, 8)
+    heatmap[2:5, 2:5] = 1.0
+    fraction = 0.15
+
+    pred_mask = threshold_top_fraction(heatmap, fraction=fraction)
+    out = localization_metrics(heatmap, lesion_mask, fraction=fraction)
+
+    assert out["precision_at_fraction"] == pytest.approx(
+        precision_for_mask(pred_mask, lesion_mask), abs=1e-6,
+    )

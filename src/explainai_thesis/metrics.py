@@ -63,7 +63,6 @@ def iou_score(pred_mask: torch.Tensor, true_mask: torch.Tensor, eps: float = 1e-
 
 def pointing_game_hit(heatmap: torch.Tensor, true_mask: torch.Tensor) -> float:
     """Return 1 if the maximum-attribution pixel lies inside the lesion mask."""
-    heatmap = normalize_map(heatmap)
     flat_idx = int(torch.argmax(heatmap.flatten()).item())
     y = flat_idx // heatmap.shape[-1]
     x = flat_idx % heatmap.shape[-1]
@@ -77,6 +76,16 @@ def precision_at_fraction(
     eps: float = 1e-8,
 ) -> float:
     pred = threshold_top_fraction(heatmap, fraction=fraction)
+    return precision_for_mask(pred, true_mask, eps=eps)
+
+
+def precision_for_mask(
+    pred_mask: torch.Tensor,
+    true_mask: torch.Tensor,
+    eps: float = 1e-8,
+) -> float:
+    """Precision of a precomputed binary explanation mask."""
+    pred = pred_mask.bool()
     true = true_mask.bool()
     selected = pred.sum().float()
     if selected.item() == 0:
@@ -97,5 +106,5 @@ def localization_metrics(
         "iou": iou_score(pred_mask, true_mask),
         "dice": dice_score(pred_mask, true_mask),
         "pointing_hit": pointing_game_hit(heatmap, true_mask),
-        "precision_at_fraction": precision_at_fraction(heatmap, true_mask, fraction=fraction),
+        "precision_at_fraction": precision_for_mask(pred_mask, true_mask),
     }

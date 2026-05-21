@@ -85,6 +85,72 @@ class SignedAttribution:
         )
 
 
+@dataclass(frozen=True)
+class MethodView:
+    """One concrete output view derived from a method family's attribution."""
+
+    method: str
+    heatmap: torch.Tensor
+    view: str
+    family: str
+
+    @property
+    def is_negative(self) -> bool:
+        return self.view == "negative"
+
+    @property
+    def is_magnitude(self) -> bool:
+        return self.view == "magnitude"
+
+    @property
+    def is_signed(self) -> bool:
+        return self.view == "signed"
+
+
+def iter_method_views(
+    attributions: dict[str, SignedAttribution],
+) -> list[MethodView]:
+    """Expand signed method-family outputs into stable per-view records.
+
+    The canonical v2 convention is one primary method id per family for
+    positive evidence, plus explicit ``_negative``, ``_magnitude``, and
+    ``_signed`` view rows. Keeping this expansion in one place prevents
+    visualization and calibration scripts from drifting back to ad hoc
+    per-method branching.
+    """
+    method_views: list[MethodView] = []
+    for family, attribution in attributions.items():
+        method_views.extend(
+            [
+                MethodView(
+                    method=family,
+                    heatmap=normalize_map(attribution.positive.cpu()),
+                    view="positive",
+                    family=family,
+                ),
+                MethodView(
+                    method=f"{family}_negative",
+                    heatmap=normalize_map(attribution.negative.cpu()),
+                    view="negative",
+                    family=family,
+                ),
+                MethodView(
+                    method=f"{family}_magnitude",
+                    heatmap=normalize_map(attribution.magnitude.cpu()),
+                    view="magnitude",
+                    family=family,
+                ),
+                MethodView(
+                    method=f"{family}_signed",
+                    heatmap=attribution.signed.cpu(),
+                    view="signed",
+                    family=family,
+                ),
+            ]
+        )
+    return method_views
+
+
 def _deprecated_polarity_warning(method: str) -> None:
     warnings.warn(
         f"The `polarity=` keyword on `{method}` is deprecated; use the "

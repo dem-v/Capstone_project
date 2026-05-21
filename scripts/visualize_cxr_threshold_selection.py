@@ -8,12 +8,14 @@ from pathlib import Path
 
 from explainai_thesis.xai import (
     GradCAM,
-    consensus_heatmap,
+    SignedAttribution,
+    consensus_signed,
     gradient_shap_signed,
+    iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
-from explainai_thesis.visualization import save_overlay
+from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import localization_metrics, normalize_map, threshold_top_fraction
 from PIL import Image, ImageDraw
 import torchxrayvision as xrv
@@ -66,12 +68,17 @@ def resolve_device(choice: str) -> torch.device:
     return torch.device(choice)
 
 
-def read_positive_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
+def read_positive_rows(
+    manifest_path: Path,
+    split: str,
+    *,
+    positive_only: bool = True,
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     with manifest_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            if int(row["label"]) != 1:
+            if positive_only and int(row["label"]) != 1:
                 continue
             if split != "any" and row.get("split") != split:
                 continue
@@ -191,25 +198,11 @@ def is_negative_method(method_name: str) -> bool:
 
 
 def overlay_color_for_method(method_name: str) -> str:
-    if method_name in {"integrated_gradients", "gradient_shap", "occlusion"}:
-        return "neutral"
     if is_negative_method(method_name):
         return "blue"
+    if method_name.endswith("_magnitude"):
+        return "neutral"
     return "red"
-
-
-def metric_component_for_method(method_name: str) -> str:
-    if method_name in {"integrated_gradients", "gradient_shap", "occlusion"}:
-        return "absolute_magnitude"
-    if is_negative_method(method_name):
-        return "negative_evidence"
-    if method_name == "integrated_gradients_signed":
-        return "positive_ig_with_negative_ig_diagnostics"
-    if method_name == "gradient_shap_signed":
-        return "positive_gradient_shap_with_negative_gradient_shap_diagnostics"
-    if method_name == "consensus":
-        return "positive_consensus_with_negative_and_neutral_diagnostics"
-    return "positive_evidence"
 
 
 def selected_pixel_counts(
@@ -270,7 +263,11 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     fractions = parse_fractions(args.fractions)
-    rows = read_positive_rows(Path(args.manifest), args.split)
+    rows = read_positive_rows(
+        Path(args.manifest),
+        args.split,
+        positive_only=not bool(args.case_filename),
+    )
     if not rows:
         raise RuntimeError(
             f"No positive rows with masks found in {args.manifest} for split={args.split}.")
@@ -309,16 +306,8 @@ def main() -> None:
     cam_attr = gradcam.signed(model_input, class_idx=class_idx)
     cam_plus_plus_attr = gradcam.signed(
         model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
-    cam_map = normalize_map(cam_attr.positive.cpu())
-    cam_plus_plus_map = normalize_map(cam_plus_plus_attr.positive.cpu())
-    negative_cam_map = normalize_map(cam_attr.negative.cpu())
-    negative_cam_plus_plus_map = normalize_map(cam_plus_plus_attr.negative.cpu())
     ig_attr = integrated_gradients_signed(
         model, model_input, class_idx=class_idx, steps=args.ig_steps)
-    ig_map = normalize_map(ig_attr.magnitude.cpu())
-    ig_positive_map = normalize_map(ig_attr.positive.cpu())
-    ig_negative_map = normalize_map(ig_attr.negative.cpu())
-    ig_signed_map = ig_attr.signed.cpu()
     gradient_shap_attr = gradient_shap_signed(
         model,
         model_input,
@@ -326,10 +315,6 @@ def main() -> None:
         samples=args.gradshap_samples,
         stdevs=args.gradshap_stdevs,
     )
-    gradient_shap_map = normalize_map(gradient_shap_attr.magnitude.cpu())
-    gradient_shap_positive_map = normalize_map(gradient_shap_attr.positive.cpu())
-    gradient_shap_negative_map = normalize_map(gradient_shap_attr.negative.cpu())
-    gradient_shap_signed_map = gradient_shap_attr.signed.cpu()
     occlusion_attr = occlusion_sensitivity_signed(
         model,
         model_input,
@@ -337,28 +322,16 @@ def main() -> None:
         patch_size=args.occlusion_patch_size,
         stride=args.occlusion_stride,
     )
-    occlusion_map = normalize_map(occlusion_attr.magnitude.cpu())
-    occlusion_positive_map = normalize_map(occlusion_attr.positive.cpu())
-    occlusion_negative_map = normalize_map(occlusion_attr.negative.cpu())
+    consensus_attr = consensus_signed([cam_attr, ig_attr, gradient_shap_attr, occlusion_attr])
     gradcam.remove_hooks()
 
-    methods = {
-        "grad_cam": cam_map,
-        "grad_cam_plus_plus": cam_plus_plus_map,
-        "grad_cam_negative": negative_cam_map,
-        "grad_cam_plus_plus_negative": negative_cam_plus_plus_map,
-        "integrated_gradients": ig_map,
-        "integrated_gradients_positive": ig_positive_map,
-        "integrated_gradients_negative": ig_negative_map,
-        "integrated_gradients_signed": ig_signed_map,
-        "gradient_shap": gradient_shap_map,
-        "gradient_shap_positive": gradient_shap_positive_map,
-        "gradient_shap_negative": gradient_shap_negative_map,
-        "gradient_shap_signed": gradient_shap_signed_map,
-        "occlusion": occlusion_map,
-        "occlusion_positive": occlusion_positive_map,
-        "occlusion_negative": occlusion_negative_map,
-        "consensus": consensus_heatmap([cam_map, ig_map, gradient_shap_map, occlusion_map]),
+    signed_attributions: dict[str, SignedAttribution] = {
+        "grad_cam": cam_attr,
+        "grad_cam_plus_plus": cam_plus_plus_attr,
+        "integrated_gradients": ig_attr,
+        "gradient_shap": gradient_shap_attr,
+        "occlusion": occlusion_attr,
+        "consensus": consensus_attr,
     }
 
     metadata_rows = [
@@ -378,59 +351,42 @@ def main() -> None:
     source_stem = safe_source_stem(row)
     case_dir = output_dir / safe_case_name(args.case_index, row)
     case_dir.mkdir(parents=True, exist_ok=True)
-    for method_name, heatmap in methods.items():
-        save_overlay(
-            image,
-            heatmap,
-            mask,
-            case_dir / f"{source_stem}_{method_name}_continuous_heatmap.png",
-            heatmap_color=overlay_color_for_method(method_name),
-            negative_heatmap=(
-                negative_cam_map if method_name == "consensus"
-                else ig_negative_map if method_name == "integrated_gradients_signed"
-                else gradient_shap_negative_map if method_name == "gradient_shap_signed"
-                else None
-            ),
-            neutral_heatmap=consensus_heatmap([ig_map, gradient_shap_map, occlusion_map])
-            if method_name == "consensus"
-            else None,
-        )
+    for method_view in iter_method_views(signed_attributions):
+        method_name = method_view.method
+        heatmap = method_view.heatmap
+        view_kind = method_view.view
+        family = method_view.family
+        overlay_path = case_dir / f"{source_stem}_{method_name}_continuous_heatmap.png"
+        if view_kind == "signed":
+            signed_diverging_overlay(image, heatmap, mask, overlay_path)
+        else:
+            save_overlay(
+                image,
+                heatmap,
+                mask,
+                overlay_path,
+                heatmap_color=overlay_color_for_method(method_name),
+            )
 
         binary_paths: list[Path] = []
         binary_captions: list[str] = []
         for fraction in fractions:
-            selected = threshold_top_fraction(heatmap, fraction=fraction)
-            metrics = localization_metrics(heatmap, mask, fraction=fraction)
+            metrics_input = (
+                signed_attributions[family].magnitude
+                if view_kind == "signed"
+                else heatmap
+            )
+            selected = threshold_top_fraction(metrics_input, fraction=fraction)
+            metrics = localization_metrics(metrics_input, mask, fraction=fraction)
             negative_metrics: dict[str, str | float] = {
                 "negative_mask_overlap_fraction": "",
                 "negative_mask_avoidance_fraction": "",
             }
-            if is_negative_method(method_name):
+            if view_kind == "negative":
                 negative_metrics = {
                     key: round(value, 6)
                     for key, value in negative_evidence_metrics(
                         heatmap, mask, fraction
-                    ).items()
-                }
-            elif method_name == "consensus":
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        negative_cam_map, mask, fraction
-                    ).items()
-                }
-            elif method_name == "integrated_gradients_signed":
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        ig_negative_map, mask, fraction
-                    ).items()
-                }
-            elif method_name == "gradient_shap_signed":
-                negative_metrics = {
-                    key: round(value, 6)
-                    for key, value in negative_evidence_metrics(
-                        gradient_shap_negative_map, mask, fraction
                     ).items()
                 }
             metric_rows.append(
@@ -440,7 +396,9 @@ def main() -> None:
                     "image_path": row["image_path"],
                     "mask_path": row["mask_path"],
                     "method": method_name,
-                    "metric_component": metric_component_for_method(method_name),
+                    "view": view_kind,
+                    "family": family,
+                    "metric_component": view_kind,
                     "top_fraction": round(fraction, 6),
                     "top_fraction_percent": int(round(fraction * 100)),
                     **selected_pixel_counts(selected, mask),
@@ -454,23 +412,8 @@ def main() -> None:
                 selected,
                 mask,
                 image_path,
-                negative_style=is_negative_method(method_name),
-                neutral_style=method_name in {"integrated_gradients", "gradient_shap", "occlusion"},
-                negative_selected_mask=threshold_top_fraction(
-                    negative_cam_map, fraction=fraction)
-                if method_name == "consensus"
-                else threshold_top_fraction(ig_negative_map, fraction=fraction)
-                if method_name == "integrated_gradients_signed"
-                else threshold_top_fraction(gradient_shap_negative_map, fraction=fraction)
-                if method_name == "gradient_shap_signed"
-                else None,
-                neutral_selected_mask=(
-                    threshold_top_fraction(ig_map, fraction=fraction)
-                    | threshold_top_fraction(gradient_shap_map, fraction=fraction)
-                    | threshold_top_fraction(occlusion_map, fraction=fraction)
-                )
-                if method_name == "consensus"
-                else None,
+                negative_style=view_kind == "negative",
+                neutral_style=view_kind == "magnitude",
             )
             binary_paths.append(image_path)
             binary_captions.append(

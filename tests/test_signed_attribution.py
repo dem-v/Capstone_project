@@ -23,6 +23,7 @@ from explainai_thesis.xai import (
     agreement_score,
     consensus_signed,
     gradient_shap_signed,
+    iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
@@ -133,6 +134,27 @@ def test_signed_attribution_unknown_view_raises() -> None:
         assert "absolute" in str(exc)
     else:
         raise AssertionError("expected ValueError on unknown view name")
+
+
+def test_iter_method_views_expands_family_once_with_stable_v2_names() -> None:
+    raw = normalize_signed_map(torch.tensor([[-2.0, -1.0], [0.0, 4.0]]))
+    attribution = SignedAttribution(raw=raw)
+
+    views = iter_method_views({"integrated_gradients": attribution})
+
+    assert [view.method for view in views] == [
+        "integrated_gradients",
+        "integrated_gradients_negative",
+        "integrated_gradients_magnitude",
+        "integrated_gradients_signed",
+    ]
+    assert [view.view for view in views] == [
+        "positive", "negative", "magnitude", "signed",
+    ]
+    assert {view.family for view in views} == {"integrated_gradients"}
+    assert torch.equal(views[-1].heatmap, attribution.signed)
+    assert float(views[0].heatmap.min()) >= 0.0
+    assert float(views[0].heatmap.max()) <= 1.0
 
 
 # --------------------------------------------------------------------------- #
