@@ -7,10 +7,10 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchxrayvision as xrv
 from PIL import Image, ImageFilter
 
 from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.cxr.classifier import load_classifier
 
 
 
@@ -42,32 +42,17 @@ def read_rows(manifest_path: Path, split: str, limit: int) -> list[dict[str, str
     return rows
 
 
-def normalize_array(array: np.ndarray) -> torch.Tensor:
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
-
-
 def load_image(path: Path, image_size: int) -> Image.Image:
     return Image.open(path).convert("L").resize((image_size, image_size), Image.BILINEAR)
 
 
-def image_tensor(image: Image.Image) -> torch.Tensor:
-    return normalize_array(np.asarray(image))
+def image_tensor(image: Image.Image, preprocess) -> torch.Tensor:
+    return preprocess(np.asarray(image))
 
 
-def constant_tensor(image_size: int, pixel_value: int) -> torch.Tensor:
+def constant_tensor(image_size: int, pixel_value: int, preprocess) -> torch.Tensor:
     array = np.full((image_size, image_size), pixel_value, dtype=np.uint8)
-    return normalize_array(array)
-
-
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}"
-        ) from exc
+    return preprocess(array)
 
 
 def model_score(
@@ -121,22 +106,22 @@ def main() -> None:
         raise RuntimeError(f"No rows found in {args.manifest} for split={args.split}.")
 
     device = resolve_device(args.device)
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
+    classifier = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = classifier.model
+    class_idx = classifier.class_idx
 
     normalized_zero = torch.zeros(1, args.image_size, args.image_size)
-    black = constant_tensor(args.image_size, 0)
-    mid_gray = constant_tensor(args.image_size, 128)
-    white = constant_tensor(args.image_size, 255)
+    black = constant_tensor(args.image_size, 0, classifier.preprocess)
+    mid_gray = constant_tensor(args.image_size, 128, classifier.preprocess)
+    white = constant_tensor(args.image_size, 255, classifier.preprocess)
 
     diagnostic_rows: list[dict[str, str | int | float]] = []
     for sample_index, row in enumerate(rows):
         image = load_image(Path(row["image_path"]), args.image_size)
-        original = image_tensor(image)
-        blurred = image_tensor(image.filter(ImageFilter.GaussianBlur(radius=args.blur_radius)))
+        original = image_tensor(image, classifier.preprocess)
+        blurred = image_tensor(image.filter(ImageFilter.GaussianBlur(radius=args.blur_radius)), classifier.preprocess)
         image_mean_pixel = int(round(float(np.asarray(image).mean())))
-        image_mean = constant_tensor(args.image_size, image_mean_pixel)
+        image_mean = constant_tensor(args.image_size, image_mean_pixel, classifier.preprocess)
 
         variants = {
             "original_image": original,

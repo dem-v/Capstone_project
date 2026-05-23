@@ -102,15 +102,6 @@ def load_mask(row: dict[str, str], image_size: int) -> torch.Tensor:
     return torch.zeros((image_size, image_size), dtype=torch.bool)
 
 
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
-
-
 def parse_fractions(raw: str) -> list[float]:
     fractions = [float(value.strip())
                  for value in raw.split(",") if value.strip()]

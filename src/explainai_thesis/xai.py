@@ -359,23 +359,50 @@ def gradient_shap_signed(
     class_idx: int = 1,
     samples: int = 16,
     stdevs: float = 0.02,
+    internal_batch_size: int | None = None,
 ) -> SignedAttribution:
     """Signed GradientSHAP attribution for a single image.
 
     Single call to Captum's :class:`GradientShap.attribute`, summed over
-    channels, normalized to ``[-1, 1]``.
+    channels, normalized to ``[-1, 1]``. ``internal_batch_size`` limits
+    Captum's expanded noisy batch size, which is important for high-sample
+    512px ResNet diagnostic reruns on modest GPUs.
     """
     model.eval()
     baseline_zero = torch.zeros_like(image)
     baseline_mean = torch.full_like(image, float(image.mean().detach().cpu().item()))
     baselines = torch.cat([baseline_zero, baseline_mean], dim=0)
-    attribution = GradientShap(model).attribute(
-        image,
-        baselines=baselines,
-        target=class_idx,
-        n_samples=samples,
-        stdevs=stdevs,
-    )
+    gradient_shap = GradientShap(model)
+    if internal_batch_size is None or internal_batch_size >= samples:
+        attribution = gradient_shap.attribute(
+            image,
+            baselines=baselines,
+            target=class_idx,
+            n_samples=samples,
+            stdevs=stdevs,
+        )
+    else:
+        if internal_batch_size <= 0:
+            raise ValueError("internal_batch_size must be positive when provided.")
+        weighted_attribution: torch.Tensor | None = None
+        completed_samples = 0
+        while completed_samples < samples:
+            current_samples = min(internal_batch_size, samples - completed_samples)
+            chunk_attribution = gradient_shap.attribute(
+                image,
+                baselines=baselines,
+                target=class_idx,
+                n_samples=current_samples,
+                stdevs=stdevs,
+            )
+            weighted = chunk_attribution * current_samples
+            weighted_attribution = (
+                weighted
+                if weighted_attribution is None
+                else weighted_attribution + weighted
+            )
+            completed_samples += current_samples
+        attribution = weighted_attribution / samples
     heatmap = attribution.sum(dim=1)[0]
     return SignedAttribution(raw=normalize_signed_map(heatmap.detach().cpu()))
 
@@ -387,13 +414,19 @@ def gradient_shap(
     samples: int = 16,
     stdevs: float = 0.02,
     polarity: str = "magnitude",
+    internal_batch_size: int | None = None,
 ) -> torch.Tensor:
     """Deprecated thin wrapper preserving the pre-1.2 ``polarity=`` API."""
     if polarity not in {"magnitude", "positive", "negative"}:
         raise ValueError(
             "polarity must be 'magnitude', 'positive', or 'negative'.")
     attribution = gradient_shap_signed(
-        model, image, class_idx=class_idx, samples=samples, stdevs=stdevs
+        model,
+        image,
+        class_idx=class_idx,
+        samples=samples,
+        stdevs=stdevs,
+        internal_batch_size=internal_batch_size,
     )
     return _project_legacy(attribution, polarity)
 

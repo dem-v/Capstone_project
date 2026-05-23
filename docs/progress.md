@@ -2937,3 +2937,20 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Updated `docs/refactor_plan.md` to mark the CXR IO extraction as partially complete and to keep remaining row-reader/calibration-parsing extraction candidates explicit for later size-reduction passes.
 - Verification: `wsl.exe python3 -m py_compile src/explainai_thesis/cxr/io.py scripts/run_cxr_torchxray_smoke.py` passed. Full suite `wsl.exe python3 -m pytest tests/ -v` -> **52 passed**, with only known TorchXRayVision serialization warnings.
 
+### 2026-05-21 (Classifier-outcome run performance note) - post-Occlusion bottleneck identified
+- During the ResNet-50 1000-case classifier-outcome run, the visible pause after `Occlusion done` was traced to CPU/disk post-processing rather than additional model inference: the script expands all signed attribution families into method views, saves overlays, thresholds each requested top-fraction, writes selected-region PNGs, builds contact sheets, appends metric rows, and checkpoints CSVs before moving to the next candidate.
+- Potential low-risk improvement logged for later: keep GPU XAI computation serial per case, but add progress messages inside the post-Occlusion method-view loop and a `--postprocess-workers` option to parallelize independent per-method-view image/metric generation with a small thread pool.
+- Additional broad-run speed option for later: add `--metrics-only`, `--no-selection-images`, and/or `--no-contact-sheets` flags so 1000-case discovery runs can collect metrics cheaply, while the selected 10 review cases are rerun with full high-stability image artifacts.
+- Whole-case parallelism is deferred because it risks GPU contention, checkpoint races, duplicated/overfilled outcome groups, and resume complexity. If needed later, prefer independent output shards plus a merge step rather than concurrent writes into one run folder.
+
+### 2026-05-22 (Migration verification pass) - ResNet support gaps closed
+- After the ResNet review-diagnostic failure, the remaining CXR scripts were checked for old DenseNet-only loading, preprocessing, pathology-index, and target-layer assumptions. Calibration and baseline-diagnostic scripts were still using old TorchXRayVision normalization / `DenseNet`-direct paths and were migrated to the shared `load_classifier()` bundle and classifier-specific preprocessing.
+- Removed stale DenseNet-only helper definitions from classifier-outcome/evaluation scripts and added `weights` / `image_size` traceability to classifier evaluation predictions.
+- Fixed a Python 3.10 compatibility regression in `src/explainai_thesis/run_metadata.py`: `datetime.UTC` was replaced with `datetime.timezone.utc`, because the documented WSL environment is Python 3.10.12.
+- Verification: WSL `py_compile` passed for the affected scripts and `run_metadata.py`; CLI `--help` smoke checks passed for calibration, baseline diagnostics, classifier evaluation, threshold selection, and classifier-outcome visualization; full suite `wsl.exe python3 -m pytest tests/ -v` -> **52 passed**, with only known TorchXRayVision serialization warnings.
+
+### 2026-05-22 (ResNet review diagnostics) - GradientSHAP CUDA OOM mitigated
+- The corrected ResNet review high-stability diagnostics hit CUDA OOM during `GradientSHAP` with `--gradshap-samples 64` on `512x512` inputs. This was a memory-batching issue, not a model-loading migration issue: Captum was expanding all noisy samples into a large CUDA batch for the ResNet forward/backward pass.
+- Added `internal_batch_size` support to `gradient_shap_signed(...)` / legacy `gradient_shap(...)` and exposed it in `scripts/visualize_cxr_threshold_selection.py` as `--gradshap-internal-batch-size` with conservative default `8`. Existing generated diagnostic commands inherit this safe default even if they do not explicitly include the new flag.
+- Updated `scripts/select_cxr_review_candidates.py` so newly generated high-stability diagnostic PowerShell commands include `--gradshap-internal-batch-size 8` explicitly. If OOM persists on the current GPU, rerun with `--gradshap-internal-batch-size 4` or `2` before reducing `--gradshap-samples`.
+

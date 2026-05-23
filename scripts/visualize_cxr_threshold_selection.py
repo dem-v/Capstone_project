@@ -5,29 +5,28 @@ import argparse
 import csv
 from pathlib import Path
 
+import numpy as np
+from PIL import Image, ImageDraw
+import torch
 
-from explainai_thesis.xai import (
-    GradCAM,
-    SignedAttribution,
-    consensus_signed,
-    gradient_shap_signed,
-    iter_method_views,
-    integrated_gradients_signed,
-    occlusion_sensitivity_signed,
-)
+from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
 from explainai_thesis.visualization import (
     overlay_color_for_method,
     save_binary_selection,
     save_overlay,
     signed_diverging_overlay,
 )
-from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
-from PIL import Image, ImageDraw
-import torchxrayvision as xrv
-import torch
-import numpy as np
-
-from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.xai import (
+    GradCAM,
+    SignedAttribution,
+    consensus_signed,
+    gradient_shap_signed,
+    integrated_gradients_signed,
+    iter_method_views,
+    occlusion_sensitivity_signed,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,6 +51,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ig-steps", type=int, default=16)
     parser.add_argument("--gradshap-samples", type=int, default=8)
     parser.add_argument("--gradshap-stdevs", type=float, default=0.02)
+    parser.add_argument(
+        "--gradshap-internal-batch-size",
+        type=int,
+        default=8,
+        help=(
+            "Captum internal batch size for GradientSHAP noisy samples. "
+            "Lower values reduce CUDA memory use for 512px ResNet diagnostics."
+        ),
+    )
     parser.add_argument("--occlusion-patch-size", type=int, default=32)
     parser.add_argument("--occlusion-stride", type=int, default=16)
     parser.add_argument(
@@ -84,27 +92,17 @@ def read_positive_rows(
     return rows
 
 
-def load_image(path: Path, image_size: int) -> torch.Tensor:
+def load_image(path: Path, image_size: int, preprocess) -> torch.Tensor:
     image = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.BILINEAR)
     array = np.asarray(image)
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
+    return preprocess(array)
 
 
 def load_mask(path: Path, image_size: int) -> torch.Tensor:
     mask = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.NEAREST)
     return torch.from_numpy(np.asarray(mask) > 0)
-
-
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
 
 
 def parse_fractions(raw: str) -> list[float]:
@@ -218,14 +216,14 @@ def main() -> None:
                 f"case-index must be in [0, {len(rows) - 1}] for split={args.split}.")
         case_index = args.case_index
         row = rows[case_index]
-    image = load_image(Path(row["image_path"]), args.image_size)
-    mask = load_mask(Path(row["mask_path"]), args.image_size)
-
     device = resolve_device(args.device)
-    model = xrv.models.DenseNet(weights=args.weights).to(device)
-    model.eval()
-    class_idx = pathology_index(model, "Pneumothorax")
-    gradcam = GradCAM(model, model.features.denseblock4)
+    classifier = load_classifier(args.weights, device=device, pathology="Pneumothorax")
+    model = classifier.model
+    class_idx = classifier.class_idx
+    gradcam = GradCAM(model, classifier.target_layer)
+
+    image = load_image(Path(row["image_path"]), args.image_size, classifier.preprocess)
+    mask = load_mask(Path(row["mask_path"]), args.image_size)
     model_input = image.unsqueeze(0).to(device)
 
     with torch.no_grad():
@@ -245,6 +243,7 @@ def main() -> None:
         class_idx=class_idx,
         samples=args.gradshap_samples,
         stdevs=args.gradshap_stdevs,
+        internal_batch_size=args.gradshap_internal_batch_size,
     )
     occlusion_attr = occlusion_sensitivity_signed(
         model,
@@ -272,6 +271,8 @@ def main() -> None:
             "split": row.get("split", ""),
             "image_path": row["image_path"],
             "mask_path": row["mask_path"],
+            "weights": args.weights,
+            "image_size": args.image_size,
             "xrv_pneumothorax_score": round(score, 6),
             "xrv_pneumothorax_sigmoid": round(probability, 6),
         }

@@ -25,7 +25,6 @@ from explainai_thesis.metrics import (
 )
 from explainai_thesis.run_metadata import write_run_metadata
 from PIL import Image
-import torchxrayvision as xrv
 import torch
 import numpy as np
 
@@ -129,27 +128,17 @@ def read_positive_rows(
     return rows
 
 
-def load_image(path: Path, image_size: int) -> torch.Tensor:
+def load_image(path: Path, image_size: int, preprocess) -> torch.Tensor:
     image = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.BILINEAR)
     array = np.asarray(image)
-    normalized = xrv.datasets.normalize(array, 255)
-    return torch.from_numpy(normalized).unsqueeze(0).float()
+    return preprocess(array)
 
 
 def load_mask(path: Path, image_size: int) -> torch.Tensor:
     mask = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.NEAREST)
     return torch.from_numpy(np.asarray(mask) > 0)
-
-
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}") from exc
 
 
 def parse_fractions(raw: str) -> list[float]:
@@ -217,7 +206,7 @@ def main() -> None:
 
     metric_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
-        image = load_image(Path(row["image_path"]), args.image_size)
+        image = load_image(Path(row["image_path"]), args.image_size, bundle.preprocess)
         mask = load_mask(Path(row["mask_path"]), args.image_size)
         model_input = image.unsqueeze(0).to(device)
 

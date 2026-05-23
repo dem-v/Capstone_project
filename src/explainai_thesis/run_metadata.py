@@ -7,7 +7,7 @@ import json
 import platform
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -51,7 +51,7 @@ def build_run_metadata(args: argparse.Namespace, **extra: Any) -> dict[str, Any]
     """Return a JSON-serializable metadata snapshot for a script run."""
 
     return {
-        "created_at_utc": datetime.now(UTC).isoformat(),
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "command": " ".join(sys.argv),
         "args": _json_safe(vars(args)),
         "extra": _json_safe(extra),

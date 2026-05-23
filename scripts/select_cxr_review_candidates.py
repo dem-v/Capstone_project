@@ -73,6 +73,12 @@ def parse_args() -> argparse.Namespace:
         default=64,
         help="GradientSHAP samples for generated diagnostic commands.",
     )
+    parser.add_argument(
+        "--gradshap-internal-batch-size",
+        type=int,
+        default=8,
+        help="Captum internal batch size for generated GradientSHAP diagnostic commands.",
+    )
     parser.add_argument("--occlusion-patch-size", type=int, default=32)
     parser.add_argument("--occlusion-stride", type=int, default=12)
     parser.add_argument(
@@ -263,6 +269,7 @@ def diagnostic_command(row: dict[str, object], args: argparse.Namespace, rank: i
         f"--case-filename {filename} "
         f"--ig-steps {args.ig_steps} "
         f"--gradshap-samples {args.gradshap_samples} "
+        f"--gradshap-internal-batch-size {args.gradshap_internal_batch_size} "
         f"--occlusion-patch-size {args.occlusion_patch_size} "
         f"--occlusion-stride {args.occlusion_stride} "
         f"--fractions {args.fractions} "

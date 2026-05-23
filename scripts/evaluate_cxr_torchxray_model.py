@@ -72,16 +72,6 @@ def load_image(path: Path, image_size: int, preprocess: Callable[[np.ndarray], t
     return preprocess(array)
 
 
-def pathology_index(model: torch.nn.Module, pathology: str) -> int:
-    pathologies = list(model.pathologies)
-    try:
-        return pathologies.index(pathology)
-    except ValueError as exc:
-        raise ValueError(
-            f"{pathology!r} is not available in model pathologies: {pathologies}"
-        ) from exc
-
-
 def batched(iterable: list[dict[str, str]], batch_size: int):
     for start in range(0, len(iterable), batch_size):
         yield iterable[start: start + batch_size]
@@ -207,6 +197,8 @@ def main() -> None:
                     "xrv_pneumothorax_score": round(float(score), 8),
                     "xrv_pneumothorax_sigmoid": round(float(probability), 8),
                     "threshold": args.threshold,
+                    "weights": args.weights,
+                    "image_size": args.image_size,
                     "image_path": row["image_path"],
                     "mask_path": row.get("mask_path", ""),
                 }
@@ -258,6 +250,8 @@ def main() -> None:
                 "xrv_pneumothorax_score",
                 "xrv_pneumothorax_sigmoid",
                 "threshold",
+                "weights",
+                "image_size",
                 "image_path",
                 "mask_path",
             ],
