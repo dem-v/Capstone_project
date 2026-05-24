@@ -245,6 +245,83 @@ def faithfulness_curve_svg(curve_rows: list[dict[str, str]]) -> str:
     return "".join(elements)
 
 
+def faithfulness_summary_svg(
+    summary_rows: list[dict[str, str]],
+    *,
+    zoomed: bool = False,
+) -> str:
+    if not summary_rows:
+        return ""
+    rows = sorted(summary_rows, key=lambda item: (item.get("method", ""), item.get("view", "")))
+    values: list[tuple[str, float, float]] = []
+    for row in rows:
+        try:
+            insertion = float(row["faithfulness_insertion_auc"])
+            deletion_drop = float(row["faithfulness_deletion_drop"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        label = f"{row.get('method', '')} {row.get('view', '')}".strip()
+        values.append((label, insertion, deletion_drop))
+    if not values:
+        return ""
+
+    all_values = [value for _, insertion, deletion_drop in values for value in (insertion, deletion_drop)]
+    if zoomed:
+        low = max(0.0, min(all_values) - 0.05)
+        high = min(1.0, max(all_values) + 0.05)
+        if high - low < 0.10:
+            center = (high + low) / 2.0
+            low = max(0.0, center - 0.05)
+            high = min(1.0, center + 0.05)
+    else:
+        low = 0.0
+        high = 1.0
+    if high <= low:
+        high = low + 1.0
+
+    width = max(900, len(values) * 54)
+    height = 360
+    left = 58
+    right = 20
+    top = 32
+    bottom = 112
+    plot_width = width - left - right
+    plot_height = height - top - bottom
+    group_width = plot_width / len(values)
+    bar_width = min(16, group_width * 0.32)
+
+    def y_pos(value: float) -> float:
+        return top + (high - value) / (high - low) * plot_height
+
+    title = "Faithfulness AUC summary, zoomed" if zoomed else "Faithfulness AUC summary"
+    elements = [
+        f'<svg class="faithfulness-svg faithfulness-summary-svg" viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(title)}">',
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<text x="{left}" y="20" font-size="14" font-weight="700">{html.escape(title)}</text>',
+        f'<line x1="{left}" y1="{top + plot_height}" x2="{left + plot_width}" y2="{top + plot_height}" stroke="#9ca3af"/>',
+        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_height}" stroke="#9ca3af"/>',
+        f'<text x="{left + plot_width - 230}" y="20" font-size="11"><tspan fill="#2563eb">■</tspan> insertion AUC  <tspan fill="#dc2626">■</tspan> deletion drop</text>',
+    ]
+    for tick in range(5):
+        value = low + (high - low) * tick / 4
+        y = y_pos(value)
+        elements.append(f'<line x1="{left - 4}" y1="{y:.1f}" x2="{left + plot_width}" y2="{y:.1f}" stroke="#e5e7eb"/>')
+        elements.append(f'<text x="8" y="{y + 4:.1f}" font-size="10">{value:.2f}</text>')
+    for index, (label, insertion, deletion_drop) in enumerate(values):
+        center = left + group_width * (index + 0.5)
+        for x, value, color in (
+            (center - bar_width, insertion, "#2563eb"),
+            (center + 2, deletion_drop, "#dc2626"),
+        ):
+            y = y_pos(value)
+            bar_height = max(1.0, top + plot_height - y)
+            elements.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" fill="{color}"/>')
+        escaped_label = html.escape(label)
+        elements.append(f'<text transform="translate({center - 6:.1f},{height - 10}) rotate(-55)" font-size="9">{escaped_label}</text>')
+    elements.append("</svg>")
+    return "".join(elements)
+
+
 def faithfulness_section(run_dir: Path, output_dir: Path, case_id: str) -> str:
     summary_path = run_dir / "faithfulness_summary.csv"
     curves_path = run_dir / "faithfulness_curves.csv"
@@ -254,10 +331,17 @@ def faithfulness_section(run_dir: Path, output_dir: Path, case_id: str) -> str:
     zoomed_png = copy_asset(run_dir / "faithfulness_summary_zoomed.png", output_dir, case_id)
     if not summary_rows and not curve_rows and summary_png is None and zoomed_png is None:
         return '<section class="faithfulness"><h3>Faithfulness</h3><p class="meta">No faithfulness outputs found for this case.</p></section>'
-    figures = [
-        image_cell(summary_png, output_dir, "faithfulness summary plot", "wide"),
-        image_cell(zoomed_png, output_dir, "faithfulness summary plot, zoomed", "wide"),
-    ]
+    summary_figure = (
+        image_cell(summary_png, output_dir, "faithfulness summary plot", "wide")
+        if summary_png is not None
+        else f'<figure class="wide"><figcaption>faithfulness summary plot</figcaption>{faithfulness_summary_svg(summary_rows)}</figure>'
+    )
+    zoomed_figure = (
+        image_cell(zoomed_png, output_dir, "faithfulness summary plot, zoomed", "wide")
+        if zoomed_png is not None
+        else f'<figure class="wide"><figcaption>faithfulness summary plot, zoomed</figcaption>{faithfulness_summary_svg(summary_rows, zoomed=True)}</figure>'
+    )
+    figures = [summary_figure, zoomed_figure]
     return f"""
   <section class="faithfulness">
     <h3>Faithfulness</h3>
