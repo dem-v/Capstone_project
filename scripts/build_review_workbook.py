@@ -5,6 +5,7 @@ import csv
 import html
 import os
 import re
+import shutil
 from pathlib import Path
 
 
@@ -14,6 +15,12 @@ REVIEW_FIELDS = [
     "localization_score",
     "usefulness_score",
     "failure_category",
+    "flag_devices_or_tubes",
+    "flag_subcutaneous_emphysema",
+    "flag_mask_quality_issue",
+    "flag_indirect_evidence",
+    "flag_method_disagreement",
+    "flag_weak_pixel_attribution",
     "artifact_note",
     "comment",
 ]
@@ -85,11 +92,24 @@ def relative_path(path: Path, base: Path) -> str:
     return html.escape(Path(rel).as_posix())
 
 
-def image_cell(path: Path | None, base: Path, caption: str) -> str:
+def copy_asset(path: Path | None, output_dir: Path, case_id: str) -> Path | None:
+    if path is None or not path.exists():
+        return None
+    assets_dir = output_dir / "assets" / case_id
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    destination = assets_dir / path.name
+    if path.resolve() != destination.resolve():
+        shutil.copy2(path, destination)
+    return destination
+
+
+def image_cell(path: Path | None, base: Path, caption: str, css_class: str = "") -> str:
     if path is None or not path.exists():
         return f'<figure class="missing"><div>missing</div><figcaption>{html.escape(caption)}</figcaption></figure>'
     rel = relative_path(path, base)
-    return f'<figure><img src="{rel}" alt="{html.escape(caption)}"><figcaption>{html.escape(caption)}</figcaption></figure>'
+    class_attr = f' class="{html.escape(css_class)}"' if css_class else ""
+    escaped_caption = html.escape(caption)
+    return f'<figure{class_attr}><a href="{rel}" target="_blank"><img src="{rel}" alt="{escaped_caption}"></a><figcaption>{escaped_caption}</figcaption></figure>'
 
 
 def metric_table(row: dict[str, str]) -> str:
@@ -124,6 +144,174 @@ def find_image(case_dir: Path | None, filename: str) -> Path | None:
     return matches[0] if matches else None
 
 
+def asset_image_cell(
+    source_path: Path | None,
+    output_dir: Path,
+    case_id: str,
+    caption: str,
+    css_class: str = "",
+) -> str:
+    return image_cell(copy_asset(source_path, output_dir, case_id), output_dir, caption, css_class)
+
+
+def format_float(value: str | float, digits: int = 3) -> str:
+    try:
+        return f"{float(value):.{digits}f}"
+    except (TypeError, ValueError):
+        return html.escape(str(value))
+
+
+def faithfulness_summary_table(summary_rows: list[dict[str, str]]) -> str:
+    if not summary_rows:
+        return ""
+    columns = [
+        ("Method", "method"),
+        ("View", "view"),
+        ("Insertion AUC", "faithfulness_insertion_auc"),
+        ("Deletion AUC", "faithfulness_deletion_auc"),
+        ("Deletion drop", "faithfulness_deletion_drop"),
+        ("Insertion gain", "faithfulness_insertion_gain"),
+    ]
+    body = []
+    for row in sorted(
+        summary_rows,
+        key=lambda item: (
+            item.get("method", ""),
+            item.get("view", ""),
+        ),
+    ):
+        cells = []
+        for _, key in columns:
+            value = row.get(key, "")
+            if key.startswith("faithfulness_"):
+                value = format_float(value)
+            else:
+                value = html.escape(str(value))
+            cells.append(f"<td>{value}</td>")
+        body.append(f"<tr>{''.join(cells)}</tr>")
+    header = "".join(f"<th>{html.escape(label)}</th>" for label, _ in columns)
+    return f'<table class="metrics faithfulness-table"><thead><tr>{header}</tr></thead><tbody>{"".join(body)}</tbody></table>'
+
+
+def faithfulness_curve_svg(curve_rows: list[dict[str, str]]) -> str:
+    if not curve_rows:
+        return ""
+    grouped: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for row in curve_rows:
+        grouped.setdefault((row.get("method", ""), row.get("view", "")), []).append(row)
+    selected_groups = [
+        item for item in grouped.items() if item[0][1] in {"positive", "signed", "magnitude"}
+    ][:8]
+    if not selected_groups:
+        selected_groups = list(grouped.items())[:8]
+    colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#4b5563", "#be123c"]
+    width = 760
+    height = 300
+    left = 48
+    right = 16
+    top = 18
+    bottom = 42
+    plot_width = width - left - right
+    plot_height = height - top - bottom
+
+    def point(row: dict[str, str], key: str) -> tuple[float, float]:
+        x = left + float(row["fraction"]) * plot_width
+        y = top + (1.0 - float(row[key])) * plot_height
+        return x, y
+
+    elements = [
+        f'<svg class="faithfulness-svg" viewBox="0 0 {width} {height}" role="img" aria-label="Faithfulness deletion and insertion curves">',
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<line x1="{left}" y1="{top + plot_height}" x2="{left + plot_width}" y2="{top + plot_height}" stroke="#9ca3af"/>',
+        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_height}" stroke="#9ca3af"/>',
+        f'<text x="{left}" y="{height - 12}" font-size="11">fraction restored/removed</text>',
+        f'<text x="5" y="14" font-size="11">probability</text>',
+    ]
+    legend_y = 22
+    for index, ((method, view), rows) in enumerate(selected_groups):
+        rows = sorted(rows, key=lambda item: float(item["fraction"]))
+        color = colors[index % len(colors)]
+        insertion_points = " ".join(f"{x:.1f},{y:.1f}" for x, y in (point(row, "insertion_probability") for row in rows))
+        deletion_points = " ".join(f"{x:.1f},{y:.1f}" for x, y in (point(row, "deletion_probability") for row in rows))
+        label = html.escape(f"{method} {view}")
+        elements.append(f'<polyline points="{insertion_points}" fill="none" stroke="{color}" stroke-width="2"/>')
+        elements.append(f'<polyline points="{deletion_points}" fill="none" stroke="{color}" stroke-width="2" stroke-dasharray="5 4"/>')
+        elements.append(f'<line x1="585" y1="{legend_y}" x2="615" y2="{legend_y}" stroke="{color}" stroke-width="2"/>')
+        elements.append(f'<line x1="585" y1="{legend_y + 10}" x2="615" y2="{legend_y + 10}" stroke="{color}" stroke-width="2" stroke-dasharray="5 4"/>')
+        elements.append(f'<text x="620" y="{legend_y + 4}" font-size="10">{label}</text>')
+        legend_y += 28
+    elements.append('<text x="585" y="270" font-size="10">solid=insertion, dashed=deletion</text>')
+    elements.append("</svg>")
+    return "".join(elements)
+
+
+def faithfulness_section(run_dir: Path, output_dir: Path, case_id: str) -> str:
+    summary_path = run_dir / "faithfulness_summary.csv"
+    curves_path = run_dir / "faithfulness_curves.csv"
+    summary_rows = read_csv(summary_path) if summary_path.exists() else []
+    curve_rows = read_csv(curves_path) if curves_path.exists() else []
+    summary_png = copy_asset(run_dir / "faithfulness_summary.png", output_dir, case_id)
+    zoomed_png = copy_asset(run_dir / "faithfulness_summary_zoomed.png", output_dir, case_id)
+    if not summary_rows and not curve_rows and summary_png is None and zoomed_png is None:
+        return '<section class="faithfulness"><h3>Faithfulness</h3><p class="meta">No faithfulness outputs found for this case.</p></section>'
+    figures = [
+        image_cell(summary_png, output_dir, "faithfulness summary plot", "wide"),
+        image_cell(zoomed_png, output_dir, "faithfulness summary plot, zoomed", "wide"),
+    ]
+    return f"""
+  <section class="faithfulness">
+    <h3>Faithfulness</h3>
+    <p class="meta">Insertion starts from the selected baseline and restores high-attribution pixels; deletion starts from the original image and replaces high-attribution pixels with the baseline. Higher insertion AUC/gain and larger deletion drop indicate stronger model-behavior faithfulness, not clinical correctness.</p>
+    <div class="faithfulness-grid">{''.join(figures)}{faithfulness_curve_svg(curve_rows)}</div>
+    {faithfulness_summary_table(summary_rows)}
+  </section>
+"""
+
+
+def method_view_name(method: str, view: str) -> str:
+    return method if view == "positive" else f"{method}_{view}"
+
+
+def add_method_section(
+    figures: list[str],
+    case_dir: Path | None,
+    output_dir: Path,
+    case_id: str,
+    source_stem: str,
+    method: str,
+) -> None:
+    views = [
+        ("positive", "positive / red"),
+        ("negative", "negative / blue"),
+        ("magnitude", "magnitude / violet"),
+        ("signed", "signed / orange-teal"),
+    ]
+    figures.append(f'<h3 class="method-title">{html.escape(method)}</h3>')
+    for view, label in views:
+        name = method_view_name(method, view)
+        continuous = find_image(case_dir, f"{source_stem}*{name}_continuous_heatmap.png")
+        sweep = find_image(case_dir, f"{source_stem}*{name}_threshold_sweep_panel.png")
+        if continuous is None and sweep is None:
+            continue
+        figures.append(
+            asset_image_cell(
+                continuous,
+                output_dir,
+                case_id,
+                f"{method} {label} continuous",
+            )
+        )
+        figures.append(
+            asset_image_cell(
+                sweep,
+                output_dir,
+                case_id,
+                f"{method} {label} threshold sweep",
+                "wide",
+            )
+        )
+
+
 def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: list[str]) -> str:
     cards: list[str] = []
     for row in rows:
@@ -132,9 +320,27 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
         source_stem = Path(row["filename"]).stem
         case_id = f"case_{int(row['review_rank']):02d}"
         figures = []
-        figures.append(image_cell(find_image(case_dir, f"{source_stem}*consensus_threshold_sweep_panel.png"), args.output_dir, "consensus threshold sweep"))
+        figures.append(
+            asset_image_cell(
+                Path(row["image_path"]),
+                args.output_dir,
+                case_id,
+                "native source image",
+                "native",
+            )
+        )
+        figures.append(
+            asset_image_cell(
+                Path(row["mask_path"]),
+                args.output_dir,
+                case_id,
+                "native ground-truth mask",
+                "native",
+            )
+        )
         for method in methods:
-            figures.append(image_cell(find_image(case_dir, f"{source_stem}*{method}_continuous_heatmap.png"), args.output_dir, method))
+            add_method_section(figures, case_dir, args.output_dir, case_id, source_stem, method)
+        faithfulness_html = faithfulness_section(run_dir, args.output_dir, case_id)
         meta = " | ".join(
             [
                 f"category={row.get('category', '')}",
@@ -153,7 +359,8 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
   <h2>{case_id}: {html.escape(row['filename'])}</h2>
   <p class="meta">{html.escape(meta)}</p>
   {metric_table(row)}
-  <div class="grid">{''.join(figures)}</div>
+  {faithfulness_html}
+  <div class="review-grid">{''.join(figures)}</div>
 </section>
 """
         )
@@ -164,6 +371,7 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
     <div><b>localization_score</b><ul><li><code>correct</code>: main positive evidence is inside or tightly follows the pneumothorax/mask region.</li><li><code>partial</code>: some relevant lesion/pleural evidence is present, but substantial signal is missing or off-target.</li><li><code>incorrect</code>: dominant evidence is outside the clinically relevant region.</li><li><code>none</code>: no interpretable positive localization is visible.</li></ul></div>
     <div><b>usefulness_score</b><ul><li><code>useful</code>: would help explain or audit the classifier decision.</li><li><code>potentially_useful</code>: contains some plausible signal but needs caution.</li><li><code>misleading</code>: visually persuasive but clinically points to the wrong reason.</li><li><code>not_useful</code>: too diffuse, noisy, absent, or artifact-driven.</li></ul></div>
     <div><b>failure_category</b><ul><li><code>correct</code>: no major failure.</li><li><code>partial</code>: mixed lesion and non-lesion evidence.</li><li><code>anatomically_related</code>: plausible nearby anatomy, not the lesion itself.</li><li><code>devices_text_artifacts</code>: tubes, labels, borders, text, or markers dominate.</li><li><code>non_pathological_high_contrast</code>: ribs, diaphragm, edges, or contrast structures dominate.</li><li><code>diffuse_non_specific</code>: broad nonspecific signal.</li><li><code>clinically_misleading</code>: explanation supports an unsafe or wrong clinical story.</li></ul></div>
+    <div><b>binary flags</b><ul><li><code>flag_devices_or_tubes</code>: tubes, wires, drains, text, or device artifacts are relevant.</li><li><code>flag_subcutaneous_emphysema</code>: subcutaneous emphysema affects interpretation.</li><li><code>flag_mask_quality_issue</code>: mask/label is missing, incomplete, or questionable.</li><li><code>flag_indirect_evidence</code>: clinically related but indirect signs dominate.</li><li><code>flag_method_disagreement</code>: methods clearly highlight different regions.</li><li><code>flag_weak_pixel_attribution</code>: IG/GradientSHAP remain weak/noisy or strongly disagree with the other methods.</li></ul></div>
   </div>
   <p>Color semantics: red/orange = positive evidence for pneumothorax score; blue/teal = negative evidence against that score; violet = magnitude/impact; green/yellow/cyan mark mask/selection intersections where present. Heatmaps are model-behavior diagnostics, not pathology segmentations.</p>
 </aside>
@@ -183,11 +391,22 @@ header, .rubric {{ position: sticky; top: 0; z-index: 2; background: #fff; borde
 .metrics {{ border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; }}
 .metrics th, .metrics td {{ border: 1px solid #e5e7eb; padding: 4px 8px; text-align: left; }}
 .metrics th {{ background: #f3f4f6; }}
-.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }}
+.faithfulness {{ margin: 12px 0 18px; padding: 10px; border: 1px solid #dbeafe; background: #eff6ff; border-radius: 6px; }}
+.faithfulness h3 {{ margin: 0 0 6px; }}
+.faithfulness-grid {{ display: grid; grid-template-columns: repeat(2, minmax(320px, 1fr)); gap: 12px; align-items: start; }}
+.faithfulness-svg {{ width: 100%; min-height: 260px; border: 1px solid #e5e7eb; background: #fff; }}
+.faithfulness-table {{ background: #fff; }}
+.review-grid {{ display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 12px; align-items: start; }}
+.method-title {{ grid-column: 1 / -1; margin: 18px 0 0; padding: 8px 10px; background: #eef2ff; border-left: 4px solid #6366f1; font-size: 17px; }}
 figure {{ margin: 0; border: 1px solid #e5e7eb; padding: 6px; background: #fafafa; }}
 img {{ width: 100%; height: auto; display: block; }}
+.native img {{ image-rendering: auto; }}
+.wide {{ grid-column: span 3; }}
+.wide img {{ width: 100%; }}
 figcaption {{ font-size: 12px; margin-top: 4px; }}
 .missing div {{ min-height: 160px; display: grid; place-items: center; color: #9ca3af; }}
+@media (max-width: 1200px) {{ .review-grid {{ grid-template-columns: repeat(2, minmax(240px, 1fr)); }} .wide {{ grid-column: span 2; }} }}
+@media (max-width: 720px) {{ .review-grid {{ grid-template-columns: 1fr; }} .wide {{ grid-column: span 1; }} }}
 </style>
 </head>
 <body>
@@ -205,20 +424,28 @@ def write_instructions(path: Path, case_count: int) -> None:
 
 1. Open `index.html` in a browser.
 2. Copy `scores_template.csv` to `scores.csv` in the same folder.
-3. For each of the {case_count} cases, fill `localization_score`, `usefulness_score`, `failure_category`, and optional notes.
+3. For each of the {case_count} cases, fill `localization_score`, `usefulness_score`, `failure_category`, binary qualitative flags, and optional notes.
 4. Use the first three cases as warmup anchors before continuing the full scoring pass.
 5. Do not edit `scores_template.csv`; keep it as the reproducible blank template.
+
+Workbook layout:
+- Native source image and native ground-truth mask are shown first. Click any image to open the full-size file in a new tab.
+- If faithfulness was computed, each case shows deletion/insertion curves and a compact summary table before the heatmap grid. Solid lines are insertion; dashed lines are deletion.
+- Each method block shows available positive, negative, magnitude, and signed views. The paired threshold-sweep panel follows each continuous heatmap when it exists.
 
 Allowed values:
 - `localization_score`: `correct` = main positive evidence matches the pneumothorax region; `partial` = some lesion/pleural evidence but incomplete/off-target; `incorrect` = dominant evidence outside the relevant region; `none` = no interpretable positive localization.
 - `usefulness_score`: `useful` = helps audit/explain the decision; `potentially_useful` = plausible but caution needed; `misleading` = visually plausible but clinically wrong reason; `not_useful` = diffuse/noisy/absent/artifact-driven.
 - `failure_category`: `correct`, `partial`, `anatomically_related`, `devices_text_artifacts`, `non_pathological_high_contrast`, `diffuse_non_specific`, `clinically_misleading`.
+- Binary flags use `0` = absent/not relevant and `1` = present/relevant: `flag_devices_or_tubes`, `flag_subcutaneous_emphysema`, `flag_mask_quality_issue`, `flag_indirect_evidence`, `flag_method_disagreement`, `flag_weak_pixel_attribution`.
+- `flag_weak_pixel_attribution` covers IG/GradientSHAP that remain weak/noisy after smoothing or disagree strongly with the other methods.
 
 Metric hints:
 - `Dice`, `IoU`, and `precision_at_fraction` summarize positive-mask overlap for the best available method/fraction.
 - `pointing_hit` asks whether the single strongest point lands inside the mask.
 - `negative_mask_overlap_fraction` and `negative_mask_avoidance_fraction` describe whether suppressive evidence falls inside or avoids the lesion.
 - `signed_prediction_alignment` is a report-only diagnostic: whether signed evidence direction agrees with the classifier prediction at the frozen threshold.
+- Faithfulness metrics evaluate model behavior under perturbation, not clinical correctness: higher insertion AUC/gain and larger deletion drop mean the attribution ranking changes the model probability more strongly.
 """,
         encoding="utf-8",
     )
@@ -232,13 +459,14 @@ def main() -> None:
 
     template_rows = [
         {
-            "case_id": f"case_{int(row['review_rank']):02d}",
-            "filename": row["filename"],
-            "localization_score": "",
-            "usefulness_score": "",
-            "failure_category": "",
-            "artifact_note": "",
-            "comment": "",
+            field: (
+                f"case_{int(row['review_rank']):02d}"
+                if field == "case_id"
+                else row["filename"]
+                if field == "filename"
+                else ""
+            )
+            for field in REVIEW_FIELDS
         }
         for row in rows
     ]

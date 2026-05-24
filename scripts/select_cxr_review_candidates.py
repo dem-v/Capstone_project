@@ -108,6 +108,28 @@ def parse_args() -> argparse.Namespace:
         default=10,
         help="Maximum number of manual-review cases selected across categories.",
     )
+    parser.add_argument(
+        "--balanced-per-outcome",
+        type=int,
+        default=0,
+        help="If >0, select this many cases per tp/fp/tn/fn outcome instead of category-ranked cases.",
+    )
+    parser.add_argument(
+        "--pixel-attribution-mask-smoothing",
+        type=int,
+        default=9,
+        help="Pixel-attribution smoothing flag passed to generated diagnostic commands.",
+    )
+    parser.add_argument(
+        "--faithfulness-fractions",
+        default="",
+        help="Optional faithfulness fractions passed to generated diagnostic commands.",
+    )
+    parser.add_argument(
+        "--faithfulness-baseline",
+        default="black",
+        help="Faithfulness baseline passed when --faithfulness-fractions is non-empty.",
+    )
     return parser.parse_args()
 
 
@@ -119,8 +141,13 @@ def read_csv(path: Path) -> list[dict[str, str]]:
 def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     if not rows:
         return
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
@@ -260,21 +287,34 @@ def diagnostic_command(row: dict[str, object], args: argparse.Namespace, rank: i
     source_stem = safe_name(Path(filename).stem)
     category = safe_name(str(row["category"]))
     output_dir = f"{args.diagnostic_root}/case_{rank:02d}_{category}_{source_stem}"
-    return (
-        "wsl.exe python3 scripts/visualize_cxr_threshold_selection.py "
-        "--device auto "
-        "--split any "
-        f"--weights {args.weights} "
-        f"--image-size {args.image_size} "
-        f"--case-filename {filename} "
-        f"--ig-steps {args.ig_steps} "
-        f"--gradshap-samples {args.gradshap_samples} "
-        f"--gradshap-internal-batch-size {args.gradshap_internal_batch_size} "
-        f"--occlusion-patch-size {args.occlusion_patch_size} "
-        f"--occlusion-stride {args.occlusion_stride} "
-        f"--fractions {args.fractions} "
-        f"--output-dir {output_dir}"
+    parts = [
+        "wsl.exe python3 scripts/visualize_cxr_threshold_selection.py",
+        "--device auto",
+        "--split any",
+        f"--weights {args.weights}",
+        f"--image-size {args.image_size}",
+        f"--case-filename {filename}",
+        f"--ig-steps {args.ig_steps}",
+        f"--gradshap-samples {args.gradshap_samples}",
+        f"--gradshap-internal-batch-size {args.gradshap_internal_batch_size}",
+        f"--pixel-attribution-mask-smoothing {args.pixel_attribution_mask_smoothing}",
+    ]
+    if args.faithfulness_fractions:
+        parts.extend(
+            [
+                f"--faithfulness-fractions {args.faithfulness_fractions}",
+                f"--faithfulness-baseline {args.faithfulness_baseline}",
+            ]
+        )
+    parts.extend(
+        [
+            f"--occlusion-patch-size {args.occlusion_patch_size}",
+            f"--occlusion-stride {args.occlusion_stride}",
+            f"--fractions {args.fractions}",
+            f"--output-dir {output_dir}",
+        ]
     )
+    return " ".join(parts)
 
 
 def main() -> None:
@@ -304,6 +344,7 @@ def main() -> None:
 
     tp = [row for row in enriched if row["classifier_outcome"] == "tp"]
     fp = [row for row in enriched if row["classifier_outcome"] == "fp"]
+    tn = [row for row in enriched if row["classifier_outcome"] == "tn"]
     fn = [row for row in enriched if row["classifier_outcome"] == "fn"]
 
     best_tp = sorted(tp, key=lambda row: (float(row.get("best_dice", 0.0)), float(row.get("best_iou", 0.0))), reverse=True)
@@ -334,22 +375,51 @@ def main() -> None:
 
     used: set[str] = set()
     selected: list[dict[str, object]] = []
-    for name in [
-        "best_tp_by_dice_iou",
-        "suspicious_tp_low_dice_positive_prediction",
-        "fp_high_classifier_score_strong_positive_evidence_proxy",
-        "fn_good_localization_low_classifier_score",
-        "high_negative_evidence_inside_mask",
-        "signed_evidence_model_aligned",
-    ]:
-        rows = []
-        for row in ranked_lists[name]:
-            copied = dict(row)
-            copied["category"] = name
-            rows.append(copied)
-        selected.extend(select_unique(rows, args.selected_per_category, used))
-
-    selected = selected[: args.max_selected]
+    if args.balanced_per_outcome > 0:
+        balanced_lists = {
+            "tp": sorted(
+                tp,
+                key=lambda row: (
+                    float(row.get("best_dice", 0.0)),
+                    float(row.get("best_iou", 0.0)),
+                    float(row["xrv_pneumothorax_sigmoid"]),
+                ),
+                reverse=True,
+            ),
+            "fp": sorted(fp, key=lambda row: float(row["xrv_pneumothorax_sigmoid"]), reverse=True),
+            "tn": sorted(tn, key=lambda row: float(row["xrv_pneumothorax_sigmoid"])),
+            "fn": sorted(
+                fn,
+                key=lambda row: (
+                    float(row.get("best_dice", 0.0)),
+                    -float(row["xrv_pneumothorax_sigmoid"]),
+                ),
+                reverse=True,
+            ),
+        }
+        for outcome in ["tp", "fp", "tn", "fn"]:
+            rows = []
+            for row in balanced_lists[outcome]:
+                copied = dict(row)
+                copied["category"] = f"balanced_{outcome}"
+                rows.append(copied)
+            selected.extend(select_unique(rows, args.balanced_per_outcome, used))
+    else:
+        for name in [
+            "best_tp_by_dice_iou",
+            "suspicious_tp_low_dice_positive_prediction",
+            "fp_high_classifier_score_strong_positive_evidence_proxy",
+            "fn_good_localization_low_classifier_score",
+            "high_negative_evidence_inside_mask",
+            "signed_evidence_model_aligned",
+        ]:
+            rows = []
+            for row in ranked_lists[name]:
+                copied = dict(row)
+                copied["category"] = name
+                rows.append(copied)
+            selected.extend(select_unique(rows, args.selected_per_category, used))
+        selected = selected[: args.max_selected]
     for rank, row in enumerate(selected, start=1):
         row["review_rank"] = rank
         row["diagnostic_command"] = diagnostic_command(row, args, rank)

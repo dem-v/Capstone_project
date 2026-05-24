@@ -28,6 +28,7 @@ from explainai_thesis.visualization import save_binary_selection, save_overlay, 
 from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
 from PIL import Image, ImageDraw
 import torch
+import torch.nn.functional as F
 import numpy as np
 
 from explainai_thesis.cli.common import resolve_device
@@ -61,6 +62,27 @@ def parse_args() -> argparse.Namespace:
         "--fractions",
         default="0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50",
         help="Comma-separated top-fractions to visualize.",
+    )
+    parser.add_argument(
+        "--stop-fractions-at-coverage",
+        type=float,
+        default=0.95,
+        help=(
+            "Stop rendering larger top-fractions for a method view once the "
+            "actual selected mask covers at least this fraction of image pixels. "
+            "This avoids redundant near-full-image threshold panels when heatmap "
+            "ties fill more than the requested fraction. Use 1.0 to continue "
+            "until the whole image is selected."
+        ),
+    )
+    parser.add_argument(
+        "--pixel-attribution-mask-smoothing",
+        type=int,
+        default=9,
+        help=(
+            "Odd average-pooling kernel used only for IG/GradientSHAP overlay and "
+            "top-fraction mask readability. Set 1 to disable."
+        ),
     )
     parser.add_argument("--device", default="auto",
                         choices=["auto", "cpu", "cuda"])
@@ -111,6 +133,10 @@ def parse_fractions(raw: str) -> list[float]:
         if not 0 < fraction <= 1:
             raise ValueError("All fractions must be in (0, 1].")
     return fractions
+
+
+def selected_image_coverage(selected_mask: torch.Tensor) -> float:
+    return float(selected_mask.float().mean().item())
 
 
 def write_rows(path: Path, rows: list[dict[str, str | int | float]]) -> None:
@@ -345,6 +371,29 @@ def selection_counts(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: f
     }
 
 
+def readable_heatmap_for_method(
+    heatmap: torch.Tensor,
+    family: str,
+    smoothing_kernel: int,
+) -> torch.Tensor:
+    if family not in {"integrated_gradients", "gradient_shap"}:
+        return heatmap
+    if smoothing_kernel <= 1:
+        return heatmap
+    if smoothing_kernel % 2 == 0:
+        raise ValueError("--pixel-attribution-mask-smoothing must be odd or 1.")
+
+    heatmap_2d = heatmap.detach().float()
+    padding = smoothing_kernel // 2
+    smoothed = F.avg_pool2d(
+        heatmap_2d.unsqueeze(0).unsqueeze(0),
+        kernel_size=smoothing_kernel,
+        stride=1,
+        padding=padding,
+    )[0, 0]
+    return smoothed.to(device=heatmap.device, dtype=heatmap.dtype)
+
+
 def is_negative_method(method_name: str) -> bool:
     return method_name.endswith("_negative")
 
@@ -359,6 +408,10 @@ def overlay_color_for_method(method_name: str) -> str:
 
 def main() -> None:
     args = parse_args()
+    if not 0 < args.stop_fractions_at_coverage <= 1:
+        raise ValueError("--stop-fractions-at-coverage must be in (0, 1].")
+    if args.pixel_attribution_mask_smoothing < 1 or args.pixel_attribution_mask_smoothing % 2 == 0:
+        raise ValueError("--pixel-attribution-mask-smoothing must be a positive odd integer.")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -570,13 +623,16 @@ def main() -> None:
             heatmap = method_view.heatmap
             view_kind = method_view.view
             family = method_view.family
+            display_heatmap = readable_heatmap_for_method(
+                heatmap, family, args.pixel_attribution_mask_smoothing
+            )
             overlay_path = case_dir / f"{source_stem}_{method_name}.png"
             if view_kind == "signed":
-                signed_diverging_overlay(image, heatmap, mask, overlay_path)
+                signed_diverging_overlay(image, display_heatmap, mask, overlay_path)
             else:
                 save_overlay(
                     image,
-                    heatmap,
+                    display_heatmap,
                     mask,
                     overlay_path,
                     heatmap_color=overlay_color_for_method(method_name),
@@ -587,9 +643,14 @@ def main() -> None:
                 metrics_input = (
                     signed_attributions[family].magnitude
                     if view_kind == "signed"
-                    else heatmap
+                    else display_heatmap
                 )
+                if view_kind == "signed":
+                    metrics_input = readable_heatmap_for_method(
+                        metrics_input, family, args.pixel_attribution_mask_smoothing
+                    )
                 selected = threshold_top_fraction(metrics_input, fraction=fraction)
+                selected_coverage = selected_image_coverage(selected)
                 selection_path = (
                     case_dir
                     / f"{source_stem}_{method_name}_selected_top_{int(round(fraction * 100)):02d}.png"
@@ -618,7 +679,7 @@ def main() -> None:
                     "negative_mask_overlap_fraction": "", "negative_mask_avoidance_fraction": ""}
                 if view_kind == "negative":
                     negative_metrics = negative_evidence_metrics(
-                        heatmap, mask, fraction)
+                        metrics_input, mask, fraction)
                 metric_rows.append(
                     {
                         "sample_index": sample_idx,
@@ -635,14 +696,22 @@ def main() -> None:
                         "view": view_kind,
                         "family": family,
                         "metric_component": view_kind,
+                        "pixel_attribution_mask_smoothing": (
+                            args.pixel_attribution_mask_smoothing
+                            if family in {"integrated_gradients", "gradient_shap"}
+                            else 1
+                        ),
                         "top_fraction": fraction,
                         "top_fraction_percent": int(round(fraction * 100)),
+                        "selected_image_coverage": round(selected_coverage, 6),
                         "positive_localization_applicable": int(positive_localization_applicable),
                         **counts,
                         **metrics,
                         **negative_metrics,
                     }
                 )
+                if selected_coverage >= args.stop_fractions_at_coverage:
+                    break
             make_contact_sheet(
                 panel_paths,
                 captions,
