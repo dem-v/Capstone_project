@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import time
 from pathlib import Path
 
 import numpy as np
@@ -293,7 +294,13 @@ def make_contact_sheet(image_paths: list[Path], captions: list[str], output_path
     sheet.save(output_path)
 
 
+def log_progress(message: str, start_time: float) -> None:
+    elapsed_minutes = (time.perf_counter() - start_time) / 60.0
+    print(f"[{elapsed_minutes:6.1f} min] {message}", flush=True)
+
+
 def main() -> None:
+    run_start = time.perf_counter()
     args = parse_args()
     if not 0 < args.stop_fractions_at_coverage <= 1:
         raise ValueError("--stop-fractions-at-coverage must be in (0, 1].")
@@ -301,6 +308,7 @@ def main() -> None:
         raise ValueError("--pixel-attribution-mask-smoothing must be a positive odd integer.")
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    log_progress("started threshold visualization", run_start)
 
     fractions = parse_fractions(args.fractions)
     faithfulness_fractions = parse_optional_fractions(args.faithfulness_fractions)
@@ -328,7 +336,10 @@ def main() -> None:
                 f"case-index must be in [0, {len(rows) - 1}] for split={args.split}.")
         case_index = args.case_index
         row = rows[case_index]
+    case_filename = row.get("filename", Path(row["image_path"]).name)
+    log_progress(f"selected case {case_filename}", run_start)
     device = resolve_device(args.device)
+    log_progress(f"loading classifier {args.weights} on {device}", run_start)
     classifier = load_classifier(args.weights, device=device, pathology="Pneumothorax")
     model = classifier.model
     class_idx = classifier.class_idx
@@ -337,18 +348,27 @@ def main() -> None:
     image = load_image(Path(row["image_path"]), args.image_size, classifier.preprocess)
     mask = load_mask(Path(row["mask_path"]), args.image_size)
     model_input = image.unsqueeze(0).to(device)
+    log_progress("loaded image/mask and prepared model input", run_start)
 
     with torch.no_grad():
         output = model(model_input)
         score = float(output[0, class_idx].detach().cpu().item())
         probability = float(torch.sigmoid(
             output[0, class_idx]).detach().cpu().item())
+    log_progress(f"model score ready: probability={probability:.4f}", run_start)
 
+    log_progress("computing Grad-CAM", run_start)
     cam_attr = gradcam.signed(model_input, class_idx=class_idx)
+    log_progress("computing Grad-CAM++", run_start)
     cam_plus_plus_attr = gradcam.signed(
         model_input, class_idx=class_idx, variant="grad_cam_plus_plus")
+    log_progress(f"computing Integrated Gradients ({args.ig_steps} steps)", run_start)
     ig_attr = integrated_gradients_signed(
         model, model_input, class_idx=class_idx, steps=args.ig_steps)
+    log_progress(
+        f"computing GradientSHAP ({args.gradshap_samples} samples, internal batch {args.gradshap_internal_batch_size})",
+        run_start,
+    )
     gradient_shap_attr = gradient_shap_signed(
         model,
         model_input,
@@ -357,6 +377,10 @@ def main() -> None:
         stdevs=args.gradshap_stdevs,
         internal_batch_size=args.gradshap_internal_batch_size,
     )
+    log_progress(
+        f"computing Occlusion (patch {args.occlusion_patch_size}, stride {args.occlusion_stride})",
+        run_start,
+    )
     occlusion_attr = occlusion_sensitivity_signed(
         model,
         model_input,
@@ -364,6 +388,7 @@ def main() -> None:
         patch_size=args.occlusion_patch_size,
         stride=args.occlusion_stride,
     )
+    log_progress("computing consensus attribution", run_start)
     consensus_attr = consensus_signed([cam_attr, ig_attr, gradient_shap_attr, occlusion_attr])
     gradcam.remove_hooks()
 
@@ -398,6 +423,10 @@ def main() -> None:
     ) if faithfulness_fractions else None
     baseline_probability = None
     if faithfulness_baseline is not None:
+        log_progress(
+            f"preparing faithfulness baseline={args.faithfulness_baseline} with {len(faithfulness_fractions)} fractions",
+            run_start,
+        )
         with torch.no_grad():
             baseline_output = model(faithfulness_baseline)
             baseline_probability = float(
@@ -406,7 +435,9 @@ def main() -> None:
     source_stem = safe_source_stem(row)
     case_dir = output_dir / safe_case_name(args.case_index, row)
     case_dir.mkdir(parents=True, exist_ok=True)
-    for method_view in iter_method_views(signed_attributions):
+    method_views = list(iter_method_views(signed_attributions))
+    log_progress(f"rendering {len(method_views)} method/view blocks", run_start)
+    for view_index, method_view in enumerate(method_views, start=1):
         method_name = method_view.method
         heatmap = method_view.heatmap
         view_kind = method_view.view
@@ -414,7 +445,9 @@ def main() -> None:
         display_heatmap = readable_heatmap_for_method(
             heatmap, family, args.pixel_attribution_mask_smoothing
         )
+        log_progress(f"[{view_index}/{len(method_views)}] {method_name}: start", run_start)
         if faithfulness_fractions and faithfulness_baseline is not None:
+            log_progress(f"[{view_index}/{len(method_views)}] {method_name}: faithfulness curves", run_start)
             faithfulness_input = (
                 signed_attributions[family].magnitude
                 if view_kind == "signed"
@@ -524,7 +557,9 @@ def main() -> None:
                 break
         make_contact_sheet(binary_paths, binary_captions,
                            case_dir / f"{source_stem}_{method_name}_threshold_sweep_panel.png")
+        log_progress(f"[{view_index}/{len(method_views)}] {method_name}: rendered", run_start)
 
+    log_progress("writing CSV outputs", run_start)
     write_rows(output_dir / "threshold_metrics.csv", metric_rows)
     if faithfulness_rows:
         write_rows(output_dir / "faithfulness_curves.csv", faithfulness_rows)
@@ -532,6 +567,7 @@ def main() -> None:
             output_dir / "faithfulness_summary.csv",
             summarize_faithfulness_rows(faithfulness_rows),
         )
+    log_progress("completed threshold visualization", run_start)
     print(f"Single-image threshold visualization complete on {device}.")
     print(f"Output directory: {output_dir}")
     print(f"Case: {row.get('filename', Path(row['image_path']).name)}")
