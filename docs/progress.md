@@ -2977,3 +2977,11 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Added `outputs/iter_46_resnet_review_candidate_selection_balanced40/README.md` with the exact manual commands to run diagnostics, build the `iter_48` workbook, and analyze the completed `scores.csv`. Important safety note: avoid bulk-opening generated image folders or loading multi-GB artifacts into memory; validate large runs with counts and CSV summaries only.
 - Verification so far: `wsl.exe python3 -m py_compile scripts/visualize_cxr_threshold_selection.py scripts/analyze_review_scores.py scripts/select_cxr_review_candidates.py` passed, and the balanced-40 selection was checked by grouping `selected_manual_review_cases.csv` by `classifier_outcome`.
 
+### 2026-05-24 (Literature steering note) - weak-localization result is thesis-safe and actionable
+
+- Current literature synthesis supports a stronger thesis framing than "heatmaps make the model trustworthy": XAI validation is valuable because it can expose when a pretrained medical-imaging classifier is moderately predictive but clinically misaligned, weakly localized, or shortcut-driven.
+- The current TorchXRayVision/ResNet path should remain framed as external-transfer validation on SIIM-ACR pneumothorax, not as a task-specific clinical pneumothorax model. ResNet-50 is currently the best tested TorchXRayVision candidate by Stage A metrics, but the absolute localization scores and 10-case review still support cautious interpretation.
+- Practical research direction: finish the balanced 40-case review/faithfulness workflow, preserve classifier outcome groups, and use the review flags (`devices_or_tubes`, `indirect_evidence`, `method_disagreement`, `weak_pixel_attribution`, etc.) as structured evidence of failure modes rather than relying on visual anecdotes.
+- Added follow-up literature emphasis in `docs/references.md` and `docs/thesis-notes.md`: medical saliency-map trustworthiness, CXR saliency benchmarking, shortcut learning, radiology shortcut bias, and hidden signals in medical images.
+- Thesis-safe one-sentence framing to preserve: this project validates XAI methods not as automatic trust generators, but as tools for detecting when model decision evidence is not aligned with clinically expected pneumothorax evidence.
+

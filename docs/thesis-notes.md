@@ -66,6 +66,43 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: Perturbation-based faithfulness checks ask whether the model output changes when highly attributed pixels are removed or restored. They do not prove that the highlighted pixels are clinically correct; they measure whether the explanation is faithful to the model’s learned behavior.
 - Practical pointer: This distinction is important for Chapter 4. A method can be faithful to the TorchXRayVision classifier while still poorly localized against the pneumothorax mask. That outcome should be framed as a model-behavior finding, not as a failure of the mask metric alone.
 
+### Perturbation explanations depend on the replacement operation
+
+- Source link: [`REF-MEANINGFUL-PERTURBATION`](references.md#ref-meaningful-perturbation)
+- Thesis-ready paraphrase: Perturbation-style explanations identify image regions whose masking or replacement changes a target score, but the clinical meaning depends on how the image is perturbed. A black, blurred, noisy, or dataset-average replacement can each create different artifacts and different model responses.
+- Practical pointer: Use this when explaining faithfulness baselines. The current `black` baseline should be described as a deliberate perturbation choice, not as a universally neutral image; baseline comparisons are useful diagnostics rather than final clinical truth.
+
+### "Right for the right reasons" is a useful discussion frame
+
+- Source link: [`REF-RIGHT-REASONS`](references.md#ref-right-reasons)
+- Thesis-ready paraphrase: High classification performance is not enough if the model relies on evidence that is clinically irrelevant or inappropriate. For this thesis, the phrase "right for the right reasons" can be used carefully as a conceptual frame: the project tests whether pneumothorax predictions are supported by lesion-aligned evidence, not only whether the binary label is correct.
+- Practical pointer: This is most useful in Chapter 5 and future work. If a stronger second model is trained or fine-tuned later, explanation constraints or region-aware training could be introduced as a possible next step after the validation study identifies recurrent failure patterns.
+
+### Medical saliency maps need localization validation before clinical use
+
+- Source link: [`REF-SALIENCY-TRUST-MEDICAL`](references.md#ref-saliency-trust-medical)
+- Direct quote candidate: "The use of saliency maps in the high-risk domain of medical imaging warrants additional scrutiny and recommend that detection or segmentation models be used if localization is the desired output of the network."
+- Thesis-ready paraphrase: Medical-imaging saliency maps should not be accepted as reliable abnormality localizers simply because they are visually plausible or attached to a classifier. If the desired claim is localization, the maps need explicit localization validation and should be compared against task-appropriate alternatives such as segmentation or detection models.
+- Practical pointer: This source strongly supports the current thesis direction: the project evaluates whether classifier explanations align with pneumothorax masks, rather than claiming that saliency maps are lesion segmentations.
+
+### Chest X-ray saliency methods can underperform human localization benchmarks
+
+- Source link: [`REF-CXR-SALIENCY-BENCHMARK`](references.md#ref-cxr-saliency-benchmark)
+- Thesis-ready paraphrase: CXR saliency benchmarking shows that explanation quality varies by method, model, and clinical condition, and that saliency maps may fall short of human localization benchmarks. This supports treating pneumothorax heatmap evaluation as an empirical question rather than assuming that a standard XAI method will localize the clinically relevant region.
+- Practical pointer: In Chapter 4, discuss lesion size, lesion shape, subtle pneumothorax, chest tubes/devices, and classifier confidence as plausible factors affecting explanation localization. This also supports the planned balanced outcome review and targeted qualitative case studies.
+
+### CheXlocalize shows a concrete CXR benchmark design for localization
+
+- Source link: [`REF-CHEXLOCALIZE`](references.md#ref-chexlocalize)
+- Thesis-ready paraphrase: CheXlocalize is useful as a nearby example of CXR explanation validation because it pairs image-level disease tasks with radiologist localization annotations, including pixel-level segmentations and most-representative points. This supports the thesis choice to report both overlap-style metrics and pointing-hit behavior.
+- Practical pointer: In Chapter 3, explicitly state that SIIM masks play the role of the localization reference standard for this thesis. CheXlocalize can be cited as evidence that expert segmentations and representative-point metrics are accepted ways to benchmark CXR explanation localization, while noting that the current data source and task are SIIM pneumothorax-specific.
+
+### XAI should complement validation, not substitute for it
+
+- Source link: [`REF-FALSE-HOPE-XAI`](references.md#ref-false-hope-xai)
+- Thesis-ready paraphrase: Health-care XAI literature warns that current explanation methods are not sufficient by themselves to guarantee clinical safety, fairness, or reliable patient-level decision support. For this thesis, explanation maps should therefore be presented as diagnostic evidence about model behavior, not as proof that the model is safe for deployment.
+- Practical pointer: In Chapter 5, avoid promising that adding heatmaps makes the classifier trustworthy. State that the study uses XAI to expose limitations and generate clinically interpretable evidence, while final trust still depends on validation design, reference standards, dataset representativeness, and prospective clinical evaluation.
+
 ## Medical-Imaging-Specific XAI Lessons
 
 ### Medical XAI needs clinical users and tasks, not generic interpretability claims
@@ -80,11 +117,29 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: Reviews of deep-learning XAI in medical image analysis show that many explanation methods exist, but their clinical meaning depends on modality, task, model, and validation design. For this thesis, it is safer to present the work as a focused validation study of explanation methods for a specific CXR pneumothorax setting.
 - Practical pointer: Chapter 2 can use this review to organize methods into post-hoc saliency/attribution families, while Chapter 3 narrows the scope to methods actually implemented and evaluated.
 
+### Radiology interpretability must be tied to the clinical task
+
+- Source link: [`REF-RADIOLOGY-INTERPRETABILITY`](references.md#ref-radiology-interpretability)
+- Thesis-ready paraphrase: Radiology interpretability is not a single technical property. A useful explanation depends on the imaging task, the target user, the model output, and the decision context. In this thesis, the relevant question is therefore not whether a heatmap is generally interpretable, but whether it helps a radiology-trained reader judge pneumothorax evidence and model failure patterns.
+- Practical pointer: Use this source to motivate the radiologist-style workbook and the separation between algorithmic localization metrics and qualitative clinical usefulness categories.
+
 ### XAI can reveal shortcut learning in radiology models
 
 - Source link: [`REF-CLEVER-HANS`](references.md#ref-clever-hans)
 - Thesis-ready paraphrase: Published radiology AI audits have shown that models may exploit shortcuts or non-pathology image cues. This is directly relevant when a CXR classifier has moderate ranking performance but heatmaps repeatedly highlight non-lesion structures, devices, image borders, text markers, or diffuse regions.
 - Practical pointer: In discussion, treat weak localization as clinically meaningful evidence about the off-the-shelf model’s behavior. Avoid overstating that the XAI method itself is wrong without separating classifier quality, dataset mismatch, preprocessing, and explanation method limitations.
+
+### Shortcut learning gives a general explanation for predictive-but-misaligned models
+
+- Source links: [`REF-SHORTCUT-LEARNING`](references.md#ref-shortcut-learning), [`REF-RADIOLOGY-SHORTCUTS`](references.md#ref-radiology-shortcuts)
+- Thesis-ready paraphrase: Shortcut learning describes the tendency of deep models to solve an objective using easy or unintended cues that work in the training data but may fail under distribution shift or clinical scrutiny. In radiology AI, possible shortcuts include acquisition markers, scanner/site patterns, devices, text, demographic proxies, and other non-pathology signals.
+- Practical pointer: Use this framing when explaining why the current ResNet-50 follow-up can be relatively better than DenseNet-all yet still clinically weak in absolute localization. The key research question becomes whether explanations show pneumothorax evidence or merely model-useful correlates.
+
+### Medical images can contain hidden signals that clinicians do not consciously perceive
+
+- Source link: [`REF-RACE-MEDICAL-IMAGING`](references.md#ref-race-medical-imaging)
+- Thesis-ready paraphrase: Medical-imaging models can learn predictive signals that are not obvious to human readers and may not be clinically intended for the diagnostic task. This supports caution when interpreting both high classifier performance and plausible-looking heatmaps: the model may be using latent acquisition, population, or image-property signals rather than lesion evidence.
+- Practical pointer: This source is useful in limitations and ethics/fairness discussion. The current thesis does not need to perform demographic fairness analysis, but it should acknowledge that hidden signals and subgroup behavior remain outside the available SIIM mask-based evaluation.
 
 ### External validation matters for chest X-ray models
 
@@ -97,6 +152,32 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Source link: [`REF-HIDDEN-STRATIFICATION`](references.md#ref-hidden-stratification)
 - Thesis-ready paraphrase: A model can have acceptable aggregate performance while failing on clinically important subsets that are not explicitly labeled or evaluated. For pneumothorax, treatment devices, subtle lesions, unusual acquisition patterns, and label noise are plausible hidden factors that may affect both classification and explanation maps.
 - Practical pointer: Use this source to justify the balanced `tp`/`fp`/`tn`/`fn` review workflow and the failure taxonomy. A small qualitative review can look for device/text/artifact reliance even when the quantitative dataset does not provide formal subgroup labels.
+
+## Reporting and Validation Discipline
+
+### CLAIM supports transparent medical-imaging AI reporting
+
+- Source link: [`REF-CLAIM`](references.md#ref-claim)
+- Thesis-ready paraphrase: Medical-imaging AI studies should clearly report data sources, eligibility criteria, preprocessing, ground truth, partitions, model details, evaluation metrics, and limitations. This directly supports the thesis habit of documenting dataset paths, local counts, train/test split rules, calibration choices, and output schemas.
+- Practical pointer: Before final submission, use CLAIM as a checklist for Chapter 3: dataset source and local snapshot, mask reference standard, preprocessing, classifier threshold calibration, XAI method settings, metrics, hardware/software versions, and limitations.
+
+### TRIPOD+AI helps frame the classifier as a prediction model
+
+- Source link: [`REF-TRIPOD-AI`](references.md#ref-tripod-ai)
+- Thesis-ready paraphrase: When the pneumothorax network is treated as a clinical prediction model, its inputs, intended use, validation data, thresholding, and performance measures should be reported transparently. This matters even though the thesis focus is XAI, because explanation quality cannot be interpreted independently from classifier behavior.
+- Practical pointer: Use this source in Chapter 3 or limitations when explaining why classifier screening metrics, threshold calibration, and `tp`/`fp`/`tn`/`fn` sampling are documented before explanation-map analysis.
+
+### QUADAS-AI supports risk-of-bias and applicability discussion
+
+- Source link: [`REF-QUADAS-AI`](references.md#ref-quadas-ai)
+- Thesis-ready paraphrase: Diagnostic-AI evaluation should consider not only numerical accuracy but also patient selection, data sources, reference standards, and applicability to the intended clinical context. For the current project, the major applicability issue is that an off-the-shelf CXR model is being evaluated on SIIM pneumothorax images rather than on the exact distribution used for model development.
+- Practical pointer: Use QUADAS-AI language in the limitations section: retrospective dataset, public challenge data, report-derived pretraining labels, missing clinical context, uncertain deployment population, and single-reader qualitative review are all sources of residual bias or limited applicability.
+
+### DECIDE-AI can frame the review workbook as early human-centered evaluation
+
+- Source link: [`REF-DECIDE-AI`](references.md#ref-decide-ai)
+- Thesis-ready paraphrase: If the radiologist-style workbook is discussed as more than qualitative illustration, it should be framed as early-stage, controlled evaluation rather than deployment evidence. The useful output is structured information about explanation usefulness, errors, and workflow fit under a clearly defined review task.
+- Practical pointer: Use DECIDE-AI to report the intended user, task, review environment, inputs shown to the rater, scoring categories, and limitations. Do not imply prospective clinical validation; this is a thesis-scale human-centered assessment artifact.
 
 ## Dataset and Baseline Model Framing
 
@@ -126,18 +207,32 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: Large public CXR datasets enabled scalable model development, but their labels are often derived from radiology reports rather than pixel-level lesion annotation. This means a classifier can learn image-level associations with pneumothorax without necessarily learning a lesion-localizing representation that overlaps the SIIM mask.
 - Practical pointer: This supports the thesis separation between image-level classification metrics and mask-overlap explanation metrics. It also explains why a second stronger model, if added, should still undergo the same XAI validation protocol rather than being accepted based only on published dataset performance.
 
+### Radiologist-localized CXR datasets are useful future validation context
+
+- Source link: [`REF-VINDR-CXR`](references.md#ref-vindr-cxr)
+- Thesis-ready paraphrase: VinDr-CXR shows that public CXR resources can include radiologist localization annotations, not only image-level report labels. Although the current thesis uses SIIM-ACR because it directly targets pneumothorax masks, VinDr-CXR is useful context for future external validation or for testing whether the conclusions generalize beyond one public challenge dataset.
+- Practical pointer: Mention VinDr-CXR only as future-work/context unless it is actually used. Do not merge its counts, labels, or annotation style with SIIM-ACR results; keep dataset-specific conclusions separate.
+
+### Peer-reviewed CXR baselines can replace arXiv-only historical context
+
+- Source link: [`REF-CHEXNEXT`](references.md#ref-chexnext)
+- Thesis-ready paraphrase: CheXNeXt is a peer-reviewed example of multi-label CXR classification evaluated against practicing radiologists on a held-out annotated set. It is useful background for showing that CXR deep-learning classifiers can reach strong image-level performance, while also reminding the reader that such studies usually evaluate classification rather than lesion-mask-aligned explanations.
+- Practical pointer: Prefer citing CheXNeXt for historical CXR classifier/radiologist-comparison context unless an arXiv-only CheXNet citation is explicitly needed and approved. Do not use it as evidence that the current TorchXRayVision baseline is clinically validated on SIIM pneumothorax localization.
+
 ## Candidate Literature Review Structure
 
 1. Medical imaging AI needs explainability because high-stakes clinical predictions require more than classification accuracy.
-   - Support: [`REF-MEDICAL-XAI-REVIEW`](references.md#ref-medical-xai-review), [`REF-HUMAN-CENTERED-XAI`](references.md#ref-human-centered-xai)
+   - Support: [`REF-MEDICAL-XAI-REVIEW`](references.md#ref-medical-xai-review), [`REF-HUMAN-CENTERED-XAI`](references.md#ref-human-centered-xai), [`REF-RADIOLOGY-INTERPRETABILITY`](references.md#ref-radiology-interpretability)
 2. Post-hoc saliency and attribution methods are commonly used, but each answers a different question.
    - Support: [`REF-GRADCAM`](references.md#ref-gradcam), [`REF-GRADCAMPP`](references.md#ref-gradcampp), [`REF-INTEGRATED-GRADIENTS`](references.md#ref-integrated-gradients), [`REF-SHAP`](references.md#ref-shap), [`REF-SCORECAM`](references.md#ref-scorecam), [`REF-OCCLUSION-ZEILER`](references.md#ref-occlusion-zeiler)
 3. Explanation validation should combine localization, faithfulness, robustness/sanity checks, and human-centered review.
-   - Support: [`REF-SANITY-CHECKS`](references.md#ref-sanity-checks), [`REF-RISE`](references.md#ref-rise), [`REF-SAMEK-EVALUATION`](references.md#ref-samek-evaluation), [`REF-HUMAN-CENTERED-XAI`](references.md#ref-human-centered-xai)
+   - Support: [`REF-SANITY-CHECKS`](references.md#ref-sanity-checks), [`REF-RISE`](references.md#ref-rise), [`REF-SAMEK-EVALUATION`](references.md#ref-samek-evaluation), [`REF-MEANINGFUL-PERTURBATION`](references.md#ref-meaningful-perturbation), [`REF-SALIENCY-TRUST-MEDICAL`](references.md#ref-saliency-trust-medical), [`REF-CXR-SALIENCY-BENCHMARK`](references.md#ref-cxr-saliency-benchmark), [`REF-CHEXLOCALIZE`](references.md#ref-chexlocalize), [`REF-HUMAN-CENTERED-XAI`](references.md#ref-human-centered-xai), [`REF-FALSE-HOPE-XAI`](references.md#ref-false-hope-xai)
 4. Chest X-ray pneumothorax is a good focused case because the dataset has clinically meaningful masks and an official challenge context.
-   - Support: [`REF-SIIM-ACR`](references.md#ref-siim-acr), [`REF-TORCHXRAYVISION`](references.md#ref-torchxrayvision), [`REF-CHESTXRAY8`](references.md#ref-chestxray8), [`REF-CHEXPERT`](references.md#ref-chexpert), [`REF-MIMIC-CXR`](references.md#ref-mimic-cxr)
+   - Support: [`REF-SIIM-ACR`](references.md#ref-siim-acr), [`REF-TORCHXRAYVISION`](references.md#ref-torchxrayvision), [`REF-CHESTXRAY8`](references.md#ref-chestxray8), [`REF-CHEXNEXT`](references.md#ref-chexnext), [`REF-CHEXPERT`](references.md#ref-chexpert), [`REF-MIMIC-CXR`](references.md#ref-mimic-cxr), [`REF-VINDR-CXR`](references.md#ref-vindr-cxr)
 5. A key thesis contribution can be negative or cautionary: off-the-shelf pretrained models may be predictive enough to screen but poorly localized or shortcut-driven.
-   - Support: [`REF-CLEVER-HANS`](references.md#ref-clever-hans), [`REF-CXR-GENERALIZATION-ZECH`](references.md#ref-cxr-generalization-zech), [`REF-HIDDEN-STRATIFICATION`](references.md#ref-hidden-stratification), [`REF-TORCHXRAYVISION`](references.md#ref-torchxrayvision), current project results.
+   - Support: [`REF-CLEVER-HANS`](references.md#ref-clever-hans), [`REF-RIGHT-REASONS`](references.md#ref-right-reasons), [`REF-SHORTCUT-LEARNING`](references.md#ref-shortcut-learning), [`REF-RADIOLOGY-SHORTCUTS`](references.md#ref-radiology-shortcuts), [`REF-RACE-MEDICAL-IMAGING`](references.md#ref-race-medical-imaging), [`REF-CXR-GENERALIZATION-ZECH`](references.md#ref-cxr-generalization-zech), [`REF-HIDDEN-STRATIFICATION`](references.md#ref-hidden-stratification), [`REF-QUADAS-AI`](references.md#ref-quadas-ai), [`REF-TORCHXRAYVISION`](references.md#ref-torchxrayvision), current project results.
+6. The methodology chapter should report enough detail for reproducibility and risk-of-bias assessment.
+   - Support: [`REF-CLAIM`](references.md#ref-claim), [`REF-TRIPOD-AI`](references.md#ref-tripod-ai), [`REF-QUADAS-AI`](references.md#ref-quadas-ai), [`REF-DECIDE-AI`](references.md#ref-decide-ai)
 
 ## Thesis-Safe Wording Bank
 
@@ -148,6 +243,11 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - "Radiologist review is treated as a structured qualitative assessment, not as a replacement for quantitative localization or faithfulness metrics."
 - "Large report-labeled CXR datasets enable useful pretrained models, but image-level report labels do not guarantee that the learned evidence aligns with pixel-level lesion masks."
 - "Occlusion maps are perturbation diagnostics: they show how the model probability changes when image patches are replaced, not where gradients are largest."
+- "Heatmaps can support model critique, but they do not replace rigorous validation, transparent reporting, or clinical applicability assessment."
+- "The classifier and the explanation pipeline should be reported together because an explanation can only be interpreted in relation to the model output, threshold, target class, preprocessing, and validation data."
+- "A predictive model can be right for dataset-specific or model-useful reasons while still being clinically misaligned with the visible pathology."
+- "The thesis contribution is not that heatmaps create trust automatically; it is that validated heatmaps and failure review can expose when trust is not justified."
+- "A perturbation faithfulness curve is only as clinically meaningful as the perturbation design; replacement baselines and artifacts must be reported."
 
 ## Follow-Up Sources to Consider Later
 

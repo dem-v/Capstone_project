@@ -2,7 +2,7 @@
 
 This file lists reliable, verifiable sources used for thesis background notes. Reference IDs are stable cross-links for `docs/thesis-notes.md`.
 
-Access date for URLs checked in this pass: 2026-05-24.
+Access date for URLs checked in this pass: 2026-05-24 and 2026-05-25.
 
 ## Source Selection Rules
 
@@ -118,6 +118,61 @@ Access date for URLs checked in this pass: 2026-05-24.
 - Reliability status: high; IEEE journal article.
 - Thesis relevance: supports perturbation/removal evaluation as a way to test whether highly relevant regions materially affect model predictions.
 
+### <a id="ref-meaningful-perturbation"></a>`REF-MEANINGFUL-PERTURBATION` — Meaningful Perturbation Explanations
+
+- IEEE-style entry: R. C. Fong and A. Vedaldi, "Interpretable Explanations of Black Boxes by Meaningful Perturbation," in *Proceedings of the IEEE International Conference on Computer Vision (ICCV)*, 2017, pp. 3449-3457.
+- Source type: peer-reviewed conference paper.
+- Verified URLs:
+  - CVF PDF: https://openaccess.thecvf.com/content_ICCV_2017/papers/Fong_Interpretable_Explanations_of_ICCV_2017_paper.pdf
+  - arXiv record with ICCV reference: https://arxiv.org/abs/1704.03296
+  - DOI: https://doi.org/10.1109/ICCV.2017.371
+- Reliability status: high; ICCV paper with DOI and official CVF/arXiv records.
+- Thesis relevance: strengthens the perturbation-based explanation background. Useful for discussing why deletion/insertion and occlusion results depend on the perturbation operator and replacement baseline, not only on the saliency ranking.
+
+### <a id="ref-right-reasons"></a>`REF-RIGHT-REASONS` — Right for the Right Reasons
+
+- IEEE-style entry: A. S. Ross, M. C. Hughes, and F. Doshi-Velez, "Right for the Right Reasons: Training Differentiable Models by Constraining their Explanations," in *Proceedings of the Twenty-Sixth International Joint Conference on Artificial Intelligence (IJCAI-17)*, 2017, pp. 2662-2670.
+- Source type: peer-reviewed conference paper.
+- Verified URLs:
+  - IJCAI proceedings page: https://www.ijcai.org/proceedings/2017/371
+  - IJCAI PDF: https://www.ijcai.org/proceedings/2017/0371.pdf
+  - DOI: https://doi.org/10.24963/ijcai.2017/371
+- Reliability status: high; official IJCAI proceedings and DOI.
+- Thesis relevance: provides a concise conceptual frame for separating correct predictions from clinically acceptable evidence. It supports the thesis language that a model can be predictive while still using the wrong image regions or non-clinical reasons.
+
+### <a id="ref-saliency-trust-medical"></a>`REF-SALIENCY-TRUST-MEDICAL` — Trustworthiness of Medical-Imaging Saliency Maps
+
+- IEEE-style entry: N. Arun et al., "Assessing the Trustworthiness of Saliency Maps for Localizing Abnormalities in Medical Imaging," *Radiology: Artificial Intelligence*, vol. 3, no. 6, Art. no. e200267, 2021.
+- Source type: peer-reviewed radiology AI journal article.
+- Verified URLs:
+  - RSNA article page: https://pubs.rsna.org/doi/10.1148/ryai.2021200267
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/34870212/
+  - PMC full-text record: https://pmc.ncbi.nlm.nih.gov/articles/PMC8637231
+  - DOI: https://doi.org/10.1148/ryai.2021200267
+- Reliability status: high; RSNA journal article indexed in PubMed with PMC full text.
+- Thesis relevance: directly supports caution when using saliency maps for abnormality localization in medical imaging. Particularly useful for arguing that classification explanations should be validated against localization evidence and should not be treated as substitutes for detection or segmentation models.
+
+### <a id="ref-cxr-saliency-benchmark"></a>`REF-CXR-SALIENCY-BENCHMARK` — CXR Saliency Benchmarking Against Human Localization
+
+- IEEE-style entry: A. Saporta et al., "Benchmarking saliency methods for chest X-ray interpretation," *Nature Machine Intelligence*, vol. 4, pp. 867-878, 2022.
+- Source type: peer-reviewed journal article.
+- Verified URLs:
+  - Nature article page: https://www.nature.com/articles/s42256-022-00536-x
+  - DOI: https://doi.org/10.1038/s42256-022-00536-x
+- Reliability status: high; Nature Machine Intelligence article with DOI.
+- Thesis relevance: highly aligned with the current project because it evaluates saliency methods for CXR interpretation, compares localization against human benchmarks, and reports that saliency failures vary by clinical/pathology conditions. This supports reporting pneumothorax size/shape/subtlety and not relying on heatmaps as clinical evidence without validation.
+
+### <a id="ref-chexlocalize"></a>`REF-CHEXLOCALIZE` — CheXlocalize CXR Localization Benchmark
+
+- IEEE-style entry: Stanford Center for Artificial Intelligence in Medicine and Imaging, "CheXlocalize," official dataset page; associated with A. Saporta et al., "Benchmarking saliency methods for chest X-ray interpretation," *Nature Machine Intelligence*, 2022.
+- Source type: official dataset page tied to a peer-reviewed benchmark paper.
+- Verified URLs:
+  - Stanford AIMI dataset page: https://aimi.stanford.edu/datasets/chexlocalize
+  - Official code/dataset repository: https://github.com/rajpurkarlab/cheXlocalize
+  - Associated Nature Machine Intelligence article: https://www.nature.com/articles/s42256-022-00536-x
+- Reliability status: high; official Stanford AIMI dataset page and peer-reviewed associated publication.
+- Thesis relevance: gives a concrete example of how another CXR saliency study used radiologist pixel-level segmentations and most-representative points to benchmark localization. Useful when justifying this thesis's mask-overlap metrics and pointing-hit style measures.
+
 ## Medical Imaging XAI and Human-Centered Validation
 
 ### <a id="ref-medical-xai-review"></a>`REF-MEDICAL-XAI-REVIEW` — XAI in Deep Learning-Based Medical Image Analysis
@@ -172,6 +227,105 @@ Access date for URLs checked in this pass: 2026-05-24.
 - Reliability status: high; peer-reviewed ACM CHIL paper with DOI and PMC record.
 - Thesis relevance: supports subgroup-oriented analysis and qualitative failure review. Particularly relevant to pneumothorax because hidden treatment/device subsets, such as chest drains, can change apparent model performance and explanation behavior.
 
+### <a id="ref-radiology-interpretability"></a>`REF-RADIOLOGY-INTERPRETABILITY` — Interpretability in Radiology
+
+- IEEE-style entry: M. Reyes, R. Meier, S. Pereira, C. A. Silva, F.-M. Dahlweid, H. von Tengg-Kobligk, R. M. Summers, and R. Wiest, "On the interpretability of artificial intelligence in radiology: challenges and opportunities," *Radiology: Artificial Intelligence*, vol. 2, no. 3, Art. no. e190043, 2020.
+- Source type: peer-reviewed radiology review article.
+- Verified URLs:
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/32510054/
+  - PMC full-text record: https://pmc.ncbi.nlm.nih.gov/articles/PMC7259808/
+  - DOI: https://doi.org/10.1148/ryai.2020190043
+- Reliability status: high; RSNA journal article indexed in PubMed with DOI and PMC full text.
+- Thesis relevance: radiology-specific source for distinguishing interpretability goals, user needs, and validation challenges. Useful for framing the project as radiologist-centered validation rather than generic saliency-map generation.
+
+### <a id="ref-false-hope-xai"></a>`REF-FALSE-HOPE-XAI` — Limits of Current Health-Care XAI
+
+- IEEE-style entry: M. Ghassemi, L. Oakden-Rayner, and A. L. Beam, "The false hope of current approaches to explainable artificial intelligence in health care," *The Lancet Digital Health*, vol. 3, no. 11, pp. e745-e750, 2021.
+- Source type: peer-reviewed health-care AI viewpoint article.
+- Verified URLs:
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/34711379/
+  - Lancet article page: https://www.thelancet.com/journals/landig/article/PIIS2589-7500(21)00208-9/fulltext
+  - DOI: https://doi.org/10.1016/S2589-7500(21)00208-9
+- Reliability status: high; Lancet Digital Health article indexed in PubMed with DOI.
+- Thesis relevance: supports cautious wording that explanations should not be treated as automatic guarantees of safety, trust, fairness, or patient-level clinical correctness. Strong support for pairing XAI with validation and error analysis.
+
+### <a id="ref-shortcut-learning"></a>`REF-SHORTCUT-LEARNING` — General Shortcut Learning in Deep Neural Networks
+
+- IEEE-style entry: R. Geirhos, J.-H. Jacobsen, C. Michaelis, R. Zemel, W. Brendel, M. Bethge, and F. A. Wichmann, "Shortcut learning in deep neural networks," *Nature Machine Intelligence*, vol. 2, pp. 665-673, 2020.
+- Source type: peer-reviewed journal review/perspective article.
+- Verified URLs:
+  - Nature article page: https://www.nature.com/articles/s42256-020-00257-z
+  - DOI: https://doi.org/10.1038/s42256-020-00257-z
+- Reliability status: high; Nature Machine Intelligence article with DOI.
+- Thesis relevance: provides general ML framing for models that solve training or benchmark objectives using unintended decision rules. Useful for interpreting external-transfer CXR results where classifier performance and lesion-localizing evidence diverge.
+
+### <a id="ref-radiology-shortcuts"></a>`REF-RADIOLOGY-SHORTCUTS` — Shortcut Bias in Radiology AI
+
+- IEEE-style entry: I. Banerjee et al., "'Shortcuts' Causing Bias in Radiology Artificial Intelligence: Causes, Evaluation, and Mitigation," *Journal of the American College of Radiology*, vol. 20, no. 9, pp. 842-851, 2023.
+- Source type: peer-reviewed radiology review article.
+- Verified URLs:
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/37506964/
+  - PMC full-text record: https://pmc.ncbi.nlm.nih.gov/articles/PMC11192466/
+  - DOI: https://doi.org/10.1016/j.jacr.2023.06.025
+- Reliability status: high; JACR article indexed in PubMed with PMC author manuscript.
+- Thesis relevance: supports describing device markers, acquisition artifacts, demographic proxies, institution-specific cues, and other non-pathology signals as possible shortcut mechanisms in radiology AI. Directly useful for the review-workbook failure taxonomy.
+
+### <a id="ref-race-medical-imaging"></a>`REF-RACE-MEDICAL-IMAGING` — Hidden Signals in Medical Images
+
+- IEEE-style entry: J. W. Gichoya et al., "AI recognition of patient race in medical imaging: a modelling study," *The Lancet Digital Health*, vol. 4, no. 6, pp. e406-e414, 2022.
+- Source type: peer-reviewed medical AI modelling study.
+- Verified URLs:
+  - Lancet article DOI: https://doi.org/10.1016/S2589-7500(22)00063-2
+  - NIBIB summary with citation: https://www.nibib.nih.gov/news-events/newsroom/study-finds-artificial-intelligence-can-determine-race-medical-images
+- Reliability status: high; Lancet Digital Health article with DOI; NIBIB summary used only for accessible citation confirmation.
+- Thesis relevance: supports the broader warning that medical images contain latent signals that human experts may not consciously use or detect. This strengthens the argument that a CXR model can rely on hidden or clinically unintended cues even when the heatmap appears plausible.
+
+## Medical AI Reporting, Quality, and Validation Guidance
+
+### <a id="ref-claim"></a>`REF-CLAIM` — Checklist for Artificial Intelligence in Medical Imaging
+
+- IEEE-style entry: J. Mongan, L. Moy, and C. E. Kahn Jr., "Checklist for Artificial Intelligence in Medical Imaging (CLAIM): A Guide for Authors and Reviewers," *Radiology: Artificial Intelligence*, vol. 2, no. 2, Art. no. e200029, 2020.
+- Source type: peer-reviewed medical-imaging AI reporting guideline.
+- Verified URLs:
+  - DOI: https://doi.org/10.1148/ryai.2020200029
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/33937821/
+  - EQUATOR Network guideline/history page: https://www.equator-network.org/reporting-guidelines/checklist-for-artificial-intelligence-in-medical-imaging-claim-a-guide-for-authors-and-reviewers
+- Reliability status: high; RSNA journal guideline with DOI, PubMed indexing, and EQUATOR guideline record.
+- Thesis relevance: supports transparent reporting of data sources, ground truth, preprocessing, partitions, model details, evaluation metrics, and limitations in the thesis methodology.
+
+### <a id="ref-tripod-ai"></a>`REF-TRIPOD-AI` — TRIPOD+AI Reporting Guidance
+
+- IEEE-style entry: G. S. Collins et al., "TRIPOD+AI statement: updated guidance for reporting clinical prediction models that use regression or machine learning methods," *BMJ*, vol. 385, Art. no. e078378, 2024.
+- Source type: peer-reviewed clinical prediction model reporting guideline.
+- Verified URLs:
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/38626948/
+  - DOI: https://doi.org/10.1136/bmj-2023-078378
+  - EQUATOR Network guideline page: https://www.equator-network.org/reporting-guidelines/tripod-statement
+- Reliability status: high; BMJ guideline article with DOI, PubMed indexing, and EQUATOR record.
+- Thesis relevance: supports reporting classifier thresholding, model inputs, validation design, and performance metrics as prediction-model evaluation details rather than treating XAI outputs in isolation.
+
+### <a id="ref-quadas-ai"></a>`REF-QUADAS-AI` — QUADAS-AI Quality Assessment
+
+- IEEE-style entry: V. Sounderajah et al., "A quality assessment tool for artificial intelligence-centered diagnostic test accuracy studies: QUADAS-AI," *Nature Medicine*, vol. 27, no. 10, pp. 1663-1665, 2021.
+- Source type: peer-reviewed diagnostic-AI quality assessment article.
+- Verified URLs:
+  - Nature Medicine article page: https://www.nature.com/articles/s41591-021-01517-0
+  - DOI: https://doi.org/10.1038/s41591-021-01517-0
+- Reliability status: high; Nature Medicine article with DOI.
+- Thesis relevance: supports discussing risk of bias, applicability, patient/data selection, reference standards, and clinical deployment limitations when evaluating medical-imaging AI outputs.
+
+### <a id="ref-decide-ai"></a>`REF-DECIDE-AI` — Early-Stage Clinical Evaluation Reporting for AI Decision Support
+
+- IEEE-style entry: B. Vasey et al. and the DECIDE-AI expert group, "Reporting guideline for the early-stage clinical evaluation of decision support systems driven by artificial intelligence: DECIDE-AI," *Nature Medicine*, vol. 28, no. 5, pp. 924-933, 2022.
+- Source type: peer-reviewed AI clinical-evaluation reporting guideline.
+- Verified URLs:
+  - Nature Medicine article page: https://www.nature.com/articles/s41591-022-01772-9
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/35585198/
+  - EQUATOR Network guideline page: https://www.equator-network.org/reporting-guidelines/reporting-guideline-for-the-early-stage-clinical-evaluation-of-decision-support-systems-driven-by-artificial-intelligence-decide-ai
+  - DOI: https://doi.org/10.1038/s41591-022-01772-9
+- Reliability status: high; Nature Medicine guideline with PubMed and EQUATOR records.
+- Thesis relevance: useful if the radiologist-review workbook is framed as an early, human-in-the-loop evaluation artifact. It supports reporting intended users, workflow context, human-AI interaction, errors, and limitations rather than only algorithmic metrics.
+
 ## Dataset and Model Context
 
 ### <a id="ref-siim-acr"></a>`REF-SIIM-ACR` — SIIM-ACR Pneumothorax Challenge
@@ -206,6 +360,17 @@ Access date for URLs checked in this pass: 2026-05-24.
 - Reliability status: high; CVPR publication and official dataset-access documentation.
 - Thesis relevance: background for one major public CXR source represented in pretrained CXR model ecosystems. Important caveat: labels are report/NLP-derived and localization annotations are limited, which affects how models trained on this source should be interpreted.
 
+### <a id="ref-chexnext"></a>`REF-CHEXNEXT` — CheXNeXt CXR Classifier and Radiologist Comparison
+
+- IEEE-style entry: P. Rajpurkar et al., "Deep learning for chest radiograph diagnosis: A retrospective comparison of the CheXNeXt algorithm to practicing radiologists," *PLOS Medicine*, vol. 15, no. 11, Art. no. e1002686, 2018.
+- Source type: peer-reviewed journal article.
+- Verified URLs:
+  - PLOS Medicine article page: https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002686
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/30457988/
+  - DOI: https://doi.org/10.1371/journal.pmed.1002686
+- Reliability status: high; peer-reviewed open-access PLOS Medicine article with DOI and PubMed record.
+- Thesis relevance: peer-reviewed CXR classifier baseline literature showing radiologist-comparison evaluation and pneumothorax as one of several CXR labels. Useful as a safer alternative to relying on arXiv-only CheXNet material for historical CXR deep-learning context.
+
 ### <a id="ref-chexpert"></a>`REF-CHEXPERT` — CheXpert Dataset
 
 - IEEE-style entry: J. Irvin et al., "CheXpert: A Large Chest Radiograph Dataset with Uncertainty Labels and Expert Comparison," in *Proceedings of the AAAI Conference on Artificial Intelligence*, vol. 33, no. 1, 2019, pp. 590-597.
@@ -228,6 +393,17 @@ Access date for URLs checked in this pass: 2026-05-24.
   - DOI: https://doi.org/10.1038/s41597-019-0322-0
 - Reliability status: high; peer-reviewed Scientific Data article and official PhysioNet release.
 - Thesis relevance: background for another major public CXR source represented in pretrained model families. It reinforces that public CXR models often learn from large report-labeled datasets whose label definitions, population, acquisition workflow, and preprocessing differ from SIIM-ACR pneumothorax segmentation data.
+
+### <a id="ref-vindr-cxr"></a>`REF-VINDR-CXR` — VinDr-CXR Dataset
+
+- IEEE-style entry: H. Q. Nguyen et al., "VinDr-CXR: An open dataset of chest X-rays with radiologist's annotations," *Scientific Data*, vol. 9, Art. no. 429, 2022.
+- Source type: peer-reviewed dataset descriptor plus official PhysioNet dataset page.
+- Verified URLs:
+  - Nature Scientific Data article: https://www.nature.com/articles/s41597-022-01498-w
+  - PhysioNet dataset page: https://physionet.org/content/vindr-cxr
+  - DOI: https://doi.org/10.1038/s41597-022-01498-w
+- Reliability status: high; peer-reviewed Scientific Data dataset article and official PhysioNet release.
+- Thesis relevance: demonstrates that CXR datasets with radiologist localization annotations and pneumothorax labels exist beyond SIIM-ACR. Useful as context for future external validation or alternative localization benchmarks, while not replacing the current SIIM mask-based protocol.
 
 ## Working Notes on Source Reliability
 
