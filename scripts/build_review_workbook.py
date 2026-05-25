@@ -8,6 +8,8 @@ import re
 import shutil
 from pathlib import Path
 
+from explainai_thesis.run_metadata import write_run_metadata
+
 
 REVIEW_FIELDS = [
     "case_id",
@@ -558,7 +560,10 @@ def main() -> None:
     write_instructions(args.output_dir / "INSTRUCTIONS.md", len(rows))
     (args.output_dir / "index.html").write_text(build_html(rows, args, methods), encoding="utf-8")
 
+    run_meta_path = write_run_metadata(args.output_dir, args, methods=methods, case_count=len(rows))
+
     print(f"Wrote review workbook for {len(rows)} cases to {args.output_dir}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

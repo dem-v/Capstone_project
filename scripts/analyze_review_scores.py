@@ -10,6 +10,8 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
+from explainai_thesis.run_metadata import write_run_metadata
+
 
 LOCALIZATION_ORDER = {
     "none": 0,
@@ -567,6 +569,9 @@ def main() -> None:
         "- `pixel_attribution_pattern_similarity_correlations.csv` if workbook assets are available",
     ]
     (args.output_dir / "README.md").write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+
+    run_meta_path = write_run_metadata(args.output_dir, args)
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

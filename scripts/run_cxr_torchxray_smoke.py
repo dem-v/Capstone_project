@@ -16,17 +16,19 @@ from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
     agreement_score,
-    consensus_signed,
-    gradient_shap_signed,
     iter_method_views,
-    integrated_gradients_signed,
-    occlusion_sensitivity_signed,
 )
 from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.cxr.methods import (
+    MethodContext,
+    compute_signed_attributions,
+)
 from explainai_thesis.cxr.io import (
     load_binary_mask,
     load_xray_image,
+    parse_optional_fractions,
+    read_calibrated_fractions,
     read_positive_masked_rows,
     safe_case_name,
     safe_source_stem,
@@ -35,13 +37,23 @@ from explainai_thesis.faithfulness import (
     curve_auc,
     faithfulness_baseline_tensor,
     faithfulness_curve_rows,
+    faithfulness_method_family,
     model_probability,
+    plot_faithfulness_curves,
+    plot_faithfulness_summary,
+    write_faithfulness_plots,
+    write_faithfulness_summary,
 )
 from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import (
     localization_metrics,
     normalize_map,
     threshold_top_fraction,
+)
+from explainai_thesis.io import (
+    AGREEMENT_FIELDS,
+    FAITHFULNESS_CURVE_FIELDS,
+    METRICS_FIELDS,
 )
 from explainai_thesis.run_metadata import write_run_metadata
 from PIL import Image
@@ -241,231 +253,6 @@ def write_metric_summary(
         writer.writerows(summary_rows)
 
 
-def read_calibrated_fractions(path: Path | None) -> dict[str, float]:
-    if path is None:
-        return {}
-
-    fractions: dict[str, float] = {}
-    with path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            method = row.get("method")
-            selected_fraction = row.get("selected_fraction")
-            if method and selected_fraction:
-                fractions[method] = float(selected_fraction)
-    return fractions
-
-
-def parse_optional_fractions(raw: str) -> list[float]:
-    fractions = [float(value.strip()) for value in raw.split(",") if value.strip()]
-    for fraction in fractions:
-        if not 0 <= fraction <= 1:
-            raise ValueError("Faithfulness fractions must be in [0, 1].")
-    return fractions
-
-
-def write_faithfulness_summary(
-    faithfulness_rows: list[dict[str, str | int | float]], output_path: Path
-) -> None:
-    grouped: dict[tuple[int, str], list[dict[str, str | int | float]]] = defaultdict(list)
-    for row in faithfulness_rows:
-        grouped[(int(row["sample_id"]), str(row["method"]))].append(row)
-
-    per_case: dict[str, list[dict[str, float]]] = defaultdict(list)
-    for (_sample_id, method), rows in grouped.items():
-        insertion_auc = curve_auc(rows, "insertion_probability")
-        deletion_auc = curve_auc(rows, "deletion_probability")
-        per_case[method].append(
-            {
-                "insertion_auc": insertion_auc,
-                "deletion_auc": deletion_auc,
-                "deletion_drop_auc": 1.0 - deletion_auc,
-            }
-        )
-
-    with output_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=[
-                "method",
-                "case_count",
-                "insertion_auc_mean",
-                "deletion_auc_mean",
-                "deletion_drop_auc_mean",
-            ],
-        )
-        writer.writeheader()
-        for method, values in sorted(per_case.items()):
-            writer.writerow(
-                {
-                    "method": method,
-                    "case_count": len(values),
-                    "insertion_auc_mean": round(
-                        float(np.mean([item["insertion_auc"] for item in values])), 6
-                    ),
-                    "deletion_auc_mean": round(
-                        float(np.mean([item["deletion_auc"] for item in values])), 6
-                    ),
-                    "deletion_drop_auc_mean": round(
-                        float(np.mean([item["deletion_drop_auc"] for item in values])), 6
-                    ),
-                }
-            )
-
-
-def faithfulness_method_family(method: str) -> str:
-    if method.startswith("grad_cam") or method == "consensus":
-        return "cam_family"
-    if method.startswith("integrated_gradients"):
-        return "integrated_gradients_family"
-    if method.startswith("gradient_shap"):
-        return "gradient_shap_family"
-    if method.startswith("occlusion"):
-        return "occlusion_family"
-    return "other"
-
-
-def plot_faithfulness_curves(
-    faithfulness_rows: list[dict[str, str | int | float]],
-    output_path: Path,
-    title: str,
-    *,
-    zoom_y: bool = False,
-    y_limits: tuple[float, float] | None = None,
-) -> None:
-    if not faithfulness_rows:
-        return
-    grouped: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
-    for row in faithfulness_rows:
-        grouped[str(row["method"])].append(row)
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
-    plotted_values: list[float] = []
-    for method, rows in sorted(grouped.items()):
-        by_fraction: dict[float, list[dict[str, str | int | float]]] = defaultdict(list)
-        for row in rows:
-            by_fraction[float(row["fraction"])].append(row)
-        fractions = sorted(by_fraction)
-        insertion_values = [
-            float(
-                np.mean(
-                    [float(row["insertion_probability"]) for row in by_fraction[fraction]]
-                )
-            )
-            for fraction in fractions
-        ]
-        deletion_values = [
-            float(
-                np.mean(
-                    [float(row["deletion_probability"]) for row in by_fraction[fraction]]
-                )
-            )
-            for fraction in fractions
-        ]
-        plotted_values.extend(insertion_values)
-        plotted_values.extend(deletion_values)
-        axes[0].plot(
-            fractions,
-            insertion_values,
-            marker="o",
-            linewidth=1.5,
-            label=method,
-        )
-        axes[1].plot(
-            fractions,
-            deletion_values,
-            marker="o",
-            linewidth=1.5,
-            label=method,
-        )
-
-    axes[0].set_title("Insertion")
-    axes[0].set_xlabel("Fraction of top-attributed pixels restored")
-    axes[0].set_ylabel("Pneumothorax probability")
-    axes[1].set_title("Deletion")
-    axes[1].set_xlabel("Fraction of top-attributed pixels removed")
-    if y_limits is not None:
-        y_min, y_max = y_limits
-    elif zoom_y and plotted_values:
-        y_min = max(0.0, min(plotted_values) - 0.03)
-        y_max = min(1.0, max(plotted_values) + 0.03)
-    else:
-        y_min = 0.0
-        y_max = 1.0
-    for axis in axes:
-        axis.set_ylim(y_min, y_max)
-        axis.grid(alpha=0.25)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8)
-    fig.suptitle(title)
-    fig.tight_layout(rect=(0, 0.12, 1, 0.95))
-    fig.savefig(output_path, dpi=160)
-    plt.close(fig)
-
-
-def write_faithfulness_plots(
-    faithfulness_rows: list[dict[str, str | int | float]], output_dir: Path, title: str
-) -> None:
-    plotted_values = [
-        float(row[key])
-        for row in faithfulness_rows
-        for key in ["insertion_probability", "deletion_probability"]
-    ]
-    shared_zoom_limits = None
-    if plotted_values:
-        shared_zoom_limits = (
-            max(0.0, min(plotted_values) - 0.03),
-            min(1.0, max(plotted_values) + 0.03),
-        )
-    plot_faithfulness_curves(
-        faithfulness_rows,
-        output_dir / "faithfulness_curves.png",
-        title,
-    )
-    plot_faithfulness_curves(
-        faithfulness_rows,
-        output_dir / "faithfulness_curves_zoomed.png",
-        f"{title} (zoomed y-axis)",
-        y_limits=shared_zoom_limits,
-    )
-    families: dict[str, list[dict[str, str | int | float]]] = defaultdict(list)
-    for row in faithfulness_rows:
-        families[faithfulness_method_family(str(row["method"]))].append(row)
-    for family, rows in families.items():
-        if rows:
-            plot_faithfulness_curves(
-                rows,
-                output_dir / f"faithfulness_curves_{family}.png",
-                f"{title}: {family.replace('_', ' ')} (shared zoom scale)",
-                y_limits=shared_zoom_limits,
-            )
-
-
-def plot_faithfulness_summary(summary_path: Path, output_path: Path) -> None:
-    if not summary_path.exists():
-        return
-    rows: list[dict[str, str]] = []
-    with summary_path.open(newline="", encoding="utf-8") as handle:
-        rows.extend(csv.DictReader(handle))
-    if not rows:
-        return
-    methods = [row["method"] for row in rows]
-    x = np.arange(len(methods))
-    width = 0.38
-    insertion = [float(row["insertion_auc_mean"]) for row in rows]
-    deletion_drop = [float(row["deletion_drop_auc_mean"]) for row in rows]
-    fig, axis = plt.subplots(figsize=(max(10, len(methods) * 0.8), 5))
-    axis.bar(x - width / 2, insertion, width, label="Insertion AUC")
-    axis.bar(x + width / 2, deletion_drop, width, label="Deletion-drop AUC")
-    axis.set_ylabel("AUC")
-    axis.set_title("Faithfulness AUC summary")
-    axis.set_xticks(x)
-    axis.set_xticklabels(methods, rotation=45, ha="right")
-    axis.grid(axis="y", alpha=0.25)
-    axis.legend()
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=160)
-    plt.close(fig)
 
 
 def save_selected_threshold_image(
@@ -614,46 +401,27 @@ def main() -> None:
                 torch.sigmoid(output[0, class_idx]).detach().cpu().item()
             )
 
-        # Phase 1.2-dispatch: 5 signed cores per case (one forward/backward
-        # or one occlusion sweep each) replace the pre-1.2 16-call polarity
-        # fan-out. The four views (positive/negative/magnitude/signed) are
-        # derived in microseconds from each SignedAttribution.
-        gradcam_attr = gradcam.signed(model_input, class_idx=class_idx)
-        gradcam_pp_attr = gradcam.signed(
-            model_input, class_idx=class_idx, variant="grad_cam_plus_plus"
-        )
-        ig_attr = integrated_gradients_signed(
-            model, model_input, class_idx=class_idx, steps=args.ig_steps
-        )
-        gradshap_attr = gradient_shap_signed(
-            model,
-            model_input,
+        # Phase 1.2-dispatch + Phase 2 MethodSpec registry: 5 signed cores
+        # per case (one forward/backward or one occlusion sweep each)
+        # replace the pre-1.2 16-call polarity fan-out. The four views
+        # (positive/negative/magnitude/signed) are derived in microseconds
+        # from each SignedAttribution by `iter_method_views`. The registry
+        # in `explainai_thesis.cxr.methods` is the single place to add new
+        # signed-attribution methods (Eigen-CAM, Score-CAM).
+        method_ctx = MethodContext(
+            model=model,
+            model_input=model_input,
             class_idx=class_idx,
-            samples=args.gradshap_samples,
-            stdevs=args.gradshap_stdevs,
+            gradcam=gradcam,
+            ig_steps=args.ig_steps,
+            gradshap_samples=args.gradshap_samples,
+            gradshap_stdevs=args.gradshap_stdevs,
+            occlusion_patch_size=args.occlusion_patch_size,
+            occlusion_stride=args.occlusion_stride,
         )
-        occlusion_attr = occlusion_sensitivity_signed(
-            model,
-            model_input,
-            class_idx=class_idx,
-            patch_size=args.occlusion_patch_size,
-            stride=args.occlusion_stride,
+        signed_attributions: dict[str, SignedAttribution] = (
+            compute_signed_attributions(method_ctx)
         )
-        consensus_attr = consensus_signed(
-            [gradcam_attr, ig_attr, gradshap_attr, occlusion_attr]
-        )
-
-        # SignedAttribution registry — the source of truth for the v2 dispatch.
-        # Each entry is (method-family id, SignedAttribution). The smoke loop
-        # below expands each family into per-view rows.
-        signed_attributions: dict[str, SignedAttribution] = {
-            "grad_cam": gradcam_attr,
-            "grad_cam_plus_plus": gradcam_pp_attr,
-            "integrated_gradients": ig_attr,
-            "gradient_shap": gradshap_attr,
-            "occlusion": occlusion_attr,
-            "consensus": consensus_attr,
-        }
 
         # Canonical v2 method-view expansion. `MethodView.view` ∈
         # {"positive", "negative", "magnitude", "signed"} and drives both
@@ -858,27 +626,8 @@ def main() -> None:
     # The Phase 0 golden-output snapshot is on `scripts/run_smoke_test.py`
     # (synthetic), not this CXR script, so this schema change does not
     # regress the frozen public contract guarded by `test_golden_outputs.py`.
-    fieldnames = [
-        "sample_id",
-        "filename",
-        "split",
-        "xrv_pneumothorax_score",
-        "xrv_pneumothorax_sigmoid",
-        "method",
-        "view",
-        "family",
-        "top_fraction",
-        "iou",
-        "dice",
-        "pointing_hit",
-        "precision_at_fraction",
-        "negative_mask_overlap_fraction",
-        "negative_mask_avoidance_fraction",
-        "signed_positive_fraction",
-        "signed_prediction_alignment",
-    ]
     with metrics_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=list(METRICS_FIELDS))
         writer.writeheader()
         writer.writerows(metric_rows)
 
@@ -887,17 +636,7 @@ def main() -> None:
     # single-method runs so downstream tooling can rely on its presence.
     agreement_path = output_dir / "agreement.csv"
     with agreement_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=[
-                "sample_id",
-                "filename",
-                "split",
-                "method_a",
-                "method_b",
-                "agreement_score",
-            ],
-        )
+        writer = csv.DictWriter(handle, fieldnames=list(AGREEMENT_FIELDS))
         writer.writeheader()
         writer.writerows(agreement_rows)
 
@@ -905,17 +644,7 @@ def main() -> None:
         faithfulness_path = output_dir / "faithfulness_curves.csv"
         with faithfulness_path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(
-                handle,
-                fieldnames=[
-                    "sample_id",
-                    "filename",
-                    "split",
-                    "method",
-                    "baseline",
-                    "fraction",
-                    "insertion_probability",
-                    "deletion_probability",
-                ],
+                handle, fieldnames=list(FAITHFULNESS_CURVE_FIELDS)
             )
             writer.writeheader()
             writer.writerows(faithfulness_rows)

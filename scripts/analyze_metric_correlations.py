@@ -8,6 +8,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from explainai_thesis.run_metadata import write_run_metadata
+
 
 DEFAULT_METRICS = (
     "iou",
@@ -197,8 +199,17 @@ def main() -> None:
         writer.writerow(["input_rows", "kept_rows", "metric_columns"])
         writer.writerow([input_row_count, len(rows), ",".join(names)])
 
+    run_meta_path = write_run_metadata(
+        args.output_dir,
+        args,
+        input_rows=input_row_count,
+        kept_rows=len(rows),
+        metric_columns=names,
+    )
+
     print(f"Analyzed {len(rows)} rows and {len(names)} metric columns.")
     print(f"Wrote correlation outputs to {args.output_dir}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

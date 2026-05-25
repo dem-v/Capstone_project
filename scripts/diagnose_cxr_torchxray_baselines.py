@@ -11,6 +11,7 @@ from PIL import Image, ImageFilter
 
 from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.run_metadata import write_run_metadata
 
 
 
@@ -159,8 +160,16 @@ def main() -> None:
     summary_path = output_dir / "baseline_diagnostics_summary.csv"
     write_summary(diagnostic_rows, summary_path)
 
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        weights=args.weights,
+        split=args.split,
+    )
+
     print(f"Baseline diagnostics written to: {details_path}")
     print(f"Baseline summary written to: {summary_path}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

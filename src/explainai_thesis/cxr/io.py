@@ -58,3 +58,26 @@ def safe_source_stem(row: dict[str, str]) -> str:
     stem = Path(row.get("filename") or row["image_path"]).stem
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
     return safe_stem or "xray"
+
+
+def read_calibrated_fractions(path: Path | None) -> dict[str, float]:
+    if path is None:
+        return {}
+
+    fractions: dict[str, float] = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            method = row.get("method")
+            selected_fraction = row.get("selected_fraction")
+            if method and selected_fraction:
+                fractions[method] = float(selected_fraction)
+    return fractions
+
+
+def parse_optional_fractions(raw: str) -> list[float]:
+    fractions = [float(value.strip()) for value in raw.split(",") if value.strip()]
+    for fraction in fractions:
+        if not 0 <= fraction <= 1:
+            raise ValueError("Faithfulness fractions must be in [0, 1].")
+    return fractions
