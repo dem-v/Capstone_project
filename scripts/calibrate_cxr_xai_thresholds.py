@@ -20,6 +20,7 @@ from explainai_thesis.xai import (
 from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.metrics import (
     localization_metrics,
+    negative_evidence_metrics,
     normalize_map,
     threshold_top_fraction,
 )
@@ -159,21 +160,6 @@ def write_rows(path: Path, rows: list[dict[str, str | int | float]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
-
-
-def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: float) -> dict[str, float]:
-    selected = threshold_top_fraction(heatmap, fraction=fraction)
-    selected_count = selected.sum().float()
-    if selected_count.item() == 0:
-        return {
-            "negative_mask_overlap_fraction": 0.0,
-            "negative_mask_avoidance_fraction": 0.0,
-        }
-    overlap = (selected & true_mask.bool()).sum().float() / selected_count
-    return {
-        "negative_mask_overlap_fraction": overlap.item(),
-        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
-    }
 
 
 

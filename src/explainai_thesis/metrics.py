@@ -108,3 +108,47 @@ def localization_metrics(
         "pointing_hit": pointing_game_hit(heatmap, true_mask),
         "precision_at_fraction": precision_for_mask(pred_mask, true_mask),
     }
+
+
+def negative_evidence_metrics(
+    heatmap: torch.Tensor,
+    true_mask: torch.Tensor,
+    fraction: float,
+) -> dict[str, float]:
+    """Mask-overlap diagnostic for the negative view of a SignedAttribution.
+
+    `negative_mask_overlap_fraction`: of the top-fraction-selected pixels,
+    how many fall *inside* the lesion mask. Healthy negative evidence
+    should *avoid* the lesion, so a low value is good.
+    `negative_mask_avoidance_fraction = 1 - overlap`; reported as the
+    complement for thesis-readable framing.
+    """
+    selected = threshold_top_fraction(heatmap, fraction=fraction)
+    selected_count = selected.sum().float()
+    if selected_count.item() == 0:
+        return {
+            "negative_mask_overlap_fraction": 0.0,
+            "negative_mask_avoidance_fraction": 0.0,
+        }
+    overlap = (selected & true_mask.bool()).sum().float() / selected_count
+    return {
+        "negative_mask_overlap_fraction": overlap.item(),
+        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
+    }
+
+
+def selection_counts(
+    heatmap: torch.Tensor,
+    true_mask: torch.Tensor,
+    fraction: float,
+) -> dict[str, int]:
+    """Per-case pixel counts for the top-fraction selection vs. the lesion mask."""
+
+    selected = threshold_top_fraction(heatmap, fraction=fraction).bool()
+    true = true_mask.bool()
+    return {
+        "selected_pixel_count": int(selected.sum().item()),
+        "mask_pixel_count": int(true.sum().item()),
+        "intersection_pixel_count": int((selected & true).sum().item()),
+        "union_pixel_count": int((selected | true).sum().item()),
+    }

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .metrics import normalize_map
 
@@ -149,11 +149,72 @@ def save_binary_selection(
 
 
 def overlay_color_for_method(method_name: str) -> str:
-    if method_name.endswith("_negative"):
+    if is_negative_method(method_name):
         return "blue"
     if method_name.endswith("_magnitude"):
         return "neutral"
     return "red"
+
+
+def is_negative_method(method_name: str) -> bool:
+    return method_name.endswith("_negative")
+
+
+def readable_heatmap_for_method(
+    heatmap: "torch.Tensor",
+    family: str,
+    smoothing_kernel: int,
+) -> "torch.Tensor":
+    """Apply an odd-kernel average-pool smoothing to IG/GradientSHAP heatmaps.
+
+    Pixel-level attribution methods (IG, GradientSHAP) produce visually
+    noisy maps that hurt readability of top-fraction selection overlays.
+    Grad-CAM family methods, Occlusion, and Consensus are returned
+    unchanged. `smoothing_kernel <= 1` is also a no-op.
+    """
+    if family not in {"integrated_gradients", "gradient_shap"}:
+        return heatmap
+    if smoothing_kernel <= 1:
+        return heatmap
+    if smoothing_kernel % 2 == 0:
+        raise ValueError("smoothing_kernel must be odd or 1.")
+
+    import torch.nn.functional as F
+
+    heatmap_2d = heatmap.detach().float()
+    padding = smoothing_kernel // 2
+    smoothed = F.avg_pool2d(
+        heatmap_2d.unsqueeze(0).unsqueeze(0),
+        kernel_size=smoothing_kernel,
+        stride=1,
+        padding=padding,
+    )[0, 0]
+    return smoothed.to(device=heatmap.device, dtype=heatmap.dtype)
+
+
+def make_contact_sheet(
+    image_paths: list[Path],
+    captions: list[str],
+    output_path: Path,
+) -> None:
+    """Compose a horizontal contact sheet from per-panel PNGs with captions."""
+
+    images = [Image.open(path).convert("RGB") for path in image_paths]
+    if not images:
+        return
+    width, height = images[0].size
+    caption_height = 28
+    sheet = Image.new(
+        "RGB",
+        (width * len(images), height + caption_height),
+        "white",
+    )
+    draw = ImageDraw.Draw(sheet)
+    for idx, image in enumerate(images):
+        x = idx * width
+        sheet.paste(image, (x, 0))
+        draw.text((x + 6, height + 7), captions[idx], fill=(0, 0, 0))
+    sheet.save(output_path)
 
 
 def signed_diverging_overlay(

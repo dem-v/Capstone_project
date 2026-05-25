@@ -47,6 +47,7 @@ from explainai_thesis.faithfulness import (
 from explainai_thesis.visualization import save_overlay, signed_diverging_overlay
 from explainai_thesis.metrics import (
     localization_metrics,
+    negative_evidence_metrics,
     normalize_map,
     threshold_top_fraction,
 )
@@ -308,26 +309,6 @@ def save_selected_threshold_image(
     rgb[fn] = 0.50 * rgb[fn] + 0.50 * np.array([0, 255, 0], dtype=np.float32)
 
     Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(output_path)
-
-
-def negative_evidence_metrics(
-    heatmap: torch.Tensor,
-    true_mask: torch.Tensor,
-    fraction: float,
-) -> dict[str, float]:
-    selected = threshold_top_fraction(heatmap, fraction=fraction)
-    true = true_mask.bool()
-    selected_count = selected.sum().float()
-    if selected_count.item() == 0:
-        return {
-            "negative_mask_overlap_fraction": 0.0,
-            "negative_mask_avoidance_fraction": 0.0,
-        }
-    overlap = (selected & true).sum().float() / selected_count
-    return {
-        "negative_mask_overlap_fraction": overlap.item(),
-        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
-    }
 
 
 def is_negative_method(method_name: str) -> bool:

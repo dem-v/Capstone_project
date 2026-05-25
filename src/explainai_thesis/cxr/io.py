@@ -60,6 +60,38 @@ def safe_source_stem(row: dict[str, str]) -> str:
     return safe_stem or "xray"
 
 
+def read_manifest_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
+    """Read every row from a CXR manifest, optionally filtered by split.
+
+    Used by the classifier-outcome scan which needs both positive and
+    negative labels. `split="any"` returns the full manifest.
+    """
+    rows: list[dict[str, str]] = []
+    with manifest_path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            if split != "any" and row.get("split") != split:
+                continue
+            rows.append(row)
+    return rows
+
+
+def parse_threshold_fractions(raw: str) -> list[float]:
+    """Parse a comma-separated string of fractions in (0, 1].
+
+    Stricter than `parse_optional_fractions`: at least one value is
+    required and zero is rejected. Used by the classifier-outcome
+    threshold-sweep CLI where a non-empty list of fractions is mandatory.
+    """
+    fractions = [float(value.strip()) for value in raw.split(",") if value.strip()]
+    if not fractions:
+        raise ValueError("At least one fraction is required.")
+    for fraction in fractions:
+        if not 0 < fraction <= 1:
+            raise ValueError("All fractions must be in (0, 1].")
+    return fractions
+
+
 def read_calibrated_fractions(path: Path | None) -> dict[str, float]:
     if path is None:
         return {}

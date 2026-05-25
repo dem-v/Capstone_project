@@ -19,7 +19,11 @@ from explainai_thesis.faithfulness import (
     faithfulness_baseline_tensor,
     faithfulness_curve_rows,
 )
-from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
+from explainai_thesis.metrics import (
+    localization_metrics,
+    negative_evidence_metrics,
+    threshold_top_fraction,
+)
 from explainai_thesis.visualization import (
     overlay_color_for_method,
     save_binary_selection,
@@ -234,26 +238,6 @@ def selected_pixel_counts(
 
 def selected_image_coverage(selected_mask: torch.Tensor) -> float:
     return float(selected_mask.float().mean().item())
-
-
-def negative_evidence_metrics(
-    heatmap: torch.Tensor,
-    true_mask: torch.Tensor,
-    fraction: float,
-) -> dict[str, float]:
-    selected = threshold_top_fraction(heatmap, fraction=fraction)
-    true = true_mask.bool()
-    selected_count = selected.sum().float()
-    if selected_count.item() == 0:
-        return {
-            "negative_mask_overlap_fraction": 0.0,
-            "negative_mask_avoidance_fraction": 0.0,
-        }
-    overlap = (selected & true).sum().float() / selected_count
-    return {
-        "negative_mask_overlap_fraction": overlap.item(),
-        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
-    }
 
 
 def readable_heatmap_for_method(

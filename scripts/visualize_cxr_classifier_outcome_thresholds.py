@@ -2,19 +2,33 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import json
 import random
 import re
-import shutil
-import sys
-import textwrap
 import time
-from datetime import datetime
 from pathlib import Path
 
 
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.cxr.io import (
+    parse_threshold_fractions as parse_fractions,
+    read_manifest_rows as read_rows,
+)
+from explainai_thesis.cxr.outcome import (
+    case_dir_name,
+    classifier_outcome,
+    completed_source_keys,
+    read_existing_rows,
+    target_case_count,
+    write_progress_checkpoint,
+    write_rows,
+)
+from explainai_thesis.cli.progress import (
+    LiveProgress,
+    estimate_eta,
+    format_duration,
+    progress_stats_line,
+    timestamp,
+)
 from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
@@ -24,9 +38,22 @@ from explainai_thesis.xai import (
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
 )
-from explainai_thesis.visualization import save_binary_selection, save_overlay, signed_diverging_overlay
-from explainai_thesis.metrics import localization_metrics, threshold_top_fraction
-from PIL import Image, ImageDraw
+from explainai_thesis.visualization import (
+    is_negative_method,
+    make_contact_sheet,
+    overlay_color_for_method,
+    readable_heatmap_for_method,
+    save_binary_selection,
+    save_overlay,
+    signed_diverging_overlay,
+)
+from explainai_thesis.metrics import (
+    localization_metrics,
+    negative_evidence_metrics,
+    selection_counts,
+    threshold_top_fraction,
+)
+from PIL import Image
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -96,17 +123,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_rows(manifest_path: Path, split: str) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    with manifest_path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            if split != "any" and row.get("split") != split:
-                continue
-            rows.append(row)
-    return rows
-
-
 def load_image(path: Path, image_size: int, preprocess) -> torch.Tensor:
     image = Image.open(path).convert("L").resize(
         (image_size, image_size), Image.BILINEAR)
@@ -125,200 +141,8 @@ def load_mask(row: dict[str, str], image_size: int) -> torch.Tensor:
     return torch.zeros((image_size, image_size), dtype=torch.bool)
 
 
-def parse_fractions(raw: str) -> list[float]:
-    fractions = [float(value.strip())
-                 for value in raw.split(",") if value.strip()]
-    if not fractions:
-        raise ValueError("At least one fraction is required.")
-    for fraction in fractions:
-        if not 0 < fraction <= 1:
-            raise ValueError("All fractions must be in (0, 1].")
-    return fractions
-
-
 def selected_image_coverage(selected_mask: torch.Tensor) -> float:
     return float(selected_mask.float().mean().item())
-
-
-def write_rows(path: Path, rows: list[dict[str, str | int | float]]) -> None:
-    if not rows:
-        return
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def read_existing_rows(path: Path) -> list[dict[str, str]]:
-    if not path.exists():
-        return []
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
-
-
-def completed_source_keys(case_rows: list[dict[str, str | int | float]]) -> set[str]:
-    keys: set[str] = set()
-    for row in case_rows:
-        image_path = str(row.get("image_path", ""))
-        filename = str(row.get("filename", ""))
-        if image_path:
-            keys.add(image_path)
-        if filename:
-            keys.add(filename)
-    return keys
-
-
-def format_duration(seconds: float | None) -> str:
-    if seconds is None:
-        return "unknown"
-    seconds = max(0, int(round(seconds)))
-    hours, remainder = divmod(seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-
-def timestamp() -> str:
-    return datetime.now().strftime("%H:%M:%S")
-
-
-def target_case_count(max_per_outcome: int, candidate_count: int) -> int:
-    if max_per_outcome > 0:
-        return max_per_outcome * 4
-    return candidate_count
-
-
-def estimate_eta(completed: int, total: int, elapsed: float) -> float | None:
-    if completed <= 0 or total <= 0:
-        return None
-    remaining = max(0, total - completed)
-    return elapsed / completed * remaining
-
-
-def write_progress_checkpoint(
-    output_dir: Path,
-    *,
-    candidate_index: int,
-    candidate_total: int,
-    selected_total: int,
-    target_total: int,
-    outcome_counts: dict[str, int],
-    elapsed_seconds: float,
-    eta_seconds: float | None,
-    status: str,
-) -> None:
-    payload = {
-        "status": status,
-        "candidate_index": candidate_index,
-        "candidate_total": candidate_total,
-        "selected_total": selected_total,
-        "target_total": target_total,
-        "outcome_counts": outcome_counts,
-        "elapsed_seconds": round(elapsed_seconds, 3),
-        "elapsed": format_duration(elapsed_seconds),
-        "eta_seconds": round(eta_seconds, 3) if eta_seconds is not None else None,
-        "eta": format_duration(eta_seconds),
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-    }
-    with (output_dir / "progress.json").open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2)
-
-
-class LiveProgress:
-    LINE_COUNT = 6
-
-    def __init__(self) -> None:
-        self._started = False
-        self._live = sys.stdout.isatty()
-        self._latest_lines: list[str] = []
-
-    @staticmethod
-    def _terminal_width() -> int:
-        try:
-            return max(40, shutil.get_terminal_size(fallback=(120, 20)).columns)
-        except OSError:
-            return 120
-
-    def _fit_line(self, text: str) -> str:
-        width = self._terminal_width()
-        max_len = max(1, width - 1)
-        clean = text.replace("\n", " ")
-        if len(clean) > max_len:
-            return clean[: max(1, max_len - 1)] + "…"
-        return clean.ljust(max_len)
-
-    def _compose_lines(self, stats: str, detail: str) -> list[str]:
-        width = self._terminal_width()
-        max_len = max(20, width - 1)
-        parts = [part.strip() for part in f"{stats} | {detail}".split(" | ") if part.strip()]
-        lines: list[str] = []
-        current = ""
-        for part in parts:
-            candidate = part if not current else f"{current} | {part}"
-            if len(candidate) <= max_len:
-                current = candidate
-                continue
-            if current:
-                lines.extend(textwrap.wrap(current, width=max_len) or [current])
-            current = part
-        if current:
-            lines.extend(textwrap.wrap(current, width=max_len) or [current])
-        if len(lines) > self.LINE_COUNT:
-            overflow = " | ".join(lines[self.LINE_COUNT - 1:])
-            lines = lines[: self.LINE_COUNT - 1] + [overflow]
-        lines.extend([""] * (self.LINE_COUNT - len(lines)))
-        return lines[: self.LINE_COUNT]
-
-    def update(self, stats: str, detail: str) -> None:
-        lines = self._compose_lines(stats, detail)
-        self._latest_lines = lines
-        if not self._live:
-            return
-        if self._started:
-            sys.stdout.write(f"\x1b[{self.LINE_COUNT}F")
-        else:
-            self._started = True
-        for line in lines:
-            sys.stdout.write(f"\r\x1b[2K{self._fit_line(line)}\n")
-        sys.stdout.flush()
-
-    def finish(self) -> None:
-        if self._live and self._started:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
-        elif not self._live and self._latest_lines:
-            for line in self._latest_lines:
-                if line:
-                    print(line, flush=True)
-
-
-def progress_stats_line(
-    *,
-    candidate_number: int,
-    candidate_total: int,
-    selected_total: int,
-    target_total: int,
-    outcome_counts: dict[str, int],
-    elapsed: float,
-    eta: float | None,
-) -> str:
-    return (
-        f"[{timestamp()}] Candidate {candidate_number}/{candidate_total} | "
-        f"kept={selected_total}/{target_total} | "
-        f"TP={outcome_counts['tp']} FP={outcome_counts['fp']} "
-        f"TN={outcome_counts['tn']} FN={outcome_counts['fn']} | "
-        f"elapsed={format_duration(elapsed)} | ETA≈{format_duration(eta)}"
-    )
-
-
-def classifier_outcome(label: int, probability: float, threshold: float) -> str:
-    prediction = int(probability >= threshold)
-    if label == 1 and prediction == 1:
-        return "tp"
-    if label == 0 and prediction == 1:
-        return "fp"
-    if label == 0 and prediction == 0:
-        return "tn"
-    return "fn"
 
 
 def safe_source_stem(row: dict[str, str]) -> str:
@@ -327,84 +151,6 @@ def safe_source_stem(row: dict[str, str]) -> str:
     if not safe_stem:
         safe_stem = "xray"
     return safe_stem
-
-
-def safe_case_name(sample_idx: int, outcome: str, source_stem: str) -> str:
-    return f"case_{sample_idx:03d}_{outcome}_{source_stem}"
-
-
-def make_contact_sheet(image_paths: list[Path], captions: list[str], output_path: Path) -> None:
-    images = [Image.open(path).convert("RGB") for path in image_paths]
-    if not images:
-        return
-    width, height = images[0].size
-    caption_height = 28
-    sheet = Image.new("RGB", (width * len(images),
-                      height + caption_height), "white")
-    draw = ImageDraw.Draw(sheet)
-    for idx, image in enumerate(images):
-        x = idx * width
-        sheet.paste(image, (x, 0))
-        draw.text((x + 6, height + 7), captions[idx], fill=(0, 0, 0))
-    sheet.save(output_path)
-
-
-def negative_evidence_metrics(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: float) -> dict[str, float]:
-    selected = threshold_top_fraction(heatmap, fraction=fraction)
-    selected_count = selected.sum().float()
-    if selected_count.item() == 0:
-        return {"negative_mask_overlap_fraction": 0.0, "negative_mask_avoidance_fraction": 0.0}
-    overlap = (selected & true_mask.bool()).sum().float() / selected_count
-    return {
-        "negative_mask_overlap_fraction": overlap.item(),
-        "negative_mask_avoidance_fraction": (1.0 - overlap).item(),
-    }
-
-
-def selection_counts(heatmap: torch.Tensor, true_mask: torch.Tensor, fraction: float) -> dict[str, int]:
-    selected = threshold_top_fraction(heatmap, fraction=fraction).bool()
-    true = true_mask.bool()
-    return {
-        "selected_pixel_count": int(selected.sum().item()),
-        "mask_pixel_count": int(true.sum().item()),
-        "intersection_pixel_count": int((selected & true).sum().item()),
-        "union_pixel_count": int((selected | true).sum().item()),
-    }
-
-
-def readable_heatmap_for_method(
-    heatmap: torch.Tensor,
-    family: str,
-    smoothing_kernel: int,
-) -> torch.Tensor:
-    if family not in {"integrated_gradients", "gradient_shap"}:
-        return heatmap
-    if smoothing_kernel <= 1:
-        return heatmap
-    if smoothing_kernel % 2 == 0:
-        raise ValueError("--pixel-attribution-mask-smoothing must be odd or 1.")
-
-    heatmap_2d = heatmap.detach().float()
-    padding = smoothing_kernel // 2
-    smoothed = F.avg_pool2d(
-        heatmap_2d.unsqueeze(0).unsqueeze(0),
-        kernel_size=smoothing_kernel,
-        stride=1,
-        padding=padding,
-    )[0, 0]
-    return smoothed.to(device=heatmap.device, dtype=heatmap.dtype)
-
-
-def is_negative_method(method_name: str) -> bool:
-    return method_name.endswith("_negative")
-
-
-def overlay_color_for_method(method_name: str) -> str:
-    if is_negative_method(method_name):
-        return "blue"
-    if method_name.endswith("_magnitude"):
-        return "neutral"
-    return "red"
 
 
 def main() -> None:
@@ -525,7 +271,7 @@ def main() -> None:
             ),
             case_detail,
         )
-        case_name = safe_case_name(sample_idx, outcome, source_stem)
+        case_name = case_dir_name(sample_idx, outcome, source_stem)
         case_dir = output_dir / outcome / case_name
         case_dir.mkdir(parents=True, exist_ok=True)
 
