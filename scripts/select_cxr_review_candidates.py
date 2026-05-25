@@ -5,6 +5,8 @@ import csv
 import re
 from pathlib import Path
 
+from explainai_thesis.run_metadata import write_run_metadata
+
 
 POSITIVE_METHODS = {
     "grad_cam",
@@ -461,10 +463,19 @@ def main() -> None:
                 f"Invoke-ReviewCase -Index {row['review_rank']} -Label {label!r} -Command {{ {row['diagnostic_command']} }}\n\n"
             )
 
+    run_meta_path = write_run_metadata(
+        args.output_dir,
+        args,
+        cases_read=len(cases),
+        metric_rows_read=len(metrics),
+        selected_count=len(selected),
+    )
+
     print(f"Read {len(cases)} cases and {len(metrics)} metric rows from {args.input_dir}")
     print(f"Wrote ranked candidate lists to {args.output_dir}")
     print(f"Selected {len(selected)} manual-review cases")
     print(f"Run commands: {args.output_dir / 'run_selected_high_stability_diagnostics.ps1'}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

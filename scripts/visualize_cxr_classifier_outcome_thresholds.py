@@ -32,6 +32,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.run_metadata import write_run_metadata
 
 
 def parse_args() -> argparse.Namespace:
@@ -791,12 +792,26 @@ def main() -> None:
     )
     progress.finish()
 
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        weights=args.weights,
+        split=args.split,
+        elapsed_seconds=elapsed,
+        candidates_scanned=candidate_number if rows else 0,
+        candidates_total=candidate_total,
+        selected_total=len(case_rows),
+        target_total=target_total,
+        outcome_counts=outcome_counts,
+    )
+
     print(f"[{timestamp()}] Saved classifier-outcome threshold visualizations to {output_dir}")
     print(f"[{timestamp()}] Completed in {format_duration(elapsed)}")
     print(f"[{timestamp()}] Candidates scanned: {candidate_number if rows else 0}/{candidate_total}")
     print(f"[{timestamp()}] Cases selected: {len(case_rows)}/{target_total}")
     print(f"[{timestamp()}] Outcome counts at threshold {args.threshold}: {outcome_counts}")
     print(f"[{timestamp()}] Rows written: cases={len(case_rows)}, threshold_metrics={len(metric_rows)}")
+    print(f"[{timestamp()}] Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":

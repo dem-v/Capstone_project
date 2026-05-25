@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 from explainai_thesis.cli.common import resolve_device
 from explainai_thesis.cxr.classifier import load_classifier
+from explainai_thesis.run_metadata import write_run_metadata
 from explainai_thesis.faithfulness import (
     curve_auc,
     faithfulness_baseline_tensor,
@@ -567,10 +568,19 @@ def main() -> None:
             output_dir / "faithfulness_summary.csv",
             summarize_faithfulness_rows(faithfulness_rows),
         )
+    run_meta_path = write_run_metadata(
+        output_dir,
+        args,
+        weights=args.weights,
+        split=args.split,
+        case=row.get("filename", Path(row["image_path"]).name),
+    )
+
     log_progress("completed threshold visualization", run_start)
     print(f"Single-image threshold visualization complete on {device}.")
     print(f"Output directory: {output_dir}")
     print(f"Case: {row.get('filename', Path(row['image_path']).name)}")
+    print(f"Run metadata written to: {run_meta_path}")
 
 
 if __name__ == "__main__":
