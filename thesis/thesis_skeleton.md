@@ -4,6 +4,103 @@ Author: Dmytro Valantsevych
 
 A Master's Thesis submitted to Neoversity in partial fulfillment of the requirements for the degree of Master of Science in Computer Science
 
+Student ID: TODO
+
+Thesis Supervisor: TODO
+
+Co-Supervisor (if applicable): TODO
+
+Date of Submission: TODO (target 2026-06-04 draft cutoff; final defense 2026-06-21)
+
+© The dissertation of Dmytro Valantsevych is approved, and it is acceptable in quality and form for publication electronically.
+
+## Thesis Certification
+
+TODO: Standard supervisor certification statement confirming that the work meets the academic-presentation and breadth/quality criteria for the Master of Science in Computer Science degree. Template wording:
+
+> I confirm that I have reviewed this study and, in my judgment, it adheres to the appropriate standards of academic presentation. I believe it satisfactorily meets the criteria, in terms of both quality and breadth, to serve as a thesis for the attainment of the Master of Science in Computer Science degree. This thesis has been submitted to Neoversity and is deemed sufficient to fulfill the prerequisites for the Master of Science in Computer Science degree.
+
+Supervisor signature line and Co-Supervisor signature line (if applicable).
+
+## Declaration of Academic Integrity
+
+TODO: Required by template. Standard wording from `requirements/Шаблон ... .md`:
+
+> I confirm that this thesis, submitted to fulfill the requirements for the Master of Science in Computer Science degree, completed by me from `<start date>` to `<end date>`, is the result of my own individual endeavor. Any contributions from external sources or individuals, including the use of AI tools, are appropriately acknowledged through citation. Furthermore, I confirm that this material has not been previously submitted, in its entirety or in part, for the completion of a degree at this institution or any other.
+>
+> By making this declaration, I acknowledge that any violation of this statement constitutes academic misconduct. I understand that such misconduct may lead to expulsion from the program and/or disqualification from receiving the degree.
+
+Name of the Candidate: Dmytro Valantsevych
+
+Signature of Candidate: TODO
+
+Date: TODO
+
+**AI tool acknowledgment** (template-mandated cross-link to `AGENTS.md` AI tooling rule): list of AI/development tools used during the research workflow, including `GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, and `Claude Opus 4.7`. The methodology section of Chapter 3 (Implementation and Reproducibility) describes which tool was used for which class of task; this declaration page only confirms that all such use is acknowledged through citation.
+
+## Acknowledgments
+
+TODO (optional per template): personal acknowledgments to the thesis supervisor, colleagues, and family.
+
+## Table of Contents
+
+TODO: generate from finalized headings before submission. Required by template; must include page numbers. Suggested structure mirrors the chapter outline below:
+
+- LIST OF TABLES
+- LIST OF FIGURES
+- LIST OF GRAPHS
+- LIST OF CHARTS
+- LIST OF ABBREVIATIONS
+- ABSTRACT
+- CHAPTER 1. INTRODUCTION (1.1 … 1.5, Conclusions to Chapter 1)
+- CHAPTER 2. LITERATURE REVIEW (2.1 … 2.5, Conclusions to Chapter 2)
+- CHAPTER 3. METHODOLOGY (3.1 … 3.9, Conclusions to Chapter 3)
+- CHAPTER 4. RESULTS AND DISCUSSION (4.1 … 4.6, Conclusions to Chapter 4)
+- CHAPTER 5. CONCLUSIONS AND RECOMMENDATIONS (5.1 … 5.3)
+- BIBLIOGRAPHY
+- APPENDICES (A, B, C — confirm with supervisor whether English Latin or template Cyrillic А, Б, В is required for an English-language thesis)
+
+## List of Tables
+
+TODO: populate at finalization. Template format requires a table with columns `Table No.`, `Title`, `Page No.`. Tables in the body must be numbered "X.Y" by chapter (e.g., Table 3.2, Table 4.1). Current weekly-report tables use "Table 1, Table 2" sequential numbering and must be renumbered at thesis time.
+
+| Table No. | Title | Page No. |
+| :---: | ----- | :---: |
+| 3.1 | TODO | TODO |
+| 4.1 | TODO | TODO |
+| … | … | … |
+
+## List of Figures
+
+TODO: populate at finalization. Template format requires a table with `Figure No.`, `Title`, `Page No.`. Figures must be numbered "X.Y" by chapter. Current weekly-report figures (Figure 1, Figure 2, Figure 3, Figures 4a–4j) must be renumbered.
+
+| Figure No. | Title | Page No. |
+| :---: | ----- | :---: |
+| 2.1 | TODO | TODO |
+| 3.1 | TODO | TODO |
+| 4.1 | TODO | TODO |
+| … | … | … |
+
+## List of Graphs
+
+TODO: populate at finalization. Template explicitly distinguishes graphs from figures and from charts. If the thesis ends up with no graphs (only figures and tables), this section is retained but marked as not applicable. Most likely candidates for "graphs": faithfulness deletion/insertion curves and improvement-experiment box plots — which the template would classify as graphs, not figures.
+
+| Graph No. | Title | Page No. |
+| :---: | ----- | :---: |
+| 4.1 | TODO faithfulness curves | TODO |
+| 4.2 | TODO improvement-experiment box plots | TODO |
+| … | … | … |
+
+## List of Charts
+
+TODO: populate at finalization. Template distinguishes charts (bar charts, pie charts, etc.) from graphs (line plots) and from figures (image overlays, schematic diagrams). The faithfulness-AUC bar chart and the review-score-distribution counts most likely classify as charts.
+
+| Chart No. | Title | Page No. |
+| :---: | ----- | :---: |
+| 4.1 | TODO faithfulness AUC bars | TODO |
+| 4.2 | TODO review-score distribution | TODO |
+| … | … | … |
+
 ## Abstract
 
 TODO: 250-300 words. Include aim, methodology, main results, conclusions, and practical significance.
@@ -106,6 +203,10 @@ TODO: Emphasize cross-modality validation, mask-based explanation assessment, an
 
 TODO: Briefly describe Chapters 2-5.
 
+### Conclusions to Chapter 1
+
+TODO: ~0.5 page (template requirement). Summarize the introduction in one or two paragraphs: restate the clinical-validation problem, the academic-research framing (analysis of XAI methods rather than engineering a new diagnostic system), the dual case studies (CXR pneumothorax primary, head CT hemorrhage pilot), and the structure of the remaining chapters. Bridge cleanly into the Chapter 2 literature review by signaling that the next chapter situates the work against prior XAI evaluation literature.
+
 ## Chapter 2. Literature Review
 
 ### 2.1 Literature Search Strategy
@@ -127,6 +228,10 @@ TODO: Discuss localization metrics, faithfulness metrics, human/radiologist eval
 ### 2.5 Research Gap
 
 TODO: Explain why comparing explanation methods with both objective masks and radiologist assessment is needed.
+
+### Conclusions to Chapter 2
+
+TODO: ~0.5 page (template requirement). Summarize the literature review: what the deep-learning radiology classification, post-hoc saliency, and faithfulness-validation literature establishes; what the medical-imaging XAI sub-literature warns about (visual plausibility insufficient, perturbation operator matters, shortcut learning is real); and where the gap is — namely, the combined quantitative mask-based + radiologist-centered validation across CXR and CT for a single explanation panel. Use this to justify the research design that follows in Chapter 3. The candidate literature-review structure in `docs/thesis-notes.md` § "Candidate Literature Review Structure" enumerates the six themes that should anchor this summary.
 
 ## Chapter 3. Methodology
 
@@ -274,6 +379,10 @@ Experiment outputs are stored under ordinal folders such as `outputs/iter_XX_<sh
 
 When Python source files or output schemas change, syntax checks and relevant tests are run through WSL. The canonical local test command is `wsl.exe python3 -m pytest tests/ -v`; for script-only changes, at least `wsl.exe python3 -m py_compile <changed_python_files>` is required. Documentation-only changes do not require tests, but the Markdown diff should still be reviewed for scope and thesis-safe wording.
 
+### Conclusions to Chapter 3
+
+TODO: ~0.5 page (template requirement). Summarize the methodology: the four-layer validation design (classifier behavior, localization against annotations, faithfulness to the model, human-centered usefulness/failure), the off-the-shelf TorchXRayVision baseline with the ResNet-50 co-primary follow-up, the v2 `SignedAttribution` four-view contract (positive/negative/magnitude/signed), the calibration-versus-held-out discipline, the radiologist-centered review with the 4-rubric/7-category scoring schema, and the Wilcoxon signed-rank + Holm-Bonferroni statistical framework for the improvement experiment. State explicitly that the methods are reproducible from the documented scripts, manifests, and seed values, and that limitations of off-the-shelf classifier choice and mask reference standard are returned to in Chapter 4 Limitations.
+
 ## Chapter 4. Results and Discussion
 
 ### 4.1 Classification Performance
@@ -330,6 +439,10 @@ Draft limitations from current evidence:
 - The tested models are off-the-shelf TorchXRayVision classifiers, not fine-tuned pneumothorax segmenters. Low mask overlap may reflect model/data mismatch as much as explanation-method failure.
 - The out-of-family MONAI candidate remains blocked because the checked MONAI CXR bundle is generative, not a pneumothorax classifier. Avoid claiming an external-family classifier comparison unless a real checkpoint with a verified `Pneumothorax` output is later integrated.
 - Visualization choices matter: smoothing, selected top-fraction, color mapping, and perturbation baseline can change readability and interpretation. All thesis figures should report these settings.
+
+### Conclusions to Chapter 4
+
+TODO: ~0.5 page (template requirement). Summarize the results: classifier performance summary (DenseNet-all baseline and ResNet-50 co-primary), the cross-method quantitative localization picture (IoU/Dice/precision-at-fraction near-redundant, pointing-hit a stricter complementary diagnostic, signed-positive-fraction and signed-prediction-alignment as method-relative coherence diagnostics), the faithfulness picture (deletion/insertion AUC + optional Captum infidelity/sensitivity triangulation), the radiologist review outcome on the balanced 40-case set, and the improvement-experiment finding (consensus vs each individual under Wilcoxon + Holm-Bonferroni). Bridge into Chapter 5 by framing the headline finding: cross-distribution-stable weak absolute localization paired with structured radiologist evidence of confounders, supporting the methodological reading of the thesis.
 
 ## Chapter 5. Conclusions and Recommendations
 

@@ -246,6 +246,63 @@ wsl.exe python3 scripts/visualize_cxr_classifier_outcome_thresholds.py --device 
 - Thesis-safe core message: XAI maps are model-behavior diagnostics, not direct clinical segmentations. Agreement between methods is stronger evidence than any single heatmap, while disagreement can reveal model reliance on non-lesion or clinically questionable signals.
 - Emphasize that pretrained medical models can be moderately predictive but clinically poorly localized; positive and negative evidence must be interpreted separately; mask localization and model faithfulness answer different questions; and explanation validity depends on model quality, preprocessing, thresholds, and perturbation baselines.
 
+## Thesis Submission Format Requirements
+
+Source of truth: `requirements/Шаблон пояснювальної записки дипломної роботи (академічне дослідження) та вимоги до її технічного оформлення .md` (Neoversity template, academic-research variant). Summary below covers the structural and formatting rules that an agent implementing thesis writing must observe; the canonical wording lives in the template.
+
+### Required structural elements (in order)
+
+1. Title page with Student ID, Thesis Supervisor, Co-Supervisor (if applicable), Date of Submission, and the standard copyright line. Not numbered.
+2. Thesis Certification page (supervisor sign-off, standard template wording).
+3. Declaration of Academic Integrity with start/end dates, AI-tool acknowledgment, candidate signature, and date. The AI-tool acknowledgment must list tools by name; this thesis declares `GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, and `Claude Opus 4.7`.
+4. Acknowledgments (optional).
+5. Table of Contents (ЗМІСТ) with page numbers, full nested chapter/subsection structure.
+6. List of Tables (СПИСОК ТАБЛИЦЬ) — separate from figures, graphs, and charts. Format: 3-column table (Table No., Title, Page No.). Numbering "X.Y" by chapter.
+7. List of Figures (СПИСОК РИСУНКІВ) — separate from graphs and charts. Same 3-column format. Numbering "X.Y".
+8. List of Graphs (СПИСОК ГРАФІКІВ) — template explicitly distinguishes graphs (line plots) from figures and from charts. Faithfulness deletion/insertion curves and improvement-experiment box plots most likely qualify here.
+9. List of Charts (СПИСОК ГРАФІКІВ) — bar charts, pie charts. Faithfulness-AUC bar chart and review-score distribution counts likely qualify.
+10. List of Abbreviations (СПИСОК СКОРОЧЕНЬ) — alphabetical, optional if no abbreviations.
+11. Abstract / Анотація: 250-300 words covering (1) goal + relevance, (2) methodology, (3) main results, (4) theoretical/practical significance, followed by 5-7 Keywords.
+12. Chapter 1. Introduction — subsections 1.1 Research Context, 1.2 Problem Statement / Relevance, 1.3 Aim and Research Objectives, 1.4 Scientific Novelty and Practical Significance, 1.5 Thesis Structure, then **Conclusions to Chapter 1** (~0.5 page) — template requirement.
+13. Chapter 2. Literature Review — subsections 2.1, 2.2, ..., then **Conclusions to Chapter 2** (~0.5 page) — template requirement.
+14. Chapter 3. Methodology — template defines 3.1 General Approach, 3.2 Methods, 3.3 Justification of Choices, 3.4 Challenges and Ethical Aspects, then **Conclusions to Chapter 3** (~0.5 page) — template requirement. The thesis can include additional subsections beyond 3.4 if they map cleanly to the four required buckets.
+15. Chapter 4. Results and Discussion — subsections 4.1 (results presentation), 4.2 Comparative Analysis, 4.3 Practical Applications and Limitations, then **Conclusions to Chapter 4** (~0.5 page) — template requirement.
+16. Chapter 5. Conclusions and Recommendations — narrative chapter; template does not require numbered subsections but does not forbid them. Light subdivision (e.g., Main Findings / Practical Recommendations / Future Work) is acceptable.
+17. Bibliography — APA or IEEE, consistent throughout. Minimum source count equals the number of pages in Chapters 2+3+4. Each online source must end with `[Online]. Available: <URL>. Accessed: <date>`. Sources sorted alphabetically by author or by reference order.
+18. Appendices — labeled А, Б, В (Cyrillic) or I, II, III (Roman). For an English-language thesis, A, B, C (Latin) is conventionally acceptable but **confirm with the supervisor** before final submission. Each appendix has a separate title page and is referenced in the main text.
+
+### Formatting (PDF submission)
+
+- Format: PDF, A4 (210 × 297 mm).
+- Margins: left 2.5 cm, top 2 cm, bottom 2 cm, right 1.5 cm. Applies to every page including appendices.
+- Font: Times New Roman, black. Body 12 pt; chapter/subsection headings 14 pt bold; chapter headings in ALL CAPS; subsection headings sentence case (only first word capitalized).
+- Line spacing: 1.5 for body text; 1.0 inside tables, figures, graphs, and charts.
+- Paragraph indent: 1.25 cm.
+- Alignment: title page center; chapter titles center; subsection titles left; body justified.
+- Page numbering: arabic numerals, center-bottom. Title page not numbered; all subsequent pages including front-matter lists are numbered.
+- Spacing between chapter heading and body: 2 blank lines. Between subsection heading and body: 1 blank line.
+
+### Content limits
+
+- Main text (Chapters 1-5) length: 25-50 pages.
+- Direct quotes plus paraphrased borrowings: ≤ 20-25% of the main text. ≤ 5% from any single source.
+- Abstract: 250-300 words. Keywords: 5-7 terms.
+- Chapter conclusions ("Висновки до розділу"): ~0.5 page each.
+
+### Captions and numbering
+
+- Tables: caption **above** the table, left-aligned. Format: "Table X.Y: …" (e.g., Table 3.2). Every table must be referenced in body text ("As shown in Table 3.2 …").
+- Figures: caption **below** the figure. Format: "Figure X.Y: …". Every figure must be referenced ("Results are visualized in Figure 4.1 …").
+- Graphs and charts: same X.Y chapter-numbered scheme. Captions follow the same above-table / below-figure convention.
+- Formulas: centered. Numbering on the right in parentheses, format (X.Y). Every formula must be referenced ("Computed by equation (2.3) …").
+- Code in appendices: Courier New, 10 pt.
+
+### Cross-link
+
+- Thesis-prose paraphrases and references live in `docs/thesis-notes.md` and `docs/references.md`.
+- Per-chapter outline lives in `thesis/thesis_skeleton.md` with TODOs marking each template-required section, including the four "Conclusions to Chapter N" sub-sections.
+- Deviations from the template (e.g., glossary placement, Latin vs Cyrillic appendix labels, Chapter 3 expanded subsection count) are documented in `docs/progress.md` under the template-compliance audit entry.
+
 ## Housekeeping
 
 - Do not delete old output folders unless explicitly requested.
