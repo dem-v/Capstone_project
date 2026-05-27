@@ -73,6 +73,27 @@ Access date for URLs checked in this pass: 2026-05-24 and 2026-05-25.
 - Reliability status: high; official Springer proceedings page plus author-hosted copy.
 - Thesis relevance: historical basis for occlusion sensitivity: systematically masking parts of an image and observing classifier-output changes. This supports the project’s `occlusion` method as a perturbation-style diagnostic distinct from gradient attribution.
 
+### <a id="ref-eigen-cam"></a>`REF-EIGEN-CAM` — Eigen-CAM
+
+- IEEE-style entry: M. B. Muhammad and M. Yeasin, "Eigen-CAM: Class Activation Map using Principal Components," in *2020 International Joint Conference on Neural Networks (IJCNN)*, 2020, pp. 1-7.
+- Source type: peer-reviewed conference paper.
+- Verified URLs:
+  - arXiv record: https://arxiv.org/abs/2008.00299
+  - IEEE Xplore record: https://ieeexplore.ieee.org/document/9206626
+  - DOI: https://doi.org/10.1109/IJCNN48605.2020.9206626
+- Reliability status: high; IJCNN conference publication with DOI.
+- Thesis relevance: gradient-free CAM variant based on the principal component of target-layer activations. Useful in this thesis as a third CAM-family comparator alongside Grad-CAM and Grad-CAM++ that does not depend on backward passes, complementing Score-CAM's score-weighted forward variant.
+
+### <a id="ref-lime"></a>`REF-LIME` — Local Interpretable Model-Agnostic Explanations
+
+- IEEE-style entry: M. T. Ribeiro, S. Singh, and C. Guestrin, "'Why Should I Trust You?': Explaining the Predictions of Any Classifier," in *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)*, 2016, pp. 1135-1144.
+- Source type: peer-reviewed conference paper.
+- Verified URLs:
+  - ACM DOI: https://doi.org/10.1145/2939672.2939778
+  - arXiv record: https://arxiv.org/abs/1602.04938
+- Reliability status: high; ACM KDD publication.
+- Thesis relevance: region-level surrogate-model explanation framework. Included as a conditional add-on (Phase 5.7) for cross-family comparison against gradient and perturbation attribution. Justifies presenting LIME as a third explanation family rather than a substitute for gradient or occlusion methods.
+
 ### <a id="ref-captum-docs"></a>`REF-CAPTUM-DOCS` — Captum Implementation Documentation
 
 - IEEE-style entry: Meta PyTorch, "Captum: Model Interpretability for PyTorch," official documentation and API reference.
@@ -96,6 +117,17 @@ Access date for URLs checked in this pass: 2026-05-24 and 2026-05-25.
   - NeurIPS PDF: https://papers.neurips.cc/paper/2018/file/294a8ed24b1ad22ec2e7efea049b8737-Paper.pdf
 - Reliability status: high; official NeurIPS proceedings.
 - Thesis relevance: supports the caution that visually plausible maps are insufficient evidence; methods should be checked for sensitivity to model parameters and labels where feasible.
+
+### <a id="ref-infidelity-sensitivity"></a>`REF-INFIDELITY-SENSITIVITY` — Infidelity and Sensitivity Faithfulness Metrics
+
+- IEEE-style entry: C.-K. Yeh, C.-Y. Hsieh, A. S. Suggala, D. I. Inouye, and P. Ravikumar, "On the (In)fidelity and Sensitivity of Explanations," in *Advances in Neural Information Processing Systems*, vol. 32, 2019.
+- Source type: peer-reviewed conference paper.
+- Verified URLs:
+  - NeurIPS proceedings page: https://papers.nips.cc/paper/2019/hash/a7471fdc77b3435276507cc8f2dc2569-Abstract.html
+  - arXiv record: https://arxiv.org/abs/1901.09392
+  - Captum API: https://captum.ai/api/metrics.html
+- Reliability status: high; NeurIPS publication with available Captum implementation.
+- Thesis relevance: infidelity measures the expected squared difference between attribution-explained perturbation effects and actual model output change; sensitivity-max measures the largest attribution change under small input perturbations. Both triangulate against the deletion/insertion faithfulness pipeline already in this project, strengthening the H8 "faithfulness vs localization" cross-test.
 
 ### <a id="ref-rise"></a>`REF-RISE` — RISE and Deletion/Insertion Metrics
 
@@ -404,6 +436,62 @@ Access date for URLs checked in this pass: 2026-05-24 and 2026-05-25.
   - DOI: https://doi.org/10.1038/s41597-022-01498-w
 - Reliability status: high; peer-reviewed Scientific Data dataset article and official PhysioNet release.
 - Thesis relevance: demonstrates that CXR datasets with radiologist localization annotations and pneumothorax labels exist beyond SIIM-ACR. Useful as context for future external validation or alternative localization benchmarks, while not replacing the current SIIM mask-based protocol.
+
+## Statistical Methods for Paired XAI Comparison
+
+### <a id="ref-wilcoxon-1945"></a>`REF-WILCOXON-1945` — Wilcoxon Signed-Rank Test (original)
+
+- IEEE-style entry: F. Wilcoxon, "Individual Comparisons by Ranking Methods," *Biometrics Bulletin*, vol. 1, no. 6, pp. 80-83, 1945.
+- Source type: peer-reviewed journal article (foundational).
+- Verified URLs:
+  - JSTOR record: https://www.jstor.org/stable/3001968
+  - DOI: https://doi.org/10.2307/3001968
+- Reliability status: high; foundational paper, widely re-cited.
+- Thesis relevance: original statistical reference for the non-parametric paired test used to compare consensus against each individual XAI method in the improvement experiment. The paired-difference + signed-rank framing is exactly what the thesis needs because per-case localization residuals (IoU, Dice) are typically non-normal.
+
+### <a id="ref-holm-1979"></a>`REF-HOLM-1979` — Holm Step-Down Multiple-Test Procedure
+
+- IEEE-style entry: S. Holm, "A Simple Sequentially Rejective Multiple Test Procedure," *Scandinavian Journal of Statistics*, vol. 6, no. 2, pp. 65-70, 1979.
+- Source type: peer-reviewed journal article (foundational).
+- Verified URLs:
+  - JSTOR record: https://www.jstor.org/stable/4615733
+- Reliability status: high; foundational paper for Holm-Bonferroni step-down family-wise error control.
+- Thesis relevance: original reference for the multiple-comparison correction used across the family of "consensus vs each individual method" tests. Holm uniformly dominates plain Bonferroni at the same family-wise error rate, so this is the citation for the methodology choice to apply Holm rather than Bonferroni.
+
+### <a id="ref-aickin-gensler-1996"></a>`REF-AICKIN-GENSLER-1996` — Bonferroni vs Holm in Medical Research
+
+- IEEE-style entry: M. Aickin and H. Gensler, "Adjusting for Multiple Testing When Reporting Research Results: The Bonferroni vs Holm Methods," *American Journal of Public Health*, vol. 86, no. 5, pp. 726-728, 1996.
+- Source type: peer-reviewed methodological article.
+- Verified URLs:
+  - PMC full-text record: https://pmc.ncbi.nlm.nih.gov/articles/PMC1380484
+  - DOI: https://doi.org/10.2105/ajph.86.5.726
+- Reliability status: high; AJPH article with PMC full text.
+- Thesis relevance: accessible medical-research framing of why Holm should be preferred over plain Bonferroni when family-wise error control is needed. Useful when justifying the choice in language that is closer to the thesis's clinical-evaluation context than the original Holm (1979) paper.
+
+### <a id="ref-demsar-2006"></a>`REF-DEMSAR-2006` — Statistical Comparison of Classifiers Across Datasets
+
+- IEEE-style entry: J. Demšar, "Statistical Comparisons of Classifiers over Multiple Data Sets," *Journal of Machine Learning Research*, vol. 7, pp. 1-30, 2006.
+- Source type: peer-reviewed journal article.
+- Verified URLs:
+  - JMLR article page: https://www.jmlr.org/papers/v7/demsar06a.html
+  - JMLR PDF: https://www.jmlr.org/papers/volume7/demsar06a/demsar06a.pdf
+- Reliability status: high; canonical JMLR reference for non-parametric paired tests in ML method comparison.
+- Thesis relevance: load-bearing ML-side citation for using Wilcoxon signed-rank tests with step-down (Holm-style) correction for pairwise method comparisons. Anchors the thesis methodology in mainstream ML evaluation practice rather than only in medical statistics.
+
+## Computed Tomography Hemorrhage Context
+
+### <a id="ref-rsna-ihd"></a>`REF-RSNA-IHD` — RSNA Intracranial Hemorrhage Detection Challenge
+
+- IEEE-style entry: A. E. Flanders et al., "Construction of a Machine Learning Dataset through Collaboration: The RSNA 2019 Brain CT Hemorrhage Challenge," *Radiology: Artificial Intelligence*, vol. 2, no. 3, Art. no. e190211, 2020.
+- Source type: peer-reviewed radiology AI journal article tied to an official challenge.
+- Verified URLs:
+  - RSNA article page: https://pubs.rsna.org/doi/10.1148/ryai.2020190211
+  - PubMed record: https://pubmed.ncbi.nlm.nih.gov/33937827/
+  - PMC full-text record: https://pmc.ncbi.nlm.nih.gov/articles/PMC8082297
+  - Kaggle competition page: https://www.kaggle.com/competitions/rsna-intracranial-hemorrhage-detection
+  - DOI: https://doi.org/10.1148/ryai.2020190211
+- Reliability status: high; peer-reviewed journal article describing the dataset, ground truth, and challenge protocol, plus official Kaggle competition page for dataset access.
+- Thesis relevance: provides the canonical reference for the CT pilot modality and dataset. The 2019 RSNA challenge released ~870k labeled CT slices with per-subtype hemorrhage labels (epidural, intraparenchymal, intraventricular, subarachnoid, subdural, any). Useful as evidence that off-the-shelf public CT hemorrhage classifiers exist and have a clinically meaningful class head. If the Phase 5.4 hour-1 model-availability check finds an off-the-shelf classifier, the thesis cites this dataset/challenge as the training distribution; if not, this reference frames the qualitative-only fallback as scoped against a recognized public CT task.
 
 ## Working Notes on Source Reliability
 

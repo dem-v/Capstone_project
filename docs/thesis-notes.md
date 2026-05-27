@@ -30,12 +30,25 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: SHAP frames local explanations as additive feature attributions derived from Shapley-value ideas. The project’s GradientSHAP-style maps should therefore be discussed as local feature attribution approximations, not as direct causal proof that a pixel or region alone caused the diagnosis.
 - Practical pointer: Use this source to motivate reporting stochastic settings (`gradshap_samples`) and rerunning thesis-quality cases with higher sample counts.
 
+### Eigen-CAM uses principal-component analysis of activations instead of gradients
+
+- Source link: [`REF-EIGEN-CAM`](references.md#ref-eigen-cam)
+- Direct quote candidate: "Eigen-CAM ... computes and visualizes the principle [sic] components of the learned features/representations from the convolutional layers."
+- Thesis-ready paraphrase: Eigen-CAM is a gradient-free CAM-family method that projects target-layer activations onto their top principal component, producing a coarse localization map without requiring a backward pass. In this thesis, it complements Grad-CAM and Grad-CAM++ as a third CAM variant that does not depend on gradient flow, which is useful when gradient-based maps are noisy, saturated, or unstable across architectures.
+- Practical pointer: When discussing `eigen_cam` in Chapter 3, report the sign-convention choice (Eigen-CAM's sign is arbitrary up to a flip; this project fixes it via alignment with the predicted-class logit gradient sign). In Chapter 4, treat it as a method-class diagnostic rather than as a claimed improvement over Grad-CAM.
+
 ### Score-CAM is useful because it reduces reliance on raw gradients
 
 - Source link: [`REF-SCORECAM`](references.md#ref-scorecam)
 - Direct quote candidate: "Score-CAM gets rid of the dependence on gradients by obtaining the weight of each activation map through its forward passing score on target class."
 - Thesis-ready paraphrase: Score-CAM is a relevant extension because it assigns activation-map weights using model output scores rather than gradient weights. This makes it a useful comparator when gradient-based maps appear noisy, saturated, or clinically implausible.
 - Practical pointer: If Score-CAM is added to the pipeline, report runtime separately. It is expected to be slower because it requires additional forward passes.
+
+### LIME is a region-level surrogate explanation, included as a third family if scope allows
+
+- Source link: [`REF-LIME`](references.md#ref-lime)
+- Thesis-ready paraphrase: LIME explains an individual classifier prediction by fitting a sparse linear surrogate over interpretable input perturbations (image super-pixels). It belongs to a different explanation family than gradient attribution (Grad-CAM, IG, GradientSHAP) or perturbation attribution (Occlusion, Score-CAM). Including LIME on a sub-sampled positive case set tests whether a region-level surrogate identifies the same evidence as pixel-level and CAM-family methods.
+- Practical pointer: LIME is conditional in this thesis. If implementation time is low (per the experiment protocol's explicit clause) and the rest of Phase 5 lands on schedule, run LIME on 10–20 representative cases as a qualitative comparator. Do not include LIME in the paired Wilcoxon comparison unless N is large enough to support it. If skipped, justify in methodology by citing the protocol clause and noting that the panel already spans CAM, gradient, perturbation, and PCA-based families.
 
 ### Occlusion sensitivity is a perturbation diagnostic, not a gradient map
 
@@ -65,6 +78,12 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Direct quote candidate from RISE: "The deletion metric measures the drop in the probability of a class as important pixels (given by the saliency map) are gradually removed from the image."
 - Thesis-ready paraphrase: Perturbation-based faithfulness checks ask whether the model output changes when highly attributed pixels are removed or restored. They do not prove that the highlighted pixels are clinically correct; they measure whether the explanation is faithful to the model’s learned behavior.
 - Practical pointer: This distinction is important for Chapter 4. A method can be faithful to the TorchXRayVision classifier while still poorly localized against the pneumothorax mask. That outcome should be framed as a model-behavior finding, not as a failure of the mask metric alone.
+
+### Infidelity and sensitivity triangulate the deletion/insertion faithfulness pipeline
+
+- Source link: [`REF-INFIDELITY-SENSITIVITY`](references.md#ref-infidelity-sensitivity)
+- Thesis-ready paraphrase: Infidelity measures the expected squared difference between (a) the attribution-dot-perturbation predicted output change and (b) the actual classifier output change under that perturbation. Sensitivity-max measures the largest change in attribution under small input perturbations. Together they test a different aspect of faithfulness than deletion/insertion curves: infidelity asks "does the attribution linearly predict the model's response to perturbations?", while sensitivity asks "is the attribution stable to small input noise?".
+- Practical pointer: Add these as supplementary columns on the held-out test metrics rows. They reuse the existing per-case heatmap and model without additional model retraining. In Chapter 4, treat the joint reading of "deletion/insertion AUC + infidelity + sensitivity-max" as a triangulation across faithfulness families rather than as three measurements of the same quantity. Document the perturbation operator (e.g. Gaussian noise σ=0.02) and the number of perturbation samples in the methodology.
 
 ### Perturbation explanations depend on the replacement operation
 
@@ -153,6 +172,24 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: A model can have acceptable aggregate performance while failing on clinically important subsets that are not explicitly labeled or evaluated. For pneumothorax, treatment devices, subtle lesions, unusual acquisition patterns, and label noise are plausible hidden factors that may affect both classification and explanation maps.
 - Practical pointer: Use this source to justify the balanced `tp`/`fp`/`tn`/`fn` review workflow and the failure taxonomy. A small qualitative review can look for device/text/artifact reliance even when the quantitative dataset does not provide formal subgroup labels.
 
+## Statistical Methods for Method-vs-Method Comparison
+
+### Wilcoxon signed-rank is the right paired test for non-normal localization residuals
+
+- Source links: [`REF-WILCOXON-1945`](references.md#ref-wilcoxon-1945), [`REF-DEMSAR-2006`](references.md#ref-demsar-2006)
+- Thesis-ready paraphrase: The Wilcoxon signed-rank test is the non-parametric paired analog of the paired t-test. For each case it ranks the absolute paired differences (e.g. consensus IoU minus Grad-CAM IoU), sums the ranks of positive and negative differences, and tests whether the median paired difference is zero. It does not assume the per-case difference distribution is normal, which matters because IoU and Dice residuals on tail-heavy XAI benchmarks rarely are, and it is less sensitive than the paired t-test to outliers from one or two anomalously good or bad explanations. This is also the test recommended by Demšar (2006) for paired classifier-method comparisons in machine-learning evaluation literature.
+- Practical pointer: In methodology, state explicitly that the test is two-sided unless a directional alternative is justified by H1 prior to seeing the data. Report the test statistic, p-value, median paired difference, and a 95% bootstrap confidence interval on the paired difference (10 000 resamples) as the effect-size companion. Avoid reporting p-values alone, since N is small enough that small p-values can still correspond to small effects.
+
+### Holm-Bonferroni is uniformly more powerful than plain Bonferroni at the same family-wise error rate
+
+- Source links: [`REF-HOLM-1979`](references.md#ref-holm-1979), [`REF-AICKIN-GENSLER-1996`](references.md#ref-aickin-gensler-1996), [`REF-DEMSAR-2006`](references.md#ref-demsar-2006)
+- Thesis-ready paraphrase: When the improvement experiment compares consensus against each of the N individual XAI methods, running N tests at α=0.05 inflates the family-wise probability of falsely rejecting at least one true null hypothesis to roughly 1 − (1 − α)^N (~30% for N=7). Both Bonferroni and Holm-Bonferroni control the family-wise error rate at α, but they do so differently. Plain Bonferroni rejects each test only if its p-value clears α / N. Holm-Bonferroni instead sorts the N p-values ascending and tests them sequentially against escalating thresholds α / N, α / (N−1), …, α / 1, stopping at the first failure. Holm therefore rejects every hypothesis Bonferroni rejects, and possibly more, while maintaining the same FWER guarantee — it is uniformly more powerful at the same α. For paired XAI method comparison with N ≈ 5–7 tests and confirmatory framing, Holm is the recommended choice in both medical-statistics (Aickin & Gensler, 1996) and ML evaluation (Demšar, 2006) literature.
+- Practical pointer: In methodology, write: "Family-wise error was controlled across the N consensus-vs-individual paired tests per metric using the Holm-Bonferroni step-down procedure at α=0.05." Report both the raw p-value and the Holm-adjusted threshold each test was compared against, so the reader can audit the decision. If even one paired comparison clears the corrected threshold for any metric, frame the consensus contribution accordingly in Discussion; if none clear it, frame as Narrative B with method-disagreement analysis taking the foreground.
+
+### Stats discipline in code: scipy + statsmodels, no new heavy dependencies
+
+- Practical pointer: `scipy.stats.wilcoxon` and `statsmodels.stats.multitest.multipletests(..., method="holm")` are both already callable in the current environment (scipy is required; add statsmodels to `requirements-dev.txt` if not present). Effect sizes are computed by bootstrap-resampling per-case paired differences with `numpy.random.default_rng(seed)` to stay deterministic. Document RNG seeds in methodology alongside the standard `seed=20260515` discipline already used elsewhere in the project.
+
 ## Reporting and Validation Discipline
 
 ### CLAIM supports transparent medical-imaging AI reporting
@@ -178,6 +215,18 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Source link: [`REF-DECIDE-AI`](references.md#ref-decide-ai)
 - Thesis-ready paraphrase: If the radiologist-style workbook is discussed as more than qualitative illustration, it should be framed as early-stage, controlled evaluation rather than deployment evidence. The useful output is structured information about explanation usefulness, errors, and workflow fit under a clearly defined review task.
 - Practical pointer: Use DECIDE-AI to report the intended user, task, review environment, inputs shown to the rater, scoring categories, and limitations. Do not imply prospective clinical validation; this is a thesis-scale human-centered assessment artifact.
+
+### CT pilot scope is gated by the hour-1 model-availability check
+
+- Source link: [`REF-RSNA-IHD`](references.md#ref-rsna-ihd)
+- Thesis-ready paraphrase: The CT pilot tests whether the validation findings on CXR pneumothorax transfer to a different modality and task. Because the thesis does not pre-commit to a CT performance claim, the scope is scoped by the hour-1 model-availability check at the start of Phase 5.4: if a verifiable off-the-shelf RSNA-IHD-derived classifier with a usable hemorrhage class head, license, version, and preprocessing contract is found, the pilot runs as a small qualitative + quantitative smoke on 20-30 manually annotated slices; if no such model exists, the pilot collapses to qualitative external validation only per the experiment protocol's Week-3 fallback rule. Either outcome is thesis-defensible because no prior claim has been written that requires a CT smoke to land.
+- Practical pointer: In methodology, frame the CT contribution honestly per outcome. Branch A (model found): describe the CT pipeline as deliberate scope-minimization (off-the-shelf classifier, small manual annotation, no calibration regen), explicitly avoiding over-claiming localization. Branch B (no model): describe the CT contribution as a qualitative external-validation note pointing future work toward CT XAI on a pre-trained head, and cite the RSNA-IHD challenge as the natural training distribution for that future work. In both cases the thesis methodology cites `REF-RSNA-IHD` so the CT discussion is anchored to a peer-reviewed challenge rather than to a generic claim about "CT".
+
+### Coverage saturation can be a future secondary heatmap diagnostic
+
+- Project-derived metric idea: `coverage_saturation_fraction_95` / `top_fraction_at_95_coverage` would record the smallest swept top-fraction at which the selected attribution mask covers at least `95%` of the image. Lower values indicate that the thresholded map becomes whole-image-like quickly; higher values indicate a more spatially concentrated or less saturated map across the tested fractions.
+- Thesis-ready paraphrase: This metric should be framed as a spatial diffuseness/saturation diagnostic, not as evidence that a heatmap is clinically correct. It can explain why some threshold panels become visually redundant and can compare whether positive, negative, magnitude, or signed views differ in how quickly they expand over the image.
+- Practical pointer: Use it only as a secondary or future-work metric alongside `IoU`, `Dice`, `pointing_hit`, `precision_at_fraction`, negative-evidence diagnostics, faithfulness curves, and review scores. If a negative view reaches `95%` coverage later than a positive view, the safe interpretation is that the negative evidence is more spatially concentrated, not automatically that the negative explanation is better or clinically correct.
 
 ## Dataset and Baseline Model Framing
 

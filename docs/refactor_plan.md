@@ -575,3 +575,344 @@ Hard deadline: full thesis draft `2026-06-04`. Final corrections/formatting/defe
 
 - LIME (`Phase 5.7`): kept as a low-priority conditional add-on. Activated only if the rest of Phase 5 lands by 2026-06-01 and the writing buffer holds. If skipped, justify in the thesis methodology under the protocol's "only if implementation time is low" clause.
 - Captum infidelity / sensitivity (`Phase 5.6`): kept as a conditional pull-in either when `Phase 5.5` is skipped or as a parallel add-on if the rest of Phase 5 lands ahead of schedule. Strengthens the H8 "faithfulness vs localization" test by triangulating across two faithfulness families.
+
+---
+
+## Phase 5 Implementation Details (added 2026-05-27)
+
+This section expands each Phase 5 item with: scope, files touched, step-by-step plan, tests, gates, risks, and rollback. All cost estimates assume a single working day = 6 focused hours.
+
+Sequencing constraints carried from the discussion on 2026-05-27:
+
+1. **5.1 must land before 5.2.** The improvement experiment's "consensus vs best individual" cannot freeze its candidate set until Eigen-CAM and Score-CAM are either in the registry or explicitly dropped.
+2. **5.1 invalidates calibration v2.** Adding new methods means existing top-fractions do not cover them. A calibration v3 regen on the calibration split must precede any held-out evaluation that uses the new methods.
+3. **5.2 runs on the held-out test split with frozen thresholds.** The improvement-experiment script must refuse to execute if any calibration artifact is older than the smoke output it would compare against. This is the "frozen thresholds" gate.
+4. **5.5 reuses the 5.2 pipeline** on a second model. No new script; parametrize 5.2 by `--weights`.
+5. **5.4 decision is binary in hour 1.** Off-the-shelf classifier exists and runs end-to-end on one slice → 2-day build. Doesn't → fallback to qualitative external validation only per the protocol's Week-3 rule. No 4–5 day fine-tuning detour under any circumstances.
+
+Decisions locked on 2026-05-27:
+
+- Statistics: Wilcoxon signed-rank + Holm-Bonferroni FWER control at α=0.05. References: [`REF-WILCOXON-1945`](references.md#ref-wilcoxon-1945), [`REF-HOLM-1979`](references.md#ref-holm-1979), [`REF-AICKIN-GENSLER-1996`](references.md#ref-aickin-gensler-1996), [`REF-DEMSAR-2006`](references.md#ref-demsar-2006). See [`docs/thesis-notes.md` § Statistical Methods for Method-vs-Method Comparison](thesis-notes.md).
+- Narrative pre-drafts (consensus-wins vs consensus-loses) handled by the student outside the agent loop.
+- CT pilot has no pre-committed claim, so Branch B (qualitative-only) is fully defensible.
+
+---
+
+### Phase 5.1 — Eigen-CAM + Score-CAM
+
+**Goal:** add two CAM-family methods to the `MethodSpec` registry so the improvement experiment and held-out evaluation cover a broader method panel. References: [`REF-EIGEN-CAM`](references.md#ref-eigen-cam), [`REF-SCORECAM`](references.md#ref-scorecam).
+
+**Files touched:**
+- `src/explainai_thesis/xai.py` — new `eigen_cam_signed(...)` and `score_cam_signed(...)` functions returning `SignedAttribution`.
+- `src/explainai_thesis/cxr/methods.py` — append two `MethodSpec` entries to `DEFAULT_METHOD_SPECS`. Extend `MethodContext` with `score_cam_channels_cap: int = 256`.
+- `scripts/run_cxr_torchxray_smoke.py` — add CLI flag `--score-cam-channels-cap` (default 256); wire into `MethodContext`.
+- `scripts/visualize_cxr_threshold_selection.py` and `scripts/visualize_cxr_classifier_outcome_thresholds.py` — same CLI flag.
+- `AGENT.md` — append `eigen_cam` and `score_cam` (with their four-view families) to the XAI Method Set; document the Eigen-CAM sign convention.
+- `tests/test_eigen_cam.py` and `tests/test_score_cam.py` (new) — synthetic-data sanity tests; also add the two methods to the existing `tests/test_signed_attribution.py` parametrize sweep so the dispatch contract is verified.
+
+**Implementation plan (step by step):**
+
+1. **Eigen-CAM** (`xai.py`):
+   - Hook the existing `GradCAM` machinery: it already captures forward activations on `bundle.target_layer`. Reuse the captured activations tensor of shape `[1, C, h, w]`.
+   - Flatten to `[C, h*w]`, run `U, S, V = torch.linalg.svd(activations, full_matrices=False)`.
+   - The top principal component is `V[0]` (shape `[h*w]`); reshape to `[h, w]`.
+   - Sign convention: Eigen-CAM's sign is arbitrary up to a flip. Resolve by computing the inner product `(V[0] * activations.mean(dim=0))` and flipping `V[0]` if the inner product is negative. This anchors the positive side to the dominant activation direction.
+   - Interpolate to image size with `F.interpolate(..., mode="bilinear", align_corners=False)`.
+   - Normalize via `normalize_signed_map` (already in `metrics.py`).
+   - Return a `SignedAttribution(raw=...)`.
+
+2. **Score-CAM** (`xai.py`):
+   - Capture forward activations on `bundle.target_layer` (reuse `GradCAM` hook or write a thin `ActivationCapture` class).
+   - For each channel `c` in `range(C)` (or top `channels_cap` channels ranked by mean activation magnitude):
+     - Upsample channel activation `[1, 1, h, w]` to image size via `F.interpolate`.
+     - Normalize the upsampled map to `[0, 1]` via min-max.
+     - Mask the original input by elementwise multiplication: `masked_input = input * upsampled_normalized`.
+     - Forward `masked_input` through the model. Read the target class logit (or sigmoid).
+     - `weight[c] = score(masked_input) - score(baseline)`. Common baseline: zero tensor of input shape.
+   - Aggregate: `cam = sum(weight[c] * activation[c] for c in selected_channels)`, ReLU is *not* applied (we keep signed output to match the `SignedAttribution` contract).
+   - Normalize via `normalize_signed_map`.
+   - Return a `SignedAttribution(raw=cam)`.
+   - Wall-time check at implementation time: profile against DenseNet-121-all on a 224×224 input. If a single case exceeds 30 s with `channels_cap=256`, lower the default to 128.
+
+3. **Registry** (`cxr/methods.py`):
+   ```python
+   def _eigen_cam(ctx): return eigen_cam_signed(ctx.model, ctx.model_input, target_layer=ctx.gradcam.target_layer)
+   def _score_cam(ctx): return score_cam_signed(
+       ctx.model, ctx.model_input, class_idx=ctx.class_idx,
+       target_layer=ctx.gradcam.target_layer,
+       channels_cap=ctx.score_cam_channels_cap,
+   )
+   DEFAULT_METHOD_SPECS = (*existing, MethodSpec("eigen_cam", _eigen_cam), MethodSpec("score_cam", _score_cam))
+   ```
+   Do **not** add the new methods to `CONSENSUS_CONSTITUENTS`. Consensus stays as the original 4 (Grad-CAM, IG, GradientSHAP, Occlusion). Changing consensus constituents would invalidate every prior consensus result.
+
+4. **Calibration v3 regeneration**:
+   - Run `scripts/calibrate_cxr_xai_thresholds.py --weights <name> --calibrated-fractions ...` to produce `outputs/iter_XX_calibration_v3_with_eigen_score/calibrated_thresholds_v3.csv`.
+   - Document v3 in `docs/progress.md` and reference it from `AGENT.md` Calibration Versioning section.
+   - Wall time: ~60–90 min per model on CUDA. Past the agent-tool budget; run manually.
+
+**Tests:**
+- `test_eigen_cam_signed_decomposition`: round-trip `SignedAttribution.positive + negative ≈ magnitude` on the synthetic dataset.
+- `test_eigen_cam_sign_convention_stable`: run Eigen-CAM twice with `torch.manual_seed(0)` and assert the sign of the principal component is reproducible.
+- `test_score_cam_with_channels_cap_completes`: synthetic DenseNet target, `channels_cap=8`, finish under 5 s on CPU.
+- `test_score_cam_signed_decomposition`: same `positive + negative ≈ magnitude` check.
+- Extend `tests/test_signed_attribution.py` parametrize sweep to include both new methods.
+
+**Gates:**
+- All new tests pass under `wsl.exe python3 -m pytest tests/ -m 'not slow'` in under 5 s additional.
+- Calibration v3 CSV exists for at least DenseNet-121-all and ResNet-50.
+
+**Risks and rollback:**
+- Score-CAM wall time blows up at 512×512 on ResNet-50. → Reduce `channels_cap` to 64, document the cap explicitly in the methodology.
+- Eigen-CAM sign drifts across cases. → Lock the convention; add the regression test above.
+- Either method produces NaN under specific input distributions. → Add a guard in the compute function that returns a zero `SignedAttribution` and logs a warning when SVD or score-weighting fails.
+
+**Cost estimate: 1.0 day total (0.5 Eigen + 0.5 Score + tests). Calibration v3 is 60–90 min wall time per model, scheduled overnight.**
+
+---
+
+### Phase 5.2 — Improvement experiment
+
+**Goal:** Run consensus vs each individual method on the held-out test split with frozen calibration thresholds; report paired Wilcoxon + Holm-corrected p-values per metric. References: [`REF-WILCOXON-1945`](references.md#ref-wilcoxon-1945), [`REF-HOLM-1979`](references.md#ref-holm-1979), [`REF-DEMSAR-2006`](references.md#ref-demsar-2006).
+
+**Files touched:**
+- `scripts/run_improvement_experiment.py` (new).
+- `src/explainai_thesis/stats.py` (new) — Wilcoxon + Holm-Bonferroni helpers + bootstrap CI.
+- `requirements-dev.txt` — add `statsmodels` if not already present.
+- `docs/progress.md` — append result entry on the day the experiment runs.
+
+**Implementation plan:**
+
+1. **Script CLI**: mirror `run_cxr_torchxray_smoke.py` flags exactly for compatibility with downstream consumers. New flags:
+   - `--calibration-csv <path>` — frozen calibration v3 file. Required.
+   - `--reference-method <name>` — default `consensus`. The single method against which all others are tested.
+   - `--alpha <float>` — default 0.05.
+
+2. **Frozen-threshold gate**: at startup, read `<output-dir>/run_meta.json` for any existing run; if the calibration CSV's mtime is newer than the most recent smoke output that would be compared against, exit with a clear error. Force the user to either re-run upstream smoke or accept a stale calibration via `--allow-stale-calibration`.
+
+3. **Pipeline**:
+   - Load manifest, filter to `--split test`.
+   - For each case: run all methods in `DEFAULT_METHOD_SPECS` plus consensus, using calibration v3 top-fractions.
+   - Compute IoU, Dice, pointing_hit, precision_at_fraction per case per method (positive view only — the improvement claim is about positive evidence overlap with the lesion mask).
+   - Write `improvement_experiment.csv` with one row per `(case, method, view)`.
+
+4. **Stats** (`src/explainai_thesis/stats.py`):
+   - `wilcoxon_paired(reference: np.ndarray, alternatives: dict[str, np.ndarray]) -> dict[str, dict]`: for each method name, drop NaN-paired rows, run `scipy.stats.wilcoxon(reference - alt, zero_method='wilcox')` two-sided. Return per-method dict with `statistic`, `p_raw`, `n_pairs`, `median_diff`, and bootstrap 95% CI.
+   - `holm_bonferroni(p_raw: list[float], alpha: float) -> list[bool]`: sort ascending, test against escalating thresholds α/(N−i+1), stop at first failure. Use `statsmodels.stats.multitest.multipletests(p_raw, alpha=alpha, method='holm')` and document the call.
+   - `bootstrap_paired_diff_ci(reference, alternative, n_resamples=10000, seed=20260515)`: numpy `default_rng`, percentile bootstrap, two-sided 95% CI.
+
+5. **Output CSVs**:
+   - `improvement_experiment.csv`: per-case per-method per-metric rows (long format).
+   - `improvement_experiment_paired.csv`: one row per `(metric, method_compared)`. Columns: `metric`, `reference`, `compared`, `n_pairs`, `median_diff`, `bootstrap_ci_low`, `bootstrap_ci_high`, `wilcoxon_stat`, `p_raw`, `p_holm_threshold`, `holm_significant_bool`.
+   - `improvement_experiment_summary.md`: short prose summary, including which narrative (A: consensus wins / B: consensus does not improve) the result supports per metric.
+
+6. **Plots**:
+   - `improvement_experiment_boxplots.png`: one panel per metric, box plot of per-case values for each method, reference highlighted.
+   - `improvement_experiment_paired_diff.png`: paired-difference distribution (consensus − method) per method, with bootstrap CI shown as error bars.
+
+7. **Run on DenseNet held-out test split (Day 4)** and on ResNet held-out test split (same day, second invocation). Output folders: `outputs/iter_XX_improvement_experiment_<weights>/`.
+
+**Tests:**
+- `tests/test_stats.py` (new):
+  - `test_wilcoxon_paired_known_inputs`: pre-computed scipy result on a fixed seed.
+  - `test_holm_bonferroni_known_pvalues`: hand-worked example with 5 p-values, assert correct accept/reject pattern.
+  - `test_bootstrap_paired_diff_ci_deterministic`: seed=0, fixed data, assert CI bounds.
+- `tests/test_improvement_experiment_smoke.py`: synthetic 5-case dataset, run script end-to-end, assert CSV columns and that no NaN appears in non-CI columns.
+
+**Gates:**
+- Frozen-threshold check fires on a stale-calibration test.
+- Holm-Bonferroni output matches `statsmodels.stats.multitest.multipletests` reference output on 3+ test cases.
+- Bootstrap CI is deterministic with a fixed seed across reruns.
+
+**Risks and rollback:**
+- Consensus does not improve over best individual on either model. → Narrative B in the thesis Discussion, framed around method disagreement as a diagnostic finding. The thesis remains defensible.
+- N is too small after dropping cases with NaN metrics (e.g. zero mask area). → Document the case-exclusion rule; report N per test.
+- statsmodels not yet installed in WSL env. → `pip install statsmodels` is fast and dependency-light.
+
+**Cost estimate: 1.5 days (1.0 script + 0.5 runs on both models).**
+
+---
+
+### Phase 5.4 — CT pilot (binary decision in hour 1)
+
+**Goal:** Test transfer of the validation methodology to a different modality (CT hemorrhage). Decision is binary: if an off-the-shelf classifier with a verifiable hemorrhage class head exists, run a small smoke; if not, fall back to qualitative-only discussion. Reference: [`REF-RSNA-IHD`](references.md#ref-rsna-ihd).
+
+**Hour 0–1: model-availability check (binding constraint)**
+
+Search candidates in order, recording verifiable evidence per candidate:
+1. **RSNA Intracranial Hemorrhage Detection Kaggle**: public competition; multiple top-N solutions on GitHub. Look for repos with downloadable checkpoints (not just training recipes). Filter on: (a) license, (b) checkpoint URL accessible without competition signup, (c) recognizable PyTorch/Keras `state_dict` load.
+2. **MONAI Model Zoo**: re-check post the 2026-05-18 finding that the prior CXR bundle was a generative model. Look for `*hemorrhage*` or `*intracranial*` bundle ids. Confirm `configs/metadata.json` lists a classification head with `hemorrhage` or per-subtype labels.
+3. **HuggingFace Hub `transformers` or `timm` model zoo**: search "CT hemorrhage" with `task: image-classification`. Look for cards that cite RSNA-IHD as the training set.
+4. **TorchXRayVision's CT branch** (if present): unlikely but worth a 5-minute check.
+
+Pass criteria for any candidate: license permits research use; checkpoint URL is stable; one slice loads, preprocesses, and forwards end-to-end producing a meaningful score; class label is recoverable from metadata.
+
+**Decision rule:** if at least one candidate passes within hour 1, go to Branch A. Otherwise, go to Branch B. Hard stop on Branch A search after 60 minutes — no exceptions.
+
+**Branch A — model found:**
+
+Files touched:
+- `src/explainai_thesis/ct/__init__.py` (new).
+- `src/explainai_thesis/ct/io.py` (new) — HU windowing (soft-tissue or hemorrhage window: typically WW=80, WL=40 for brain), DICOM-or-PNG-or-NPZ slice preprocessing, resize to model's expected input.
+- `src/explainai_thesis/ct/models.py` (new) — model loader returning a `ClassifierBundle` like the CXR `load_classifier` seam. Extend the seam to dispatch on a `modality` field, OR create a `load_ct_classifier(name)` and don't share with CXR (cleaner if the preprocessing differs significantly).
+- `scripts/run_ct_smoke.py` (new) — CT analogue of `run_cxr_torchxray_smoke.py`, reusing the `MethodSpec` registry.
+- `data/ct_hemorrhage_manifest.csv` (new) — 20–30 positive slices manually masked by the student, ~1 hour with hemorrhage-window viewer preset.
+- `tests/test_ct_io.py` (new) — HU windowing round-trip test on a synthetic HU-scaled tensor; CT-shaped synthetic dataset based on `SyntheticLesionDataset` patterns.
+
+Faithfulness baseline: add `--faithfulness-baseline soft_tissue_window_zero` because `black` (-1024 HU) means air in CT and is clinically meaningful, not neutral. Document this in `AGENT.md`.
+
+Output folder: `outputs/iter_XX_ct_smoke_<short>/`.
+
+**Branch B — no model found:**
+
+Files touched:
+- `docs/progress.md` — one entry documenting:
+  - Which sources were checked (URLs and date).
+  - Why each was rejected (no class head, no public weights, license unclear, etc.).
+  - Decision to fall back to qualitative external validation only.
+- `docs/thesis-notes.md` — already has the framing in the new CT section above; cite the progress entry from there.
+- No code changes.
+
+**Tests (Branch A only):**
+- `test_ct_io_hu_windowing_roundtrip` (CPU, fast).
+- `test_ct_smoke_synthetic_end_to_end` (CPU, fast, mocked model bundle).
+
+**Gates:**
+- Branch A: at least one positive case smoke runs end-to-end and produces a non-zero attribution map for at least one method.
+- Branch B: progress.md entry exists and references `REF-RSNA-IHD` as the future-work anchor.
+
+**Risks and rollback:**
+- Branch A model loads but produces garbage attribution on real CT data. → Document as a qualitative finding in thesis; do not over-claim transfer.
+- Branch A annotation takes > 2 hours due to viewer setup. → Cap manual annotation at 1 hour wall time; whatever's done is what's done.
+- Branch B is chosen but the supervisor expects a quantitative CT result. → User confirmed on 2026-05-27 that there is no pre-committed CT claim, so this is acceptable.
+
+**Cost estimate: 0.5 day (Branch B) to 2.5 days (Branch A).**
+
+---
+
+### Phase 5.5 — Stronger second CXR model (full protocol)
+
+**Goal:** Re-run the improvement experiment on `resnet50-res512-all` so the thesis can present a head-to-head comparison of consensus vs individual methods across two CXR backbones. Per Stage A outcome, ResNet-50 is the strongest off-the-shelf TorchXRayVision candidate and is the natural second model.
+
+**Most of this is already done.** Stage A (`outputs/iter_33_stage_a_diagnostic_ab/resnet50-res512-all/`) has v2 calibration and smoke. The classifier-outcome 1000-case run (`outputs/iter_36_resnet_classifier_outcome_any1000_all_methods_2/`) is also done. The targeted review (`outputs/iter_47_resnet_review_diagnostics_balanced40_smoothed_faithfulness/`) is complete on 40 balanced cases.
+
+**What's actually missing:**
+
+1. **Calibration v3 on ResNet-50** — must be regenerated after 5.1 lands so it covers Eigen-CAM and Score-CAM.
+2. **Improvement experiment on ResNet held-out test split** — one invocation of the 5.2 script: `scripts/run_improvement_experiment.py --weights resnet50-res512-all --calibration-csv <resnet-v3>`.
+3. **Head-to-head comparison table** — in the thesis Results section, side-by-side mean Dice / IoU / pointing-hit / Holm-corrected improvement-experiment result for DenseNet-121-all vs ResNet-50-all.
+
+**Files touched:**
+- No new scripts. Re-uses 5.1 and 5.2 outputs.
+- `thesis/` — head-to-head comparison table added to the Results chapter.
+- `docs/progress.md` — entry recording the ResNet improvement-experiment outcome.
+
+**Tests:** None new. Tests added under 5.2 cover the pipeline.
+
+**Gates:**
+- ResNet calibration v3 CSV exists.
+- ResNet improvement-experiment output folder exists with all expected CSVs.
+
+**Risks and rollback:**
+- ResNet calibration v3 takes longer than DenseNet (likely ~90 min at 512×512). → Run overnight.
+- ResNet improvement experiment outcome differs materially from DenseNet's. → That is itself a thesis-relevant finding; report both faithfully and discuss model-dependence in Chapter 4.
+
+**Cost estimate: 0.5 day after 5.1 + 5.2 land.**
+
+---
+
+### Phase 5.6 — Captum infidelity + sensitivity
+
+**Goal:** Triangulate H8 ("faithfulness vs localization") by adding two faithfulness metrics from a different faithfulness family (perturbation-prediction linear consistency + attribution stability) alongside the existing deletion/insertion AUC. Reference: [`REF-INFIDELITY-SENSITIVITY`](references.md#ref-infidelity-sensitivity).
+
+**Files touched:**
+- `src/explainai_thesis/faithfulness.py` — add `infidelity_score(model, input, attribution, class_idx, perturb_fn, n_samples=10)` and `sensitivity_max_score(model, input, attribution_fn, class_idx, perturb_std=0.02, n_samples=10)`.
+- `src/explainai_thesis/io.py` — extend `METRICS_FIELDS` with `infidelity` and `sensitivity_max` columns. Document the schema bump in `docs/progress.md`.
+- `scripts/run_improvement_experiment.py` — compute the two metrics per case per method and append columns.
+- `tests/test_faithfulness.py` — extend with infidelity/sensitivity sanity tests on the synthetic dataset (`assert 0 <= infidelity` and `assert sensitivity_max >= 0`).
+
+**Implementation plan:**
+
+1. **Perturbation operator**: Gaussian noise added to the input with σ=0.02 on the normalized-image scale. Document this in methodology — perturbation choice matters per [`REF-MEANINGFUL-PERTURBATION`](references.md#ref-meaningful-perturbation).
+
+2. **Infidelity** (`infidelity_score`): for `n_samples` perturbations `δ`:
+   - `dot = sum(attribution * δ)`
+   - `actual_diff = model(input) - model(input - δ)` (target class scalar).
+   - Per-sample squared error: `(dot - actual_diff) ** 2`.
+   - Return mean across samples.
+
+3. **Sensitivity-max** (`sensitivity_max_score`): for `n_samples` perturbations `ε` of input:
+   - Re-run the attribution function on the perturbed input.
+   - Compute `||attribution(input + ε) - attribution(input)||_2 / ||ε||_2`.
+   - Return the maximum across samples.
+
+4. **Integration**: call both in `run_improvement_experiment.py` after computing per-case attributions. Wall-time impact: each metric requires `n_samples` extra forward (infidelity) or forward+backward (sensitivity) passes per case. With `n_samples=10` and 100 test cases × 7 methods, expect ~10× the existing per-case cost. Cap `n_samples=10` in the default config; allow higher via CLI.
+
+**Tests:**
+- `test_infidelity_score_decreases_under_better_attribution`: on the synthetic dataset, the ground-truth attribution should yield lower infidelity than a random attribution.
+- `test_sensitivity_max_score_bounded`: assert the returned value is finite and ≥ 0.
+- `test_infidelity_score_deterministic_with_seed`: fixed seed reproducibility.
+
+**Gates:**
+- Captum is optional but if installed (already a dependency), reuse `captum.metrics.infidelity` and `captum.metrics.sensitivity_max` directly to avoid re-implementing. Keep our wrappers thin so the methodology can cite Captum implementation.
+- Default `n_samples=10` keeps the runtime impact bounded.
+
+**Risks and rollback:**
+- Sensitivity computation triggers VRAM OOM at 512×512 on ResNet. → Lower `n_samples` to 5; or run sensitivity on a 30-case subset and report it as a supplementary diagnostic instead of an all-cases metric.
+- Captum API drift between minor versions changes the return shape. → Pin captum version in `requirements-dev.txt` and add a single regression test on a known input.
+
+**Cost estimate: 0.5 day.**
+
+---
+
+### Phase 5.7 — LIME (conditional, recommended to cut)
+
+**Goal:** Add a region-level surrogate explanation family as a qualitative third comparator. Reference: [`REF-LIME`](references.md#ref-lime).
+
+**Recommended decision: cut from the draft scope.** Cite the experiment protocol's "only if implementation time is low" clause. The current method panel (Grad-CAM, Grad-CAM++, IG, GradientSHAP, Occlusion, Eigen-CAM, Score-CAM) already spans CAM, gradient, perturbation, and PCA-based families. LIME's region-level framing is conceptually distinct but the per-case wall time makes it impractical at N≥100, and at N=10–20 the sample is too small to support paired-test inclusion.
+
+**If kept (cheapest version):**
+
+Files touched:
+- `src/explainai_thesis/xai.py` — `lime_signed(model, input, class_idx, n_samples=1000, segmentation='slic')`. Wraps `lime.lime_image.LimeImageExplainer`.
+- `requirements-dev.txt` — add `lime`.
+- `scripts/run_lime_supplementary.py` (new) — runs LIME on a 10–20 case subset selected from the existing review-candidate manifest. Output: `outputs/iter_XX_lime_supplementary/`.
+- `tests/test_lime.py` (new) — single-case sanity test on a synthetic image.
+
+Implementation plan:
+1. Convert input tensor back to `[0, 255]` uint8 image (LIME expects PIL-like).
+2. Define a `classifier_fn` that takes a numpy batch of perturbed images, preprocesses each via the classifier bundle's preprocess, and returns logits.
+3. Call `explainer.explain_instance(image, classifier_fn, top_labels=1, num_samples=1000)`.
+4. Convert the resulting positive-weight region mask into a `SignedAttribution` by setting positive weight pixels to `+weight` and negative weight pixels to `-weight`.
+5. Run on the same 10 cases used in the radiologist review workbook. Produce overlays + a brief qualitative comparison figure.
+
+Gates: budget cap of 2 hours wall time. If LIME does not finish on the 10-case set in 2 h, stop.
+
+Risks: LIME results depend on segmentation algorithm (SLIC defaults), num_samples, and random seed. Document all three.
+
+**Cost estimate: 0.5 day + 2 h runtime, only if all of 5.1–5.6 land by 2026-06-01.**
+
+---
+
+### Cross-cutting: docs/progress.md entry discipline
+
+Every Phase 5 item lands with a same-day `docs/progress.md` entry covering:
+- What changed in code (paths + commit hash).
+- What output folder the run wrote to (if any).
+- The headline numerical or qualitative outcome (one or two lines).
+- The thesis-defensible interpretation: what the result *means*, not just what it *is*.
+
+This keeps the chronological audit trail intact and prevents thesis-writing-time rediscovery of decisions.
+
+---
+
+### Cut order if days slip
+
+In strict order, first to be cut:
+
+1. **5.7 LIME** — already recommended to cut.
+2. **5.6 Captum infidelity + sensitivity** — H8 triangulation still works with deletion/insertion alone.
+3. **5.4 Branch A** — fall back to Branch B (qualitative-only) even if a model exists.
+4. **Do not cut 5.1, 5.2, or 5.5.** These are thesis-deliverable contributions.
+
+Cut decisions must be recorded in `docs/progress.md` on the day they're made.
