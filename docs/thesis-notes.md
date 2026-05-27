@@ -44,6 +44,11 @@ These notes are written as thesis-ready building blocks, not final thesis prose.
 - Thesis-ready paraphrase: Score-CAM is a relevant extension because it assigns activation-map weights using model output scores rather than gradient weights. This makes it a useful comparator when gradient-based maps appear noisy, saturated, or clinically implausible.
 - Practical pointer: If Score-CAM is added to the pipeline, report runtime separately. It is expected to be slower because it requires additional forward passes.
 
+### Consensus constituents are frozen at the original four methods
+
+- Thesis-ready paraphrase: The `consensus` and `consensus_signed` methods used in this thesis are the unweighted average of four signed attribution maps: `grad_cam`, `integrated_gradients`, `gradient_shap`, and `occlusion`. The added CAM-family methods `eigen_cam` and `score_cam` are reported as additional individual methods but are deliberately NOT included in the consensus average. The rationale is comparability: redefining consensus mid-thesis would invalidate all prior consensus results, break cross-iteration figures, and conflate "consensus contribution" with "method-panel expansion". The improvement experiment (Phase 5.2) tests consensus-of-four against each individual method including `eigen_cam` and `score_cam`, which is the cleaner contrast.
+- Practical pointer: When the thesis Discussion talks about consensus, state explicitly that the consensus is over the original four methods and that the inclusion of `eigen_cam` and `score_cam` as additional individuals strengthens (not weakens) the comparison because consensus is now tested against a broader pool of individual baselines. The `consensus_attention` variant raised in the 2026-05-18 supervisor sync is out of scope for the 2026-06-04 draft; defer to post-defense follow-up if pursued.
+
 ### LIME is a region-level surrogate explanation, included as a third family if scope allows
 
 - Source link: [`REF-LIME`](references.md#ref-lime)

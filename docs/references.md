@@ -2,7 +2,7 @@
 
 This file lists reliable, verifiable sources used for thesis background notes. Reference IDs are stable cross-links for `docs/thesis-notes.md`.
 
-Access date for URLs checked in this pass: 2026-05-24 and 2026-05-25.
+Access date for URLs checked: 2026-05-24, 2026-05-25, and 2026-05-27 (the latter added: `REF-WILCOXON-1945`, `REF-HOLM-1979`, `REF-AICKIN-GENSLER-1996`, `REF-DEMSAR-2006`, `REF-EIGEN-CAM`, `REF-LIME`, `REF-INFIDELITY-SENSITIVITY`, `REF-RSNA-IHD`).
 
 ## Source Selection Rules
 

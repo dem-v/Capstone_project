@@ -42,7 +42,7 @@ Source of truth for chronology remains `docs/progress.md`; this section prevents
 
 ---
 
-## Hard Constraints (from `AGENT.md`)
+## Hard Constraints (from `AGENTS.md`)
 
 - WSL Ubuntu is the canonical Python environment. All test commands use `wsl.exe python3`.
 - Output folder layout is frozen: `outputs/iter_XX_<short>/`, root-level CSVs, per-case folders with source-X-ray-stem in every filename, and `tp/fp/tn/fn/` outcome subfolders.
@@ -52,7 +52,7 @@ Source of truth for chronology remains `docs/progress.md`; this section prevents
 - `reports/weekly/week_1_report*.md` are frozen and must not be edited.
 - Any changed Python file must pass `wsl.exe python3 -m py_compile <file>` before being declared done.
 - Default tests must finish under 5 minutes on CPU. Slow tests use `@pytest.mark.slow`.
-- Color semantics from `AGENT.md` apply unchanged, plus the new `orange`/`teal` pair for signed scalar maps.
+- Color semantics from `AGENTS.md` apply unchanged, plus the new `orange`/`teal` pair for signed scalar maps.
 
 ---
 
@@ -150,7 +150,7 @@ Per-case output count grows from ~16 to ~24 PNGs. Disk impact roughly +50% per `
 - `test_signed_consensus_diverging`: on the synthetic dataset, the signed consensus must contain both positive and negative pixels.
 - `test_gradcam_single_compute_matches_polarity_pair`: the new single-compute Grad-CAM positive view must equal the old positive-polarity call within tolerance, and same for negative. Regression guard during the refactor.
 
-#### AGENT.md updates
+#### AGENTS.md updates
 
 Append new method names to the XAI Method Set: `grad_cam_magnitude`, `grad_cam_signed`, `grad_cam_plus_plus_magnitude`, `grad_cam_plus_plus_signed`, `occlusion_signed`, `consensus_signed`. (`integrated_gradients_signed` and `gradient_shap_signed` are already listed.) The Color Semantics block already covers orange/teal.
 
@@ -198,7 +198,7 @@ Pre-mortem found that the original Stage A (only `torchxrayvision` weights) was 
   - `densenet121-res224-mimic_nb`
   - `densenet121-res224-rsna`
   - (control) `densenet121-res224-all` — current baseline
-- Out-of-family external model (goes through `load_classifier(name)` seam from compressed Phase 2): **MONAI Model Zoo CXR bundle (decided 2026-05-18)**. Concrete bundle id is picked at integration time via `python3 -m monai.bundle download <name>` + `configs/metadata.json` inspection to confirm a `Pneumothorax` classification label. Rationale: MONAI bundles ship pneumothorax-aware classifier heads out of the box (no SIIM-train linear probe needed; the "off-the-shelf baseline" rule in `AGENT.md` is preserved), are MIT-licensed and versioned (thesis-citable by bundle id + version + commit hash), and use a different training mixture and preprocessing pipeline than TorchXRayVision. Honest caveat: several MONAI CXR bundles are DenseNet-121 or EfficientNet, so the architecture axis may be only partially covered; the training-distribution + preprocessing axes are the meaningful out-of-family contrast. Rejected Tier-1 alternative: Google CXR Foundation / ELIXR (would have needed a SIIM-train linear probe -> supervisor sign-off, deferred).
+- Out-of-family external model (goes through `load_classifier(name)` seam from compressed Phase 2): **MONAI Model Zoo CXR bundle (decided 2026-05-18)**. Concrete bundle id is picked at integration time via `python3 -m monai.bundle download <name>` + `configs/metadata.json` inspection to confirm a `Pneumothorax` classification label. Rationale: MONAI bundles ship pneumothorax-aware classifier heads out of the box (no SIIM-train linear probe needed; the "off-the-shelf baseline" rule in `AGENTS.md` is preserved), are MIT-licensed and versioned (thesis-citable by bundle id + version + commit hash), and use a different training mixture and preprocessing pipeline than TorchXRayVision. Honest caveat: several MONAI CXR bundles are DenseNet-121 or EfficientNet, so the architecture axis may be only partially covered; the training-distribution + preprocessing axes are the meaningful out-of-family contrast. Rejected Tier-1 alternative: Google CXR Foundation / ELIXR (would have needed a SIIM-train linear probe -> supervisor sign-off, deferred).
 - Pipeline: run `scripts/run_cxr_torchxray_smoke.py` (or `scripts/run_cxr_smoke.py` after the seam refactor) with each model on the same 20-30 calibration positive cases at the calibrated top-fractions for each method. Output: `outputs/iter_XX_diagnostic_weights_ab/<model_name>/`.
 - Summary table: per-model mean IoU, Dice, pointing_hit, precision_at_fraction across methods. Plus a per-case-per-method agreement view to surface whether one model changes the *spatial* attribution distinctly.
 
@@ -253,15 +253,15 @@ Reason: the `SignedAttribution` refactor in `Phase 1.2` changes how Grad-CAM, IG
 - Document both v1 and v2 in `docs/progress.md` so the thesis methodology section can cite the transition cleanly: "we recalibrated XAI top-fractions after the signed-attribution refactor on 2026-05-XX; v1 results were not used in held-out evaluation."
 - Budget: 0.5 day, slotted between `Phase 1.2` and `Phase 1.6`.
 
-#### AGENT.md updates
+#### AGENTS.md updates
 
-`Phase 1.7` outcome should be recorded in `AGENT.md` under a new "Diagnostic A/B Results" subsection, including: weights tried, calibration set used, per-weight summary metrics, and the Stage B outcome classification. This becomes thesis-defensible evidence for or against the "stronger second model needed" claim already in `AGENT.md`.
+`Phase 1.7` outcome should be recorded in `AGENTS.md` under a new "Diagnostic A/B Results" subsection, including: weights tried, calibration set used, per-weight summary metrics, and the Stage B outcome classification. This becomes thesis-defensible evidence for or against the "stronger second model needed" claim already in `AGENTS.md`.
 
 ### 1.6 Faithfulness default baseline switch
 
 File: `scripts/run_cxr_torchxray_smoke.py:117`
 
-Change default `--faithfulness-baseline` from `zero_tensor` to `black`. Keep `zero_tensor` as a valid choice, annotated "historical / not recommended" in argparse help. Add an inline comment citing `AGENT.md` rationale.
+Change default `--faithfulness-baseline` from `zero_tensor` to `black`. Keep `zero_tensor` as a valid choice, annotated "historical / not recommended" in argparse help. Add an inline comment citing `AGENTS.md` rationale.
 
 ---
 
@@ -292,7 +292,7 @@ Files to extract from `scripts/run_cxr_torchxray_smoke.py` (1037 lines → targe
 - [ ] `src/explainai_thesis/cxr/methods.py`
   - Replace the 16-entry `methods` dict in `main()` with a `MethodSpec(name, fn, kwargs, overlay_color, polarity)` registry.
   - Single dispatch loop computes all methods; eliminates the nested-ternary overlay-parameter blocks at lines 903-913 and 915-933.
-  - Preserve method names exactly as listed in `AGENT.md` line 66.
+  - Preserve method names exactly as listed in `AGENTS.md` line 66.
 
 - [~] `src/explainai_thesis/visualization.py`
   - `save_binary_selection` extracted 2026-05-21 from the two threshold visualizer scripts.
@@ -398,7 +398,7 @@ Gradient-requiring paths (`GradCAM.signed`, `integrated_gradients_signed`, and `
 | 1 | Phase 0 | low | Foundation; gates everything |
 | 2 | 1.3, 1.4, 1.5 (tests + manifest fix) | low | Non-controversial, builds the safety net |
 | 3 | 1.1 (polarity fix) + regression run | medium | Audit-trail entry to `docs/progress.md` |
-| 4 | 1.2 (signed maps) + orange/teal overlay | medium | New AGENT.md color convention applied |
+| 4 | 1.2 (signed maps) + orange/teal overlay | medium | New AGENTS.md color convention applied |
 | 5 | 1.6 (faithfulness default switch) | low | One-line default change + tests |
 | 5b | Method-dispatch refactor in `run_cxr_torchxray_smoke.py` to consume `SignedAttribution` (Phase 2 prerequisite) | medium | Removes polarity-keyword call sites; preserves CSV/PNG output schema |
 | 6 | 3.1 (batch IG) | medium | Biggest performance win; plugs into `SignedAttribution.raw` cleanly |
@@ -444,7 +444,7 @@ The protocol promises items the current code does not yet cover. The thesis-draf
 ### Refactor scope compression
 
 - **Phase 2**: cut from full architectural decomposition to **only** the `MethodSpec` registry plus `src/explainai_thesis/cxr/io.py`. Plotting/faithfulness helpers stay in `scripts/run_cxr_torchxray_smoke.py` until after the defense. Rationale: the registry unblocks Eigen-CAM/Score-CAM and the CT pilot; everything else is tidiness.
-- **Phase 4**: defer `mypy --strict`, the full `logging` migration, and the `README.md` quickstart to post-defense. Keep `run_meta.json` stamping (thesis-required for tool/version disclosure per `AGENT.md` line 34) and the `load_classifier(name)` seam (CT-pilot-required).
+- **Phase 4**: defer `mypy --strict`, the full `logging` migration, and the `README.md` quickstart to post-defense. Keep `run_meta.json` stamping (thesis-required for tool/version disclosure per `AGENTS.md` line 34) and the `load_classifier(name)` seam (CT-pilot-required).
 
 ### Phase 5 — Protocol Completion
 
@@ -456,7 +456,7 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 - Eigen-CAM: PCA of the target-layer activations, project onto the top component. ~30 lines. Fits the `SignedAttribution` contract trivially (signed = principal-component projection; magnitude = absolute value).
 - Score-CAM: mask each activation channel into the input, re-score the model, weight activations by score change. Expensive (similar to occlusion). Add a `--score-cam-channels-cap` argument so broad screening runs can subsample channels for speed; thesis-quality reruns use the full set.
 - Both register as new entries in the `MethodSpec` table from compressed Phase 2; no script-side glue needed beyond the registry.
-- New `AGENT.md` "XAI Method Set" entries: `eigen_cam`, `score_cam` (each with the four-view positive/negative/magnitude/signed family).
+- New `AGENTS.md` "XAI Method Set" entries: `eigen_cam`, `score_cam` (each with the four-view positive/negative/magnitude/signed family).
 - Tests: include both in the metric-sanity and faithfulness-sanity tests.
 
 #### 5.2 Improvement experiment script (pre-draft both narratives before running)
@@ -523,10 +523,10 @@ Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substan
 - Open subdecisions deferred to implementation time: exact CT model identifier, DICOM-source-of-truth vs PNG export, slice selection rule for IHD (single representative slice vs three-slice stack).
 - Tests: CT-specific HU windowing round-trip test; a synthetic CT-like dataset (HU-scaled `SyntheticLesionDataset`) for the smoke pipeline.
 
-#### 5.5 Stronger second pneumothorax model (time-permitting full protocol run)
+#### 5.5 Stronger second pneumothorax model (co-primary baseline)
 
-- Decision (deferred): only if the diagnostic A/B in `Phase 1.7` identifies an alternate weight or external model materially better at localization than the documented TorchXRayVision baseline. Otherwise the diagnostic-only sweep from `Phase 1.7` is the documented secondary evidence and `Phase 5.5` does not run.
-- If pursued: integrate one candidate (CheXNet-style DenseNet or a pneumothorax-specific Kaggle-fine-tuned model) via the `load_classifier(name)` seam. Run the full protocol on it. Add to the comparison table as a co-primary baseline.
+- **Status: superseded by the Phase 5 Implementation Details section below.** Phase 1.7 Stage A (complete 2026-05-20) identified `resnet50-res512-all` as materially better than the original `densenet121-res224-all` baseline by aggregate localization (mean Dice 0.0397 vs 0.0237). ResNet-50 has been promoted to co-primary baseline; the bulk of the protocol has already run on it. The original "Decision (deferred)" framing is no longer accurate.
+- Outstanding work: calibration v3 (after Phase 5.1 lands the new methods) and held-out improvement experiment (after Phase 5.2 script lands). See the Phase 5 Implementation Details section for the canonical plan.
 
 #### 5.6 Captum infidelity and sensitivity (conditional)
 
@@ -541,22 +541,24 @@ Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substan
 
 ### Revised execution order with deadline anchors
 
-| # | Step | Days | Risk | Cumulative |
+Status reflects the snapshot on 2026-05-27. The "Phase 5 Implementation Details" section below is the live schedule for outstanding work; this table is kept for historical context and completed-item provenance.
+
+| # | Step | Days | Risk | Status |
 |---|---|---|---|---|
-| 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | 2026-05-19 | ✅ **Done 2026-05-18** (`99275dd`); CI + Makefile deferred to post-Phase-5.
-| 2 | Phase 1 correctness: tests, polarity fix, signed maps, manifest fix, faithfulness default | 2 | medium | 2026-05-21 |
-| 2b | Phase 1.2.5 versioned calibration regeneration (v2) | 0.5 | low | 2026-05-22 (AM) |
-| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | 2026-05-22 (PM) to 2026-05-23 |
-| 4 | Phase 3.1 + 3.2 + 3.3 + 3.4 (batched IG, vectorized occlusion, dead compute, mask contour) | 1 | medium | 2026-05-24 |
-| 5 | **Phase 1.7 Stage A: in-family weights + 1 out-of-family external model on shared calibration cases** | 1 | medium | 2026-05-25 |
-| 6 | Stage B outcome decision; optional Stage C deeper external-model exploration | 0-2 | medium | 2026-05-25 to 2026-05-27 |
-| 7 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | 2026-05-27 |
-| 8 | Phase 5.2 improvement experiment script + pre-draft both Discussion narratives | 1 | low | 2026-05-28 |
-| 9 | Phase 5.4 CT pilot: **hour-1 model-availability check** then scaffold + first CT smoke (or fallback) | 2-3 | high | 2026-05-31 |
-| 10 | Phase 5.3 radiologist review workbook + 100-case scoring pass on CXR | 1.5 | low | 2026-06-02 |
-| 11 | Phase 4 minimum: `run_meta.json` stamping + `load_classifier` seam audit | 0.5 | low | 2026-06-02 |
-| 12 | Phase 5.5 stronger second CXR model full protocol (conditional on Phase 1.7 outcome) | 1-2 | medium | 2026-06-03 |
-| 13 | Final figures, results tables, finalize thesis writing | 1-2 | low | 2026-06-04 |
+| 1 | Phase 0 foundation + golden-output snapshot | 0.5 | low | ✅ Done 2026-05-18 (`99275dd`); CI + Makefile deferred to post-Phase-5. |
+| 2 | Phase 1 correctness: tests, polarity fix, signed maps, manifest fix, faithfulness default | 2 | medium | ✅ Done 2026-05-21. |
+| 2b | Phase 1.2.5 versioned calibration regeneration (v2) | 0.5 | low | ✅ Done 2026-05-22. |
+| 3 | Compressed Phase 2: `MethodSpec` registry + `cxr/io.py` + `load_classifier(name)` seam | 1 | medium | ✅ Done 2026-05-22 to 2026-05-25 across Phase 2 + 4 commits (`3bcff3c`, `020c029`, `66c0f4d`). |
+| 4 | Phase 3.1 + 3.2 + 3.3 + 3.4 (batched IG, vectorized occlusion, dead compute, mask contour) | 1 | medium | ✅ Done 2026-05-21. |
+| 5 | **Phase 1.7 Stage A: in-family weights + 1 out-of-family external model on shared calibration cases** | 1 | medium | ✅ Done 2026-05-20 for in-family weights and ResNet-50; out-of-family slot remains open (MONAI bundle rejected as generative). See AGENTS.md "Diagnostic A/B Results". |
+| 6 | Stage B outcome decision; optional Stage C deeper external-model exploration | 0-2 | medium | ✅ Stage B decided: ResNet-50 promoted to co-primary baseline; Stage C deferred. |
+| 7 | Phase 5.1 Eigen-CAM + Score-CAM | 0.5 | low | ⏳ Pending. See Phase 5 Implementation Details. |
+| 8 | Phase 5.2 improvement experiment script + narrative pre-drafts | 1 | low | ⏳ Pending (script). Narrative pre-drafting is handled by the student outside the agent loop. |
+| 9 | Phase 5.4 CT pilot: **hour-1 model-availability check** then scaffold + first CT smoke (or fallback) | 2-3 | high | ⏳ Pending. |
+| 10 | Phase 5.3 radiologist review workbook + scoring pass on CXR | 1.5 | low | ✅ Done with revised scope: balanced 40-case ResNet review completed 2026-05-25 (`outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/`); the originally planned 100-case pass was renegotiated to 40 balanced (10 per outcome) to fit the rubric-clarity budget. |
+| 11 | Phase 4 minimum: `run_meta.json` stamping + `load_classifier` seam audit | 0.5 | low | ✅ Done. `run_meta.json` stamped on primary scripts 2026-05-21 and secondary/diagnostic scripts 2026-05-25; `load_classifier` seam landed during Phase 1.7. |
+| 12 | Phase 5.5 stronger second CXR model full protocol | 1-2 | medium | 🟡 Mostly done. ResNet-50 Stage A, calibration v2, classifier-outcome 1000-case run, and 40-case review all complete. Remaining: ResNet calibration v3 (after 5.1) and ResNet held-out improvement experiment (after 5.2). |
+| 13 | Final figures, results tables, finalize thesis writing | 1-2 | low | ⏳ Pending; runs in parallel with 5.1/5.2/5.4. |
 
 **Parallel track: thesis writing starts on 2026-05-19**, not in the final buffer. The methodology chapter can be written as soon as `Phase 1.2` lands (signed-attribution semantics decided); the results chapter populates as each phase's CSVs land. Only the Discussion and Conclusions chapters wait for the improvement-experiment results. Net effect: by 2026-06-04, the draft is ready not because there is a writing-only buffer, but because writing has happened concurrently.
 
@@ -564,17 +566,17 @@ Hard deadline: full thesis draft `2026-06-04`. Final corrections/formatting/defe
 
 ### External coordination tasks (added after pre-mortem)
 
-- **AI-tooling disclosure policy**: confirm with the supervisor this week which institutional policy governs disclosure of `GPT-5.5`, `Codex`, `Claude Sonnet 4.6`, `Claude Opus 4.7`, `Junie`, etc. in the thesis (per `AGENT.md` line 34). Result: a methods-section paragraph naming the tools and roles. Done before 2026-05-22 so it does not block draft writing.
+- **AI-tooling disclosure policy**: confirm with the supervisor this week which institutional policy governs disclosure of the AI/development tools listed in the AI-tooling-disclosure rule in `AGENTS.md` (`GPT-5.5`, `Codex`, `PyCharm`, `Junie`, `VS Code`, `Claude Sonnet 4.6`, `Claude Opus 4.7`). Result: a methods-section paragraph naming the tools and roles. Done before 2026-05-22 so it does not block draft writing.
 - **Polarity-fix supervisor communication**: if the supervisor has seen earlier figures with the buggy `grad_cam_plus_plus_negative` overlays, email proactively with the corrected example after `Phase 1.1` lands, framing it as instrument calibration with before/after.
 
 ### Items explicitly downgraded
 
 - Full `logging` migration, `mypy --strict`, full file-split of `run_cxr_torchxray_smoke.py`: defer to post-defense.
 
-### Items kept on the menu but conditional (added 2026-05-18)
+### Items kept on the menu but conditional (added 2026-05-18; framing updated 2026-05-27)
 
-- LIME (`Phase 5.7`): kept as a low-priority conditional add-on. Activated only if the rest of Phase 5 lands by 2026-06-01 and the writing buffer holds. If skipped, justify in the thesis methodology under the protocol's "only if implementation time is low" clause.
-- Captum infidelity / sensitivity (`Phase 5.6`): kept as a conditional pull-in either when `Phase 5.5` is skipped or as a parallel add-on if the rest of Phase 5 lands ahead of schedule. Strengthens the H8 "faithfulness vs localization" test by triangulating across two faithfulness families.
+- LIME (`Phase 5.7`): low-priority conditional add-on. Recommended for cut from the draft scope on 2026-05-27 (see Phase 5 Implementation Details § 5.7). If kept, activate only if the rest of Phase 5 lands by 2026-06-01.
+- Captum infidelity / sensitivity (`Phase 5.6`): conditional add-on (parallel pull-in, no longer gated on Phase 5.5 being skipped since 5.5 is now committed). Strengthens the H8 "faithfulness vs localization" triangulation across two faithfulness families. Cut order documented in Phase 5 Implementation Details § "Cut order if days slip".
 
 ---
 
@@ -607,7 +609,7 @@ Decisions locked on 2026-05-27:
 - `src/explainai_thesis/cxr/methods.py` — append two `MethodSpec` entries to `DEFAULT_METHOD_SPECS`. Extend `MethodContext` with `score_cam_channels_cap: int = 256`.
 - `scripts/run_cxr_torchxray_smoke.py` — add CLI flag `--score-cam-channels-cap` (default 256); wire into `MethodContext`.
 - `scripts/visualize_cxr_threshold_selection.py` and `scripts/visualize_cxr_classifier_outcome_thresholds.py` — same CLI flag.
-- `AGENT.md` — append `eigen_cam` and `score_cam` (with their four-view families) to the XAI Method Set; document the Eigen-CAM sign convention.
+- `AGENTS.md` — append `eigen_cam` and `score_cam` (with their four-view families) to the XAI Method Set; document the Eigen-CAM sign convention.
 - `tests/test_eigen_cam.py` and `tests/test_score_cam.py` (new) — synthetic-data sanity tests; also add the two methods to the existing `tests/test_signed_attribution.py` parametrize sweep so the dispatch contract is verified.
 
 **Implementation plan (step by step):**
@@ -648,7 +650,7 @@ Decisions locked on 2026-05-27:
 
 4. **Calibration v3 regeneration**:
    - Run `scripts/calibrate_cxr_xai_thresholds.py --weights <name> --calibrated-fractions ...` to produce `outputs/iter_XX_calibration_v3_with_eigen_score/calibrated_thresholds_v3.csv`.
-   - Document v3 in `docs/progress.md` and reference it from `AGENT.md` Calibration Versioning section.
+   - Document v3 in `docs/progress.md` and reference it from `AGENTS.md` Calibration Versioning section.
    - Wall time: ~60–90 min per model on CUDA. Past the agent-tool budget; run manually.
 
 **Tests:**
@@ -687,6 +689,8 @@ Decisions locked on 2026-05-27:
    - `--calibration-csv <path>` — frozen calibration v3 file. Required.
    - `--reference-method <name>` — default `consensus`. The single method against which all others are tested.
    - `--alpha <float>` — default 0.05.
+
+   **Split discipline:** the manifest has only `split=train|test`. Calibration uses a fixed calibration subset drawn from the train split (the same positive-masked calibration cases that v1/v2/v3 calibration runs use, written via `scripts/calibrate_cxr_xai_thresholds.py`). The held-out evaluation always uses `--split test`. The script never partitions test internally and never adapts thresholds to test outcomes.
 
 2. **Frozen-threshold gate**: at startup, read `<output-dir>/run_meta.json` for any existing run; if the calibration CSV's mtime is newer than the most recent smoke output that would be compared against, exit with a clear error. Force the user to either re-run upstream smoke or accept a stale calibration via `--allow-stale-calibration`.
 
@@ -737,17 +741,26 @@ Decisions locked on 2026-05-27:
 
 **Goal:** Test transfer of the validation methodology to a different modality (CT hemorrhage). Decision is binary: if an off-the-shelf classifier with a verifiable hemorrhage class head exists, run a small smoke; if not, fall back to qualitative-only discussion. Reference: [`REF-RSNA-IHD`](references.md#ref-rsna-ihd).
 
-**Hour 0–1: model-availability check (binding constraint)**
+**Hour 0–1: model-availability AND mask-availability check (binding constraint)**
 
-Search candidates in order, recording verifiable evidence per candidate:
+Both axes are checked together because the pilot needs (1) a usable off-the-shelf classifier and (2) usable masks. Manual annotation is a fallback only if the masks track is exhausted.
+
+**Model track** — search candidates in order:
 1. **RSNA Intracranial Hemorrhage Detection Kaggle**: public competition; multiple top-N solutions on GitHub. Look for repos with downloadable checkpoints (not just training recipes). Filter on: (a) license, (b) checkpoint URL accessible without competition signup, (c) recognizable PyTorch/Keras `state_dict` load.
 2. **MONAI Model Zoo**: re-check post the 2026-05-18 finding that the prior CXR bundle was a generative model. Look for `*hemorrhage*` or `*intracranial*` bundle ids. Confirm `configs/metadata.json` lists a classification head with `hemorrhage` or per-subtype labels.
 3. **HuggingFace Hub `transformers` or `timm` model zoo**: search "CT hemorrhage" with `task: image-classification`. Look for cards that cite RSNA-IHD as the training set.
 4. **TorchXRayVision's CT branch** (if present): unlikely but worth a 5-minute check.
 
-Pass criteria for any candidate: license permits research use; checkpoint URL is stable; one slice loads, preprocesses, and forwards end-to-end producing a meaningful score; class label is recoverable from metadata.
+Model pass criteria: license permits research use; checkpoint URL is stable; one slice loads, preprocesses, and forwards end-to-end producing a meaningful score; class label is recoverable from metadata.
 
-**Decision rule:** if at least one candidate passes within hour 1, go to Branch A. Otherwise, go to Branch B. Hard stop on Branch A search after 60 minutes — no exceptions.
+**Mask track** — try in order before falling back to manual annotation:
+1. **`vbookshelf/computed-tomography-ct-images` (Kaggle re-host of Hssayeni PhysioNet CT ICH)** — 318 slices with intracranial hemorrhage masks across 82 patients. Cited in `docs/dataset_sources.md` Option A. This is the preferred mask source; if it loads cleanly, manual annotation is skipped entirely.
+2. **PhysioNet Hssayeni CT-ICH original** — same data, source-of-truth path. Use if the Kaggle re-host is unavailable.
+3. **Manual annotation** — only if both above fail. Cap at 1 hour wall time, 20-30 positive slices, hemorrhage-window viewer preset.
+
+Mask pass criteria: positive slices have a binary mask file at a stable path; mask dimensions match the corresponding image; at least 20 positive slices are usable.
+
+**Decision rule:** if at least one model candidate AND a mask source both pass within hour 1, go to Branch A. Otherwise, go to Branch B. Hard stop on Branch A search after 60 minutes — no exceptions.
 
 **Branch A — model found:**
 
@@ -756,10 +769,10 @@ Files touched:
 - `src/explainai_thesis/ct/io.py` (new) — HU windowing (soft-tissue or hemorrhage window: typically WW=80, WL=40 for brain), DICOM-or-PNG-or-NPZ slice preprocessing, resize to model's expected input.
 - `src/explainai_thesis/ct/models.py` (new) — model loader returning a `ClassifierBundle` like the CXR `load_classifier` seam. Extend the seam to dispatch on a `modality` field, OR create a `load_ct_classifier(name)` and don't share with CXR (cleaner if the preprocessing differs significantly).
 - `scripts/run_ct_smoke.py` (new) — CT analogue of `run_cxr_torchxray_smoke.py`, reusing the `MethodSpec` registry.
-- `data/ct_hemorrhage_manifest.csv` (new) — 20–30 positive slices manually masked by the student, ~1 hour with hemorrhage-window viewer preset.
+- `data/ct_hemorrhage_manifest.csv` (new) — built from whichever mask source passed the hour-1 check (vbookshelf/Hssayeni preferred; manual annotation only as fallback). Target: 20-30 positive slices.
 - `tests/test_ct_io.py` (new) — HU windowing round-trip test on a synthetic HU-scaled tensor; CT-shaped synthetic dataset based on `SyntheticLesionDataset` patterns.
 
-Faithfulness baseline: add `--faithfulness-baseline soft_tissue_window_zero` because `black` (-1024 HU) means air in CT and is clinically meaningful, not neutral. Document this in `AGENT.md`.
+Faithfulness baseline: add `--faithfulness-baseline soft_tissue_window_zero` because `black` (-1024 HU) means air in CT and is clinically meaningful, not neutral. **Implementation note:** the current `src/explainai_thesis/faithfulness.py::faithfulness_baseline_tensor` only supports `zero_tensor`, `black`, `white`, and `case_mean`. The new `soft_tissue_window_zero` branch must be added before any CT smoke runs. Suggested semantics: fill with the HU value that maps to zero in the soft-tissue display window (WW=400, WL=40 → HU=40 ≈ 0.1 in the CT model's normalized input space; defer the exact value to the chosen CT model's preprocessing contract). Document the chosen mapping in `AGENTS.md` alongside the existing CXR baselines.
 
 Output folder: `outputs/iter_XX_ct_smoke_<short>/`.
 
