@@ -94,12 +94,17 @@ def relative_path(path: Path, base: Path) -> str:
     return html.escape(Path(rel).as_posix())
 
 
-def copy_asset(path: Path | None, output_dir: Path, case_id: str) -> Path | None:
+def copy_asset(
+    path: Path | None,
+    output_dir: Path,
+    case_id: str,
+    destination_name: str | None = None,
+) -> Path | None:
     if path is None or not path.exists():
         return None
     assets_dir = output_dir / "assets" / case_id
     assets_dir.mkdir(parents=True, exist_ok=True)
-    destination = assets_dir / path.name
+    destination = assets_dir / (destination_name or path.name)
     if path.resolve() != destination.resolve():
         shutil.copy2(path, destination)
     return destination
@@ -152,8 +157,14 @@ def asset_image_cell(
     case_id: str,
     caption: str,
     css_class: str = "",
+    destination_name: str | None = None,
 ) -> str:
-    return image_cell(copy_asset(source_path, output_dir, case_id), output_dir, caption, css_class)
+    return image_cell(
+        copy_asset(source_path, output_dir, case_id, destination_name),
+        output_dir,
+        caption,
+        css_class,
+    )
 
 
 def format_float(value: str | float, digits: int = 3) -> str:
@@ -411,8 +422,9 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
                 Path(row["image_path"]),
                 args.output_dir,
                 case_id,
-                "native source image",
+                "original film",
                 "native",
+                f"source_{Path(row['image_path']).name}",
             )
         )
         figures.append(
@@ -420,8 +432,9 @@ def build_html(rows: list[dict[str, str]], args: argparse.Namespace, methods: li
                 Path(row["mask_path"]),
                 args.output_dir,
                 case_id,
-                "native ground-truth mask",
+                "ground-truth mask",
                 "native",
+                f"mask_{Path(row['mask_path']).name}",
             )
         )
         for method in methods:
@@ -515,7 +528,7 @@ def write_instructions(path: Path, case_count: int) -> None:
 5. Do not edit `scores_template.csv`; keep it as the reproducible blank template.
 
 Workbook layout:
-- Native source image and native ground-truth mask are shown first. Click any image to open the full-size file in a new tab.
+- The original film and ground-truth mask are shown first. Click any image to open the full-size file in a new tab.
 - If faithfulness was computed, each case shows deletion/insertion curves and a compact summary table before the heatmap grid. Solid lines are insertion; dashed lines are deletion.
 - Each method block shows available positive, negative, magnitude, and signed views. The paired threshold-sweep panel follows each continuous heatmap when it exists.
 
