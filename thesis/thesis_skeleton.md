@@ -357,6 +357,14 @@ Draft recommendations:
 
 TODO: Larger CT masks, more pathologies, reader study, prospective validation, publication plan.
 
+Draft future-work bullets:
+- **Attention-weighted consensus (`consensus_attention`)**: extend the unweighted `consensus_signed` to a weighted variant in which each constituent method `m` receives a per-method coefficient `alpha_m`. The coefficients act as attention weights across methods (not as architectural attention inside the classifier, which would violate the off-the-shelf-baseline rule). Candidate weighting policies include calibration-set mask-IoU per method, agreement-score with the panel, or stability under input perturbation. This was scoped during the 2026-05-18 supervisor sync as a planned `MethodSpec` registry entry, but deferred from the 2026-06-04 draft because (a) it adds a third consensus flavor on top of `consensus` and `consensus_signed`, (b) the weighting policy is a new hyperparameter family that needs its own calibration discipline to avoid test-set peeking, and (c) testing it is only meaningful after the unweighted consensus result from the improvement experiment is in hand.
+- Larger CT mask sets (full RSNA-IHD or PhysioNet-CT-ICH coverage, multi-rater annotation).
+- Additional pathologies beyond pneumothorax and intracranial hemorrhage.
+- Multi-rater radiologist reader study with inter-rater reliability statistics.
+- Prospective clinical evaluation under DECIDE-AI guidance.
+- Publication plan with code/data release.
+
 ## Bibliography
 
 TODO: Use IEEE by default unless supervisor requests APA.
