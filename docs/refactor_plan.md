@@ -530,7 +530,7 @@ Added after pre-mortem 2026-05-18: the iter_27 evidence already hints at substan
 
 #### 5.6 Captum infidelity and sensitivity (conditional)
 
-- Protocol-marked optional. Pull in if Phase 5.5 is skipped and there is time left, or as a parallel low-cost add-on if the rest of Phase 5 lands ahead of schedule. Implementation is small (`captum.metrics.infidelity` and `captum.metrics.sensitivity_max`); fits naturally next to the existing deletion/insertion faithfulness writer.
+- Protocol-marked optional. Phase 5.5 is now committed (ResNet-50 promoted to co-primary baseline after Stage A), so Captum metrics are no longer gated on 5.5 being skipped. They are a parallel low-cost add-on pulled in if the rest of Phase 5 lands ahead of schedule. Implementation is small (`captum.metrics.infidelity` and `captum.metrics.sensitivity_max`); fits naturally next to the existing deletion/insertion faithfulness writer. Cut order documented in the Phase 5 Implementation Details § "Cut order if days slip".
 - Gives the thesis a second faithfulness probe alongside deletion/insertion, which strengthens the H8 "faithfulness vs localization" test by triangulating across two faithfulness families.
 
 #### 5.7 LIME (conditional, low priority)

@@ -387,7 +387,9 @@ TODO: ~0.5 page (template requirement). Summarize the methodology: the four-laye
 
 ### 4.1 Classification Performance
 
-TODO: Present baseline metrics for X-ray and CT.
+TODO: Present baseline classification metrics (AUC, accuracy, sensitivity, specificity, F1) for the CXR pneumothorax classifier(s).
+
+Conditional CT section: include CT classification metrics only if Phase 5.4 Branch A executes (off-the-shelf hemorrhage classifier and a usable mask source both pass the hour-1 availability check). If Phase 5.4 collapses to Branch B (qualitative external-validation only), this section presents CXR metrics alone and the CT modality is discussed under future work rather than Results.
 
 Draft notes from current CXR experiments:
 - Treat `densenet121-res224-all` as the original weak external TorchXRayVision baseline. It is useful because it demonstrates that an off-the-shelf medical classifier can have moderate ranking/classification behavior while still producing clinically weak pneumothorax localization.
@@ -406,19 +408,22 @@ Draft notes from current CXR experiments:
 
 ### 4.3 Cross-Modality Comparison
 
-TODO: Compare whether the same explanation methods behave similarly on CXR and CT.
+TODO (conditional on Phase 5.4 Branch A): compare whether the same explanation methods behave similarly on CXR and CT. This section presents a quantitative cross-modality comparison only if Phase 5.4 Branch A executes and produces a usable CT smoke run on the 20-30 positive slices from the hour-1-verified mask source.
+
+If Phase 5.4 collapses to Branch B (no off-the-shelf hemorrhage classifier or no usable mask source within the hour-1 window), this section is rewritten as a qualitative external-validation discussion only: it notes the cross-modality goal from Chapter 1, explains why no quantitative CT comparison was possible in this thesis cycle, and points the reader at Chapter 5.3 Future Work for the path to a full CT evaluation (RSNA-IHD-derived classifier integration, larger annotated CT subset). The thesis title and abstract still cover "Cross-Modality Validation" because the methodological apparatus (MethodSpec registry, `SignedAttribution` contract, mask-based localization metrics, faithfulness baselines including the planned `soft_tissue_window_zero`) is modality-agnostic; the cross-modality claim is methodological rather than empirical under Branch B.
 
 ### 4.4 Radiologist Assessment and Failure Taxonomy
 
 TODO: Present expert scoring and representative examples.
 
-Draft notes from the 10-case smoothed ResNet review (`outputs/iter_45_resnet_review_analysis_smoothed/`):
-- Review score distribution: localization was `correct` in 1/10 cases, `partial` in 6/10, and `incorrect` in 3/10. Usefulness was `useful` in 2/10, `potentially_useful` in 6/10, `misleading` in 1/10, and `not_useful` in 1/10.
-- Failure taxonomy counts: `anatomically_related` 3/10, `devices_text_artifacts` 3/10, `partial` 3/10, and `clinically_misleading` 1/10. This supports a nuanced conclusion: explanations are often not random, but they frequently point to indirect or confounded evidence rather than cleanly to the annotated pneumothorax mask.
-- Qualitative flags from the completed scoring sheet: devices/tubes were relevant in 7/10 cases, subcutaneous emphysema in 5/10, mask-quality caveats in 4/10, indirect evidence in 8/10, explicit method disagreement in 1/10, and weak or disagreeing IG/GradientSHAP behavior in 4/10.
-- Important interpretation: device/tube and subcutaneous emphysema findings should not all be grouped as generic artifacts. Devices and ECG wires are confounders or treatment-related correlates; subcutaneous emphysema can be clinically related to pneumothorax but is not the same as direct mask localization.
-- The manual review supports using `usefulness_score` separately from `localization_score`. Some low-overlap maps may still be useful for auditing model failure or identifying clinically adjacent evidence; conversely, a visually plausible map can be misleading if it emphasizes artifacts, bones, or non-lesion regions.
+Draft notes from the balanced 40-case ResNet review (`outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/`, scored 2026-05-25). This is the canonical radiologist-review evidence for the thesis; the earlier 10-case smoothed review at `outputs/iter_45_resnet_review_analysis_smoothed/` is preserved as a methodological pilot but is superseded by the balanced outcome-stratified 40-case scoring.
+- Review score distribution (`n=40`, with 10 cases per `tp`/`fp`/`tn`/`fn` outcome): localization was `correct` in 11/40 cases, `partial` in 15/40, and `incorrect` in 14/40. Usefulness was `useful` in 12/40, `potentially_useful` in 13/40, `misleading` in 14/40, and `not_useful` in 1/40. The split between useful + potentially useful (25/40) and misleading + not useful (15/40) supports a nuanced Chapter 4 framing: many maps carry some interpretable signal, but clinically misleading or poorly localized explanations remain common.
+- Failure taxonomy counts: `correct` 10/40, `partial` 8/40, `non_pathological_high_contrast` 13/40, `clinically_misleading` 7/40, and `devices_text_artifacts` 2/40. The dominant failure mode at this stage of the off-the-shelf TorchXRayVision baseline is attention on non-pathological high-contrast structures (bones, rib edges, lung apex) rather than on device/text artifacts.
+- Qualitative flags from the completed scoring sheet: devices/tubes were relevant in 19/40 cases, indirect evidence in 8/40, method disagreement in 8/40, weak pixel attribution in 4/40, subcutaneous emphysema in 4/40, and mask-quality issue in 3/40. The high devices/tubes flag rate is a structural confounder of the off-the-shelf classifier on SIIM pneumothorax: devices co-occur with positive cases and the classifier's evidence frequently latches onto treatment correlates rather than pneumothorax-specific findings.
+- Interpretation guard: device/tube and subcutaneous-emphysema findings should not all be grouped as generic artifacts. Devices and ECG wires are treatment-related confounders that the classifier exploits; subcutaneous emphysema is sometimes clinically related to pneumothorax and is not equivalent to direct mask localization. The thesis must keep these categories distinct.
+- The 40-case balanced review supports using `usefulness_score` separately from `localization_score`. Low-overlap maps can still be useful for auditing model failure or identifying clinically adjacent evidence; conversely, a visually plausible map can be misleading if it emphasizes non-lesion regions.
 - The review workbook and figures should state that heatmaps visualize model attribution toward the selected pneumothorax output and should not be interpreted as anatomical segmentations.
+- Exploratory score-metric correlations on the balanced 40-case set are modest: strongest absolute Spearman associations are about `|rho| <= 0.42`. Frame these as supporting evidence alongside the structured radiologist categories, not as standalone proof that any automatic metric captures clinical usefulness.
 
 ### 4.5 Explanation Improvement Experiment
 
@@ -434,7 +439,7 @@ Draft notes from current improvement/visualization work:
 TODO: Dataset size, annotation limits, model choice, generalizability, heatmap limitations.
 
 Draft limitations from current evidence:
-- The radiologist-style ResNet review contains only 10 selected cases, so all review-score correlations and IG/GradientSHAP pattern correlations are exploratory and should not be presented as definitive statistical proof.
+- The radiologist-style ResNet review is a single-rater, balanced 40-case study (10 per `tp`/`fp`/`tn`/`fn` outcome). It is exploratory by design and is not a full multi-rater reader study: there is no inter-rater reliability statistic, no formal clinical-deployment validation, and no power calculation. All review-score correlations and IG/GradientSHAP pattern correlations should therefore be framed as supporting qualitative evidence, not as definitive statistical proof. The earlier 10-case smoothed review (`outputs/iter_45_resnet_review_analysis_smoothed/`) is retained as a methodological pilot; the balanced 40-case set is the canonical review evidence.
 - SIIM mask quality affects quantitative conclusions. Cases with missing, incomplete, or clinically questionable masks can underestimate explanation quality if the model highlights plausible pathology-related evidence outside the annotation.
 - The tested models are off-the-shelf TorchXRayVision classifiers, not fine-tuned pneumothorax segmenters. Low mask overlap may reflect model/data mismatch as much as explanation-method failure.
 - The out-of-family MONAI candidate remains blocked because the checked MONAI CXR bundle is generative, not a pneumothorax classifier. Avoid claiming an external-family classifier comparison unless a real checkpoint with a verified `Pneumothorax` output is later integrated.

@@ -3033,3 +3033,13 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Bibliography size cross-check: template requires minimum source count = pages in Chapters 2+3+4 (estimated 15-30 pages for this thesis). `docs/references.md` currently lists ~30 sources after the 2026-05-27 statistics references were added; comfortably above the minimum.
 - No code or tests changed in this audit pass.
 
+### 2026-05-27 (Second-agent review follow-up) - thesis skeleton and refactor plan brought current
+
+- Second-agent review flagged four remaining staleness items; all valid and now fixed.
+- `thesis/thesis_skeleton.md` Chapter 4.4 was citing the 10-case smoothed ResNet review (`outputs/iter_45_resnet_review_analysis_smoothed/`) as the canonical radiologist evidence; the canonical evidence is now the balanced 40-case review (`outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/`, scored 2026-05-25). Section rewritten with actual `n=40` counts: localization 11/40 correct, 15/40 partial, 14/40 incorrect; usefulness 12/40 useful, 13/40 potentially useful, 14/40 misleading, 1/40 not useful; failure-taxonomy dominant mode is non-pathological high-contrast (13/40); devices/tubes flagged in 19/40. The 10-case smoothed pilot is preserved as a methodological pilot but is explicitly superseded.
+- `thesis/thesis_skeleton.md` Chapter 4.6 Limitations updated to describe the radiologist review as a single-rater balanced 40-case study with explicit caveats: no inter-rater reliability, no formal clinical-deployment validation, no power calculation; exploratory by design and not a multi-rater reader study.
+- `thesis/thesis_skeleton.md` Chapter 4.1 (Classification Performance) made conditional on Phase 5.4 outcome: CXR baseline metrics are presented unconditionally; CT metrics appear only if Branch A executes. Under Branch B, CT is discussed under Future Work rather than Results.
+- `thesis/thesis_skeleton.md` Chapter 4.3 (Cross-Modality Comparison) made conditional: presents quantitative CT-vs-CXR comparison only under Phase 5.4 Branch A; rewritten as qualitative external-validation discussion under Branch B with a Future Work pointer for the full CT evaluation path.
+- `docs/refactor_plan.md` Phase 5.6 paragraph (original 2026-05-18 conditional framing) rewritten to align with the locked decision: Phase 5.5 is committed (ResNet-50 promoted to co-primary baseline), so Captum metrics are no longer gated on 5.5 being skipped. They are a parallel low-cost add-on; cut order is documented in Phase 5 Implementation Details.
+- Doc-only update; no code or tests changed.
+
