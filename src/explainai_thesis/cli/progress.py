@@ -12,6 +12,7 @@ import shutil
 import sys
 import textwrap
 import time
+from collections import deque
 from datetime import datetime
 
 
@@ -26,6 +27,70 @@ def log_progress(message: str, start_time: float) -> None:
     """
     elapsed_minutes = (time.perf_counter() - start_time) / 60.0
     print(f"[{elapsed_minutes:6.1f} min] {message}", flush=True)
+
+
+class RollingLogDisplay:
+    """A rolling-window progress display constrained to `line_count` lines.
+
+    On a TTY, uses ANSI escape sequences to keep the most recent
+    `line_count` `log()` messages visible in a fixed in-place window
+    (oldest at top, newest at bottom). Older messages scroll out of the
+    window but stay logged in the buffer.
+
+    On a non-TTY (file, pipe, CI log), each call prints linearly so logs
+    captured to a file remain complete. This mirrors the dual-mode
+    behavior of `LiveProgress`.
+
+    Designed for sequential per-event progress where the operator wants
+    bounded screen real estate during a long CUDA loop. Companion to
+    `log_progress` (the unbounded-history variant).
+    """
+
+    def __init__(self, line_count: int = 15) -> None:
+        self.line_count = max(1, line_count)
+        self._buffer: deque[str] = deque(maxlen=self.line_count)
+        self._started = False
+        self._live = sys.stdout.isatty()
+
+    @staticmethod
+    def _terminal_width() -> int:
+        try:
+            return max(40, shutil.get_terminal_size(fallback=(120, 20)).columns)
+        except OSError:
+            return 120
+
+    def _fit_line(self, text: str) -> str:
+        width = self._terminal_width()
+        max_len = max(1, width - 1)
+        clean = text.replace("\n", " ")
+        if len(clean) > max_len:
+            return clean[: max(1, max_len - 1)] + "…"
+        return clean.ljust(max_len)
+
+    def log(self, message: str, start_time: float) -> None:
+        elapsed_minutes = (time.perf_counter() - start_time) / 60.0
+        line = f"[{elapsed_minutes:6.1f} min] {message}"
+        if not self._live:
+            print(line, flush=True)
+            return
+        self._buffer.append(line)
+        if self._started:
+            sys.stdout.write(f"\x1b[{self.line_count}F")
+        else:
+            self._started = True
+        rendered = list(self._buffer)
+        rendered.extend([""] * (self.line_count - len(rendered)))
+        for buffered_line in rendered:
+            sys.stdout.write(f"\r\x1b[2K{self._fit_line(buffered_line)}\n")
+        sys.stdout.flush()
+
+    def finish(self) -> None:
+        """Release the rolling window. On TTY, leaves the final frame
+        on screen and emits one trailing newline so subsequent
+        `print(...)` lines do not overwrite the last frame."""
+        if self._live and self._started:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
 
 def format_duration(seconds: float | None) -> str:
