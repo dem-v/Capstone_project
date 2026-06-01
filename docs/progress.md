@@ -3050,3 +3050,11 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - Added `--score-cam-channels-cap` to the CXR smoke, calibration, threshold-selection, and classifier-outcome visualization scripts. Default `256` supports broad screening; use `0` for full-channel thesis-quality reruns when runtime permits.
 - Calibration note: because the method panel changes, downstream held-out Phase 5.2 runs need a fresh calibration artifact such as `outputs/iter_XX_calibration_v3/calibrated_thresholds_v3.csv` that explicitly includes `eigen_cam` and `score_cam`; do not reuse pre-Phase-5.1 calibrated fractions for the expanded method set.
 
+### 2026-06-01 (Phase 5.1/5.2 execution pass) - v3 calibration naming and improvement script added
+
+- Resolved the Phase 5.1 calibration-version mismatch: `scripts/calibrate_cxr_xai_thresholds.py` now accepts `--calibration-version {v2,v3}` and defaults to `v3`, writing `calibrated_thresholds_v3.csv` for the expanded Eigen-CAM/Score-CAM method panel while keeping `v2` available only for legacy reproduction.
+- Added `src/explainai_thesis/stats.py` with paired finite-value filtering, Wilcoxon signed-rank comparison against a reference method, direct Holm-Bonferroni step-down correction, and deterministic bootstrap confidence intervals for paired median differences.
+- Added `scripts/run_improvement_experiment.py` for held-out positive-mask evaluation using frozen calibration fractions. The script writes `improvement_experiment.csv`, `improvement_experiment_paired.csv`, `improvement_experiment_summary.md`, and two Chapter-4-ready plots (`improvement_experiment_boxplots.png`, `improvement_experiment_paired_diff.png`).
+- Added tests for the statistics helpers and the improvement-experiment calibration/statistics contracts (`tests/test_stats.py`, `tests/test_improvement_experiment.py`). Current targeted verification: `wsl.exe python3 -m pytest tests/test_signed_attribution.py -v` -> `21 passed`; `wsl.exe python3 -m pytest tests/test_stats.py tests/test_improvement_experiment.py -v` -> `8 passed`.
+- Long-run note: actual DenseNet-all and ResNet-50 v3 calibrations plus held-out Phase 5.2 improvement runs remain manual CUDA runs because they are expected to exceed short agent-tool budgets.
+
