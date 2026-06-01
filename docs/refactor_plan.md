@@ -805,6 +805,145 @@ Files touched:
 
 ---
 
+#### Phase 5.4 — Pre-Hour-1 research locked (added 2026-06-01)
+
+Research consolidated upfront so the hour-1 budget is for verification, not discovery. Cited URLs are starting points; the implementing agent should re-verify each one before commitment.
+
+##### Model candidates (priority order)
+
+1. **`DifeiT/rsna-intracranial-hemorrhage-detection` on HuggingFace Hub** (recommended primary).
+   - URL: https://huggingface.co/DifeiT/rsna-intracranial-hemorrhage-detection
+   - Architecture: `google/vit-base-patch16-224-in21k` fine-tuned on RSNA-IHD imagefolder.
+   - License: Apache 2.0 (per HF search; verify on model card at integration time).
+   - Class head: 6-output (`any`, `epidural`, `intraparenchymal`, `intraventricular`, `subarachnoid`, `subdural`) per the RSNA-IHD label set. **For the thesis attribution target, use the `any` (binary hemorrhage) head — this mirrors the CXR `Pneumothorax` binary attribution target.**
+   - Loading: `from transformers import AutoModelForImageClassification, AutoImageProcessor; model = AutoModelForImageClassification.from_pretrained("DifeiT/rsna-intracranial-hemorrhage-detection"); processor = AutoImageProcessor.from_pretrained("...")`.
+   - Input contract (ViT-base-patch16-224 standard, to be confirmed at integration): 224×224 RGB, ImageNet normalization. CT brain-window single-channel image must be 3-channel-replicated or windowed-to-RGB.
+   - Verification command (hour-1): one slice from PhysioNet NIfTI through brain windowing → 3-channel replication → processor → model → probability for `any` class. If end-to-end pass produces a probability in (0, 1), candidate passes.
+
+2. **`darraghdog/rsna` ResNeXt-101 32x8d WSL** (backup if primary fails).
+   - URL: https://github.com/darraghdog/rsna
+   - Kaggle top-N solution. PyTorch state_dict.
+   - License: needs verification (typically MIT/Apache for Kaggle solutions but not guaranteed).
+   - Loading: `torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')` for the backbone; custom 6-class head from the repo.
+
+3. **`appian42/kaggle-rsna-intracranial-hemorrhage`** (second backup).
+   - URL: https://github.com/appian42/kaggle-rsna-intracranial-hemorrhage
+   - Top-7 Kaggle solution; checkpoint split into 2 parts at `./model`.
+   - More wiring required than the HF candidate.
+
+4. **MONAI Model Zoo** — **deprioritized**. 2026 search returned no hemorrhage classification bundle. The 2026-05-18 CXR-bundle finding (generative model, not classifier) generalizes: MONAI Model Zoo does not currently host a hemorrhage classifier. Spend ≤5 minutes confirming this at integration time; do not exhaust the hour-1 budget on MONAI.
+
+##### Mask source (priority order, **format gotcha noted**)
+
+1. **PhysioNet `ct-ich` v1.3.1** — **recommended for thesis-quality runs**.
+   - URL: https://physionet.org/content/ct-ich/1.3.1/
+   - Author: Hssayeni. 82 CT scans, per-slice hemorrhage masks delineated by two radiologists.
+   - Format: **NIfTI** (preserves Hounsfield Unit values). Critical for faithfulness baselines that operate in HU space.
+   - **Access friction**: PhysioNet requires credentialed access (signed data-use agreement). Allow ~10 minutes of the hour-1 budget for the request if not already credentialed.
+   - Brain window used by the dataset paper: WL=40, WW=120.
+
+2. **Kaggle `vbookshelf/computed-tomography-ct-images`** — re-host, **format-limited**.
+   - URL: https://www.kaggle.com/datasets/vbookshelf/computed-tomography-ct-images
+   - 2,500 brain-window images, 2,500 bone-window images, 318 with masks, 82 patients.
+   - **Format: JPG, not DICOM/NIfTI.** Brain-window JPG-converted images **do not preserve HU values**.
+   - Implications:
+     - ✅ Usable for visual XAI overlays, mask-overlap metrics (IoU/Dice/pointing-hit/precision-at-fraction), radiologist review.
+     - ❌ Unusable for HU-based faithfulness baselines (`brain_window_center` requires HU input).
+     - ❌ Unusable for any analysis that requires recovering raw CT density.
+   - **Decision rule**: if PhysioNet access is not viable in hour-1, switch to vbookshelf JPG with the explicit caveat that faithfulness curves use the `black` baseline (post-windowing) only, not a CT-specific HU baseline. Document this trade-off in the thesis methodology Chapter 3.
+
+3. **Manual annotation** — last fallback. Cap 1 hour wall time, 20-30 positive slices, brain-window viewer preset (e.g., 3D Slicer or ITK-SNAP).
+
+##### HU windowing — locked choices
+
+- **Brain window (primary, recommended)**: WL=40, WW=80 — the clinical standard for hemorrhage evaluation, supported by routine practice (search-verified). Display range: HU=0..80.
+- **Hssayeni dataset choice**: WL=40, WW=120 — wider, used in the dataset paper. Acceptable as a secondary view if the agent wants to mirror the dataset's original presentation, but **the thesis runs use WL=40, WW=80**.
+- **Subdural window** (not used): WL=100, WW=200. Skip for thesis unless an explicit subtype-specific analysis is added.
+- **Bone window** (not used): WL=700, WW=3200. Irrelevant for hemorrhage.
+
+##### Faithfulness baseline implementation — locked
+
+**Rename `soft_tissue_window_zero` → `brain_window_center`** for accuracy. The CXR `soft_tissue_window_zero` name was a placeholder; for hemorrhage detection in CT brain images, "soft tissue" is misleading because brain hemorrhage is evaluated in brain window, not soft tissue window.
+
+`brain_window_center` semantics:
+- After brain windowing (WL=40, WW=80), the image is normalized to display range HU=0..80 → typically scaled to [0, 1].
+- The "window center" baseline fills every pixel with the windowing midpoint: **HU = 40 → normalized = 0.5** in the [0, 1] display range.
+- Post model preprocessing (e.g., ViT ImageNet mean/std), the tensor value is `(0.5 - mean) / std` per channel.
+
+Implementation in `src/explainai_thesis/faithfulness.py::faithfulness_baseline_tensor`:
+```python
+if baseline == "brain_window_center":
+    # CT-specific. Assumes the input tensor is already in the model's
+    # post-windowing, post-normalization space; the caller is responsible
+    # for routing the right tensor through the right preprocess. The
+    # baseline fill value is the windowing midpoint after the same
+    # normalization, captured in `ctx.brain_window_center_normalized`.
+    return torch.full_like(model_input, ctx.brain_window_center_normalized)
+```
+The exact `brain_window_center_normalized` constant depends on the chosen model's preprocessing. For the HuggingFace ViT-base-patch16-224 (ImageNet mean ≈ [0.485, 0.456, 0.406], std ≈ [0.229, 0.224, 0.225]), a brain-window-center fill at display 0.5 maps to roughly `(0.5 - 0.485) / 0.229 ≈ 0.065` for the red channel. Compute at module-init time from the chosen `AutoImageProcessor` rather than hard-coding.
+
+Also keep `black` as an option for the faithfulness comparison (`black` means HU=-1024 = air, which is clinically meaningful as "outside the patient"; useful as a stress-test baseline even though it's not a neutral fill in CT space).
+
+##### Library and data-handling additions
+
+- Add to `requirements-dev.txt`: `nibabel` (NIfTI reader, lightweight pure Python). Possibly `pydicom` if DICOM fallback is ever needed; not required for the PhysioNet NIfTI path.
+- `src/explainai_thesis/ct/io.py` must handle:
+  - NIfTI volume loading (`nibabel.load(path).get_fdata()`).
+  - Per-slice extraction (positive slices are flagged in the Hssayeni metadata per-volume).
+  - HU windowing: `windowed = np.clip(slice_hu, WL - WW/2, WL + WW/2); display = (windowed - (WL - WW/2)) / WW` → [0, 1].
+  - 3-channel replication for ViT input: `np.stack([display]*3, axis=-1)`.
+  - Resize to model's native input (224×224 for ViT-base).
+
+##### Manifest format
+
+`data/ct_hemorrhage_manifest.csv` schema (mirrors CXR manifest structure for cross-modality scripting):
+```
+filename,split,label,image_path,mask_path,modality,subtype
+patient_049_slice_023.png,test,1,data_local/ct_ich/patient_049/slice_023.nii.gz,data_local/ct_ich/patient_049/mask_023.nii.gz,ct,intraparenchymal
+```
+- `label` is the binary `any` hemorrhage flag for compatibility with the CXR pipeline.
+- `subtype` is a new CT-specific column for stratified review (subarachnoid vs subdural vs intraparenchymal, etc.). CXR rows leave this empty.
+- `modality` enables future cross-modality scripts to dispatch on `cxr` vs `ct`.
+
+##### Updated branch criteria
+
+**Branch A is now viable if EITHER:**
+- HuggingFace primary (DifeiT) + PhysioNet NIfTI masks → full pipeline including `brain_window_center` faithfulness baseline.
+- HuggingFace primary + vbookshelf JPG masks → degraded pipeline: visual XAI + mask-overlap metrics + `black` faithfulness only (no `brain_window_center`). Thesis methodology documents this as a baseline-discipline trade-off forced by data-format constraints.
+
+**Branch B remains** if neither model loads OR no mask source produces a usable manifest within the hour.
+
+##### Hour-1 verification checklist (concrete steps)
+
+1. **Model load** (15 min): `pip install transformers` (if not present), `AutoModelForImageClassification.from_pretrained("DifeiT/rsna-intracranial-hemorrhage-detection")`, confirm `model.config.num_labels >= 1`, identify the `any` head index. Pass if loads + forward on a 224×224×3 random tensor produces finite probabilities.
+2. **License check** (5 min): inspect HF model card for license tag. If Apache-2.0 / MIT / CC-BY: pass. If unknown or restrictive: fall through to backup `darraghdog/rsna` or `appian42/kaggle-rsna-intracranial-hemorrhage`.
+3. **PhysioNet access** (10 min): check if credentialed; if not, submit data-use agreement OR pivot to vbookshelf Kaggle re-host (`kaggle datasets download -d vbookshelf/computed-tomography-ct-images`).
+4. **One-slice end-to-end** (15 min): load one NIfTI volume (or one JPG + dummy HU = visible-grayscale), extract a known positive slice, apply windowing, run through processor + model, obtain probability for `any` class. Pass if probability ≠ 0.5 ± 0.001 (i.e., the model actually has signal, not a flat init).
+5. **Mask alignment** (5 min): load corresponding mask file, confirm shape matches image, confirm binary or near-binary values, confirm at least one nonzero pixel.
+6. **Decision** (5 min, hard stop at 60 min total): record outcome in `docs/progress.md` with timestamps for each step. If all 5 pass → Branch A. Otherwise → Branch B.
+
+##### Concrete files to create (Branch A, in build order)
+
+1. `src/explainai_thesis/ct/__init__.py` — empty init.
+2. `src/explainai_thesis/ct/io.py` — NIfTI loader, HU windowing, slice extraction, 3-channel replication, resize.
+3. `src/explainai_thesis/ct/models.py` — `load_ct_classifier(name)` returning `ClassifierBundle` analogous to CXR. Initial implementation for `DifeiT/rsna-intracranial-hemorrhage-detection`. Class index points to the `any` head.
+4. `src/explainai_thesis/faithfulness.py` — add `brain_window_center` branch to `faithfulness_baseline_tensor`. Caller responsibility documented.
+5. `scripts/build_ct_manifest.py` — reads PhysioNet NIfTI directory (or vbookshelf JPG directory), enumerates positive slices, writes `data/ct_hemorrhage_manifest.csv`.
+6. `scripts/run_ct_smoke.py` — CT analogue of `run_cxr_torchxray_smoke.py`, reuses MethodSpec registry from `cxr/methods.py`. Routes through `load_ct_classifier` and `ct/io.py`. Adds `--faithfulness-baseline brain_window_center` as a valid choice.
+7. `tests/test_ct_io.py` — HU windowing round-trip + synthetic-NIfTI smoke. CPU, <5s.
+8. `data/ct_hemorrhage_manifest.csv` — populated by `build_ct_manifest.py`.
+
+##### Sources
+
+- HuggingFace primary candidate: https://huggingface.co/DifeiT/rsna-intracranial-hemorrhage-detection
+- ResNeXt backup: https://github.com/darraghdog/rsna
+- Top-7 Kaggle backup: https://github.com/appian42/kaggle-rsna-intracranial-hemorrhage
+- PhysioNet Hssayeni dataset (NIfTI): https://physionet.org/content/ct-ich/1.3.1/
+- Kaggle re-host (JPG only): https://www.kaggle.com/datasets/vbookshelf/computed-tomography-ct-images
+- Brain window standard (WL=40, WW=80): clinical practice references including https://www.numberanalytics.com/blog/ultimate-guide-to-window-level-in-computed-tomography and https://www.medmastery.com/guides/brain-ct-clinical-guide/how-optimize-display-brain-computed-tomography-ct-images
+
+---
+
 ### Phase 5.5 — Stronger second CXR model (full protocol)
 
 **Goal:** Re-run the improvement experiment on `resnet50-res512-all` so the thesis can present a head-to-head comparison of consensus vs individual methods across two CXR backbones. Per Stage A outcome, ResNet-50 is the strongest off-the-shelf TorchXRayVision candidate and is the natural second model.
