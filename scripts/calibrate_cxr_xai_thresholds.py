@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import random
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -32,6 +33,7 @@ import torch
 import numpy as np
 
 from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.cli.progress import log_progress
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,6 +77,16 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=256,
         help="Maximum Score-CAM activation channels; use 0 to evaluate all channels.",
+    )
+    parser.add_argument(
+        "--calibration-version",
+        default="v3",
+        choices=["v2", "v3"],
+        help=(
+            "Version suffix for the canonical calibrated-thresholds CSV. "
+            "Use v3 for the Eigen-CAM/Score-CAM method panel; v2 is kept "
+            "only for reproducing pre-Phase-5.1 runs."
+        ),
     )
     parser.add_argument(
         "--fractions",
@@ -177,6 +189,9 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    run_start = time.perf_counter()
+    log_progress("started CXR XAI threshold calibration", run_start)
+
     fractions = parse_fractions(args.fractions)
     rows = read_positive_rows(
         Path(args.manifest),
@@ -190,6 +205,7 @@ def main() -> None:
             f"No positive rows with masks found in {args.manifest} for split={args.split}.")
 
     device = resolve_device(args.device)
+    log_progress(f"loading classifier {args.weights} on {device}", run_start)
     # Phase 1.7 seam: same constructor / target layer / pathology index as the
     # pre-seam inline path; only the entry point changes. See
     # `src/explainai_thesis/cxr/classifier.py` for the full contract.
@@ -197,9 +213,20 @@ def main() -> None:
     model = bundle.model
     class_idx = bundle.class_idx
     gradcam = GradCAM(model, bundle.target_layer)
+    log_progress(
+        f"classifier ready | cases={len(rows)} fractions={len(fractions)} "
+        f"ig_steps={args.ig_steps} gradshap_samples={args.gradshap_samples} "
+        f"score_cam_channels_cap={args.score_cam_channels_cap}",
+        run_start,
+    )
 
     metric_rows: list[dict[str, str | int | float]] = []
     for sample_idx, row in enumerate(rows):
+        case_filename = row.get("filename", Path(row["image_path"]).name)
+        log_progress(
+            f"case {sample_idx + 1}/{len(rows)} | start | {case_filename}",
+            run_start,
+        )
         image = load_image(Path(row["image_path"]), args.image_size, bundle.preprocess)
         mask = load_mask(Path(row["mask_path"]), args.image_size)
         model_input = image.unsqueeze(0).to(device)
@@ -210,15 +237,27 @@ def main() -> None:
             probability = float(torch.sigmoid(
                 output[0, class_idx]).detach().cpu().item())
 
-        # Phase 1.2.5 (v2): 5 signed cores per case replace the pre-1.2 16-call
-        # polarity fan-out. The four views (positive/negative/magnitude/signed)
-        # are derived in microseconds from each SignedAttribution.
+        # Phase 1.2.5 (v2) + Phase 5.1: 7 signed cores per case (Grad-CAM,
+        # Grad-CAM++, IG, GradientSHAP, Occlusion, Eigen-CAM, Score-CAM)
+        # plus an unweighted consensus over the original 4. The four views
+        # (positive/negative/magnitude/signed) are derived in microseconds
+        # from each SignedAttribution.
+        log_progress(f"  case {sample_idx + 1}: Grad-CAM", run_start)
         gradcam_attr = gradcam.signed(model_input, class_idx=class_idx)
+        log_progress(f"  case {sample_idx + 1}: Grad-CAM++", run_start)
         gradcam_pp_attr = gradcam.signed(
             model_input, class_idx=class_idx, variant="grad_cam_plus_plus"
         )
+        log_progress(
+            f"  case {sample_idx + 1}: Integrated Gradients ({args.ig_steps} steps)",
+            run_start,
+        )
         ig_attr = integrated_gradients_signed(
             model, model_input, class_idx=class_idx, steps=args.ig_steps
+        )
+        log_progress(
+            f"  case {sample_idx + 1}: GradientSHAP ({args.gradshap_samples} samples)",
+            run_start,
         )
         gradshap_attr = gradient_shap_signed(
             model,
@@ -227,6 +266,11 @@ def main() -> None:
             samples=args.gradshap_samples,
             stdevs=args.gradshap_stdevs,
         )
+        log_progress(
+            f"  case {sample_idx + 1}: Occlusion "
+            f"(patch={args.occlusion_patch_size}, stride={args.occlusion_stride})",
+            run_start,
+        )
         occlusion_attr = occlusion_sensitivity_signed(
             model,
             model_input,
@@ -234,11 +278,17 @@ def main() -> None:
             patch_size=args.occlusion_patch_size,
             stride=args.occlusion_stride,
         )
+        log_progress(f"  case {sample_idx + 1}: Eigen-CAM", run_start)
         eigen_cam_attr = eigen_cam_signed(
             model,
             model_input,
             bundle.target_layer,
             class_idx=class_idx,
+        )
+        log_progress(
+            f"  case {sample_idx + 1}: Score-CAM "
+            f"(channels_cap={args.score_cam_channels_cap}) [slowest]",
+            run_start,
         )
         score_cam_attr = score_cam_signed(
             model,
@@ -250,6 +300,7 @@ def main() -> None:
         consensus_attr = consensus_signed(
             [gradcam_attr, ig_attr, gradshap_attr, occlusion_attr]
         )
+        log_progress(f"  case {sample_idx + 1}: attributions done; sweeping fractions", run_start)
 
         signed_attributions: dict[str, SignedAttribution] = {
             "grad_cam": gradcam_attr,
@@ -342,8 +393,10 @@ def main() -> None:
                         "signed_prediction_alignment": signed_prediction_alignment,
                     }
                 )
+        log_progress(f"case {sample_idx + 1}/{len(rows)} | done | {case_filename}", run_start)
 
     gradcam.remove_hooks()
+    log_progress("all cases processed; aggregating per-method/per-fraction summary", run_start)
 
     grouped: dict[tuple[str, float],
                   list[dict[str, str | int | float]]] = defaultdict(list)
@@ -433,15 +486,17 @@ def main() -> None:
                 }
             )
 
+    log_progress("writing CSV outputs", run_start)
     write_rows(output_dir / "calibration_metrics.csv", metric_rows)
     write_rows(output_dir / "calibration_summary.csv", summary_rows)
     write_rows(output_dir / "selected_fractions.csv", selected_rows)
     write_rows(output_dir / "selected_fractions_by_metric.csv", selected_by_metric_rows)
-    # Phase 1.2.5: v2-canonical alias. Downstream scripts (smoke,
-    # improvement experiment) consume calibrated top-fractions per
-    # (method, selection_metric) via --calibrated-fractions and rely on
-    # this filename to disambiguate v2 calibration from v1 outputs.
-    write_rows(output_dir / "calibrated_thresholds_v2.csv", selected_by_metric_rows)
+    # Versioned canonical alias. Downstream scripts (smoke, improvement
+    # experiment) consume calibrated top-fractions per (method,
+    # selection_metric) via --calibrated-fractions and rely on this
+    # filename to disambiguate method-panel calibration versions.
+    calibrated_thresholds_path = output_dir / f"calibrated_thresholds_{args.calibration_version}.csv"
+    write_rows(calibrated_thresholds_path, selected_by_metric_rows)
 
     run_meta_path = write_run_metadata(
         output_dir,
@@ -452,13 +507,13 @@ def main() -> None:
         split=args.split,
     )
 
+    log_progress("calibration complete", run_start)
     print(f"CXR XAI threshold calibration complete on {device}.")
     print(f"Positive calibration cases: {len(rows)}")
     print(f"Selection metric: {args.selection_metric}")
     print(
         f"Selected fractions written to: {output_dir / 'selected_fractions.csv'}")
-    print(
-        f"v2 calibrated thresholds: {output_dir / 'calibrated_thresholds_v2.csv'}")
+    print(f"{args.calibration_version} calibrated thresholds: {calibrated_thresholds_path}")
     print(f"Run metadata written to: {run_meta_path}")
 
 

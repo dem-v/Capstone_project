@@ -12,6 +12,7 @@ import torch
 import torch.nn.functional as F
 
 from explainai_thesis.cli.common import resolve_device
+from explainai_thesis.cli.progress import log_progress
 from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.run_metadata import write_run_metadata
 from explainai_thesis.faithfulness import (
@@ -285,11 +286,6 @@ def make_contact_sheet(image_paths: list[Path], captions: list[str], output_path
         sheet.paste(image, (x, 0))
         draw.text((x + 6, height + 7), captions[idx], fill=(0, 0, 0))
     sheet.save(output_path)
-
-
-def log_progress(message: str, start_time: float) -> None:
-    elapsed_minutes = (time.perf_counter() - start_time) / 60.0
-    print(f"[{elapsed_minutes:6.1f} min] {message}", flush=True)
 
 
 def main() -> None:

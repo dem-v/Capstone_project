@@ -11,7 +11,21 @@ from __future__ import annotations
 import shutil
 import sys
 import textwrap
+import time
 from datetime import datetime
+
+
+def log_progress(message: str, start_time: float) -> None:
+    """Emit a one-line timestamped progress message to stdout.
+
+    `start_time` is a `time.perf_counter()` reference captured at the
+    start of the run. The output is prefixed with elapsed minutes since
+    that reference, flushed immediately so long-running CUDA loops
+    surface progress in real time. Shared by long-running CLI scripts
+    (calibration, single-case threshold visualization, etc.).
+    """
+    elapsed_minutes = (time.perf_counter() - start_time) / 60.0
+    print(f"[{elapsed_minutes:6.1f} min] {message}", flush=True)
 
 
 def format_duration(seconds: float | None) -> str:
