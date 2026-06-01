@@ -450,7 +450,7 @@ The protocol promises items the current code does not yet cover. The thesis-draf
 
 Phase 5 is the new work to close protocol gaps before the draft cutoff. Order matches the revised execution table below.
 
-#### 5.1 Eigen-CAM and Score-CAM
+#### 5.1 Eigen-CAM and Score-CAM `[done 2026-05-27]`
 
 - Decision (2026-05-18): add both.
 - Eigen-CAM: PCA of the target-layer activations, project onto the top component. ~30 lines. Fits the `SignedAttribution` contract trivially (signed = principal-component projection; magnitude = absolute value).
@@ -458,6 +458,8 @@ Phase 5 is the new work to close protocol gaps before the draft cutoff. Order ma
 - Both register as new entries in the `MethodSpec` table from compressed Phase 2; no script-side glue needed beyond the registry.
 - New `AGENTS.md` "XAI Method Set" entries: `eigen_cam`, `score_cam` (each with the four-view positive/negative/magnitude/signed family).
 - Tests: include both in the metric-sanity and faithfulness-sanity tests.
+
+Implementation note (2026-05-27): `eigen_cam_signed(...)` and `score_cam_signed(...)` now live in `src/explainai_thesis/xai.py`; both are registered in `src/explainai_thesis/cxr/methods.py` as `MethodSpec` entries. `CONSENSUS_CONSTITUENTS` remains frozen to the original four methods. `--score-cam-channels-cap` is wired through CXR smoke, calibration, single-case threshold visualization, and classifier-outcome visualization scripts. Tests in `tests/test_signed_attribution.py` cover both method contracts and registry dispatch.
 
 #### 5.2 Improvement experiment script (pre-draft both narratives before running)
 

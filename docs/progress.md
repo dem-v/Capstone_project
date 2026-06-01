@@ -3043,3 +3043,10 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - `docs/refactor_plan.md` Phase 5.6 paragraph (original 2026-05-18 conditional framing) rewritten to align with the locked decision: Phase 5.5 is committed (ResNet-50 promoted to co-primary baseline), so Captum metrics are no longer gated on 5.5 being skipped. They are a parallel low-cost add-on; cut order is documented in Phase 5 Implementation Details.
 - Doc-only update; no code or tests changed.
 
+### 2026-05-27 (Phase 5.1 implementation started) - Eigen-CAM and Score-CAM wired into CXR pipeline
+
+- Added first-class `eigen_cam` and `score_cam` signed-attribution families under the existing four-view `SignedAttribution` contract. `Eigen-CAM` uses the first target-layer activation principal component with deterministic sign flipping toward the mean activation direction; `Score-CAM` scores normalized activation masks with signed weights relative to a baseline image.
+- Registered both methods in the CXR `MethodSpec` registry while keeping `CONSENSUS_CONSTITUENTS` frozen at `grad_cam`, `integrated_gradients`, `gradient_shap`, and `occlusion`. This preserves cross-iteration consensus comparability; the new CAM methods are reported as individual methods and can be compared against the frozen consensus in Phase 5.2.
+- Added `--score-cam-channels-cap` to the CXR smoke, calibration, threshold-selection, and classifier-outcome visualization scripts. Default `256` supports broad screening; use `0` for full-channel thesis-quality reruns when runtime permits.
+- Calibration note: because the method panel changes, downstream held-out Phase 5.2 runs need a fresh calibration artifact such as `outputs/iter_XX_calibration_v3/calibrated_thresholds_v3.csv` that explicitly includes `eigen_cam` and `score_cam`; do not reuse pre-Phase-5.1 calibrated fractions for the expanded method set.
+

@@ -33,10 +33,12 @@ from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
     consensus_signed,
+    eigen_cam_signed,
     gradient_shap_signed,
     iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
+    score_cam_signed,
 )
 from explainai_thesis.visualization import (
     is_negative_method,
@@ -86,6 +88,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradshap-samples", type=int, default=8)
     parser.add_argument("--occlusion-patch-size", type=int, default=56)
     parser.add_argument("--occlusion-stride", type=int, default=56)
+    parser.add_argument(
+        "--score-cam-channels-cap",
+        type=int,
+        default=256,
+        help="Maximum Score-CAM activation channels; use 0 to evaluate all channels.",
+    )
     parser.add_argument(
         "--fractions",
         default="0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50",
@@ -337,6 +345,31 @@ def main() -> None:
             ),
             f"{case_detail} | Occlusion done",
         )
+        eigen_cam_attr = eigen_cam_signed(
+            model,
+            model_input,
+            classifier.target_layer,
+            class_idx=class_idx,
+        )
+        score_cam_attr = score_cam_signed(
+            model,
+            model_input,
+            classifier.target_layer,
+            class_idx=class_idx,
+            channels_cap=args.score_cam_channels_cap,
+        )
+        progress.update(
+            progress_stats_line(
+                candidate_number=candidate_number,
+                candidate_total=candidate_total,
+                selected_total=selected_total,
+                target_total=target_total,
+                outcome_counts=outcome_counts,
+                elapsed=time.monotonic() - start_time,
+                eta=eta,
+            ),
+            f"{case_detail} | Eigen-CAM / Score-CAM done",
+        )
         consensus_attr = consensus_signed([cam_attr, ig_attr, shap_attr, occlusion_attr])
         signed_attributions: dict[str, SignedAttribution] = {
             "grad_cam": cam_attr,
@@ -344,6 +377,8 @@ def main() -> None:
             "integrated_gradients": ig_attr,
             "gradient_shap": shap_attr,
             "occlusion": occlusion_attr,
+            "eigen_cam": eigen_cam_attr,
+            "score_cam": score_cam_attr,
             "consensus": consensus_attr,
         }
         case_rows.append(

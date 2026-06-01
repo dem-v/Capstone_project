@@ -12,10 +12,12 @@ from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
     consensus_signed,
+    eigen_cam_signed,
     gradient_shap_signed,
     iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
+    score_cam_signed,
 )
 from explainai_thesis.cxr.classifier import load_classifier
 from explainai_thesis.metrics import (
@@ -68,6 +70,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradshap-stdevs", type=float, default=0.02)
     parser.add_argument("--occlusion-patch-size", type=int, default=32)
     parser.add_argument("--occlusion-stride", type=int, default=16)
+    parser.add_argument(
+        "--score-cam-channels-cap",
+        type=int,
+        default=256,
+        help="Maximum Score-CAM activation channels; use 0 to evaluate all channels.",
+    )
     parser.add_argument(
         "--fractions",
         default="0.05,0.10,0.15,0.20,0.25,0.30",
@@ -226,6 +234,19 @@ def main() -> None:
             patch_size=args.occlusion_patch_size,
             stride=args.occlusion_stride,
         )
+        eigen_cam_attr = eigen_cam_signed(
+            model,
+            model_input,
+            bundle.target_layer,
+            class_idx=class_idx,
+        )
+        score_cam_attr = score_cam_signed(
+            model,
+            model_input,
+            bundle.target_layer,
+            class_idx=class_idx,
+            channels_cap=args.score_cam_channels_cap,
+        )
         consensus_attr = consensus_signed(
             [gradcam_attr, ig_attr, gradshap_attr, occlusion_attr]
         )
@@ -236,6 +257,8 @@ def main() -> None:
             "integrated_gradients": ig_attr,
             "gradient_shap": gradshap_attr,
             "occlusion": occlusion_attr,
+            "eigen_cam": eigen_cam_attr,
+            "score_cam": score_cam_attr,
             "consensus": consensus_attr,
         }
 

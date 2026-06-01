@@ -17,9 +17,11 @@ from ..xai import (
     GradCAM,
     SignedAttribution,
     consensus_signed,
+    eigen_cam_signed,
     gradient_shap_signed,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
+    score_cam_signed,
 )
 
 
@@ -37,6 +39,7 @@ class MethodContext:
     gradshap_internal_batch_size: int | None = None
     occlusion_patch_size: int = 32
     occlusion_stride: int = 16
+    score_cam_channels_cap: int = 256
 
 
 @dataclass(frozen=True)
@@ -89,12 +92,33 @@ def _occlusion(ctx: MethodContext) -> SignedAttribution:
     )
 
 
+def _eigen_cam(ctx: MethodContext) -> SignedAttribution:
+    return eigen_cam_signed(
+        ctx.model,
+        ctx.model_input,
+        ctx.gradcam.target_layer,
+        class_idx=ctx.class_idx,
+    )
+
+
+def _score_cam(ctx: MethodContext) -> SignedAttribution:
+    return score_cam_signed(
+        ctx.model,
+        ctx.model_input,
+        ctx.gradcam.target_layer,
+        class_idx=ctx.class_idx,
+        channels_cap=ctx.score_cam_channels_cap,
+    )
+
+
 DEFAULT_METHOD_SPECS: tuple[MethodSpec, ...] = (
     MethodSpec("grad_cam", _grad_cam),
     MethodSpec("grad_cam_plus_plus", _grad_cam_pp),
     MethodSpec("integrated_gradients", _ig),
     MethodSpec("gradient_shap", _gradshap),
     MethodSpec("occlusion", _occlusion),
+    MethodSpec("eigen_cam", _eigen_cam),
+    MethodSpec("score_cam", _score_cam),
 )
 
 

@@ -180,6 +180,16 @@ def parse_args() -> argparse.Namespace:
         help="Occlusion Sensitivity stride in resized image pixels.",
     )
     parser.add_argument(
+        "--score-cam-channels-cap",
+        type=int,
+        default=256,
+        help=(
+            "Maximum number of target-layer activation channels used by "
+            "Score-CAM. Use 0 to evaluate all channels for thesis-quality "
+            "reruns."
+        ),
+    )
+    parser.add_argument(
         "--device",
         default="auto",
         choices=["auto", "cpu", "cuda"],
@@ -399,6 +409,7 @@ def main() -> None:
             gradshap_stdevs=args.gradshap_stdevs,
             occlusion_patch_size=args.occlusion_patch_size,
             occlusion_stride=args.occlusion_stride,
+            score_cam_channels_cap=args.score_cam_channels_cap,
         )
         signed_attributions: dict[str, SignedAttribution] = (
             compute_signed_attributions(method_ctx)
@@ -426,7 +437,7 @@ def main() -> None:
         # more than one signed-capable method is run on the same case.
         agreement_families = ["grad_cam", "grad_cam_plus_plus",
                               "integrated_gradients", "gradient_shap",
-                              "occlusion"]
+                              "occlusion", "eigen_cam", "score_cam"]
         for i, family_a in enumerate(agreement_families):
             for family_b in agreement_families[i + 1:]:
                 agreement_rows.append({

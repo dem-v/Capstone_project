@@ -22,10 +22,18 @@ from explainai_thesis.xai import (
     SignedAttribution,
     agreement_score,
     consensus_signed,
+    eigen_cam_signed,
     gradient_shap_signed,
     iter_method_views,
     integrated_gradients_signed,
     occlusion_sensitivity_signed,
+    score_cam_signed,
+)
+from explainai_thesis.cxr.methods import (
+    CONSENSUS_CONSTITUENTS,
+    DEFAULT_METHOD_SPECS,
+    MethodContext,
+    compute_signed_attributions,
 )
 
 
@@ -283,6 +291,94 @@ def test_occlusion_sensitivity_vectorized_matches_loop_formula() -> None:
     expected = normalize_signed_map((attribution / torch.clamp(counts, min=1)).cpu())
 
     assert torch.allclose(actual.raw, expected, atol=1e-6)
+
+
+def test_eigen_cam_signed_view_contract_holds() -> None:
+    model = _trained_model()
+    image, _ = _synthetic_positive_case()
+    attribution = eigen_cam_signed(model, image, model.target_conv, class_idx=1)
+
+    assert attribution.raw.shape == image.shape[-2:]
+    assert float(attribution.raw.abs().max()) <= 1.0 + 1e-6
+    assert torch.isfinite(attribution.raw).all()
+    assert torch.allclose(
+        attribution.positive - attribution.negative, attribution.signed
+    )
+    assert torch.allclose(
+        attribution.positive + attribution.negative, attribution.magnitude
+    )
+
+
+def test_score_cam_signed_view_contract_and_cap_hold() -> None:
+    model = _trained_model()
+    image, _ = _synthetic_positive_case()
+    capped = score_cam_signed(
+        model,
+        image,
+        model.target_conv,
+        class_idx=1,
+        channels_cap=4,
+        batch_size=2,
+    )
+    uncapped = score_cam_signed(
+        model,
+        image,
+        model.target_conv,
+        class_idx=1,
+        channels_cap=0,
+        batch_size=5,
+    )
+
+    for attribution in (capped, uncapped):
+        assert attribution.raw.shape == image.shape[-2:]
+        assert float(attribution.raw.abs().max()) <= 1.0 + 1e-6
+        assert torch.isfinite(attribution.raw).all()
+        assert torch.allclose(
+            attribution.positive - attribution.negative, attribution.signed
+        )
+        assert torch.allclose(
+            attribution.positive + attribution.negative, attribution.magnitude
+        )
+
+
+def test_method_registry_includes_extra_cam_methods_without_changing_consensus() -> None:
+    method_names = tuple(spec.name for spec in DEFAULT_METHOD_SPECS)
+    assert "eigen_cam" in method_names
+    assert "score_cam" in method_names
+    assert CONSENSUS_CONSTITUENTS == (
+        "grad_cam",
+        "integrated_gradients",
+        "gradient_shap",
+        "occlusion",
+    )
+
+
+def test_method_registry_dispatches_extra_cam_methods() -> None:
+    model = _trained_model()
+    image, _ = _synthetic_positive_case()
+    gradcam = GradCAM(model, model.target_conv)
+    try:
+        attributions = compute_signed_attributions(
+            MethodContext(
+                model=model,
+                model_input=image,
+                class_idx=1,
+                gradcam=gradcam,
+                ig_steps=2,
+                gradshap_samples=2,
+                occlusion_patch_size=16,
+                occlusion_stride=16,
+                score_cam_channels_cap=3,
+            )
+        )
+    finally:
+        gradcam.remove_hooks()
+
+    assert "eigen_cam" in attributions
+    assert "score_cam" in attributions
+    assert "consensus" in attributions
+    assert attributions["eigen_cam"].raw.shape == image.shape[-2:]
+    assert attributions["score_cam"].raw.shape == image.shape[-2:]
 
 
 # --------------------------------------------------------------------------- #

@@ -34,10 +34,12 @@ from explainai_thesis.xai import (
     GradCAM,
     SignedAttribution,
     consensus_signed,
+    eigen_cam_signed,
     gradient_shap_signed,
     integrated_gradients_signed,
     iter_method_views,
     occlusion_sensitivity_signed,
+    score_cam_signed,
 )
 
 
@@ -74,6 +76,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--occlusion-patch-size", type=int, default=32)
     parser.add_argument("--occlusion-stride", type=int, default=16)
+    parser.add_argument(
+        "--score-cam-channels-cap",
+        type=int,
+        default=256,
+        help="Maximum Score-CAM activation channels; use 0 to evaluate all channels.",
+    )
     parser.add_argument(
         "--fractions",
         default="0.05,0.10,0.15,0.20,0.25,0.30",
@@ -373,6 +381,24 @@ def main() -> None:
         patch_size=args.occlusion_patch_size,
         stride=args.occlusion_stride,
     )
+    log_progress("computing Eigen-CAM", run_start)
+    eigen_cam_attr = eigen_cam_signed(
+        model,
+        model_input,
+        classifier.target_layer,
+        class_idx=class_idx,
+    )
+    log_progress(
+        f"computing Score-CAM (channels cap {args.score_cam_channels_cap})",
+        run_start,
+    )
+    score_cam_attr = score_cam_signed(
+        model,
+        model_input,
+        classifier.target_layer,
+        class_idx=class_idx,
+        channels_cap=args.score_cam_channels_cap,
+    )
     log_progress("computing consensus attribution", run_start)
     consensus_attr = consensus_signed([cam_attr, ig_attr, gradient_shap_attr, occlusion_attr])
     gradcam.remove_hooks()
@@ -383,6 +409,8 @@ def main() -> None:
         "integrated_gradients": ig_attr,
         "gradient_shap": gradient_shap_attr,
         "occlusion": occlusion_attr,
+        "eigen_cam": eigen_cam_attr,
+        "score_cam": score_cam_attr,
         "consensus": consensus_attr,
     }
 

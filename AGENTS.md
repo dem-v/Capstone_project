@@ -77,7 +77,7 @@ Post-refactor (v2, after Phase 1.2 of `docs/refactor_plan.md` lands) the primary
 
 Versioning discipline: v1 outputs are never overwritten or renamed. v2 outputs live alongside v1 in new `outputs/iter_XX_*` folders. Held-out evaluation after Phase 1.2 uses only v2.
 
-`Eigen-CAM` and `Score-CAM` were added to the planned method set on 2026-05-18 to close the corresponding gap against `docs/experiment_protocol.md`. Each registers as a `MethodSpec` entry with the same four-view `SignedAttribution` contract. `Score-CAM` accepts a `--score-cam-channels-cap` flag so broad screening runs can subsample activation channels for speed while thesis-quality reruns use the full set.
+`Eigen-CAM` and `Score-CAM` were added to the planned method set on 2026-05-18 to close the corresponding gap against `docs/experiment_protocol.md` and implemented in Phase 5.1 on 2026-05-27. Each registers as a `MethodSpec` entry with the same four-view `SignedAttribution` contract. `Eigen-CAM` uses the first target-layer activation principal component with deterministic sign orientation toward the mean activation direction. `Score-CAM` masks the input with normalized target-layer activation channels and weights them by signed target-logit change relative to a baseline image. `Score-CAM` accepts a `--score-cam-channels-cap` flag so broad screening runs can subsample activation channels for speed while thesis-quality reruns use `0` for the full set. Adding these methods changes the method panel, so produce a fresh post-Phase-5.1 calibration artifact (for example `outputs/iter_XX_calibration_v3/calibrated_thresholds_v3.csv`) before held-out Phase 5.2 runs; do not reuse pre-Phase-5.1 calibrated fractions for `eigen_cam` or `score_cam`.
 
 ## Modality Coverage and Pipelines
 

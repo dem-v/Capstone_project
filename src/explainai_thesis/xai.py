@@ -29,6 +29,45 @@ from captum.attr import GradientShap
 from .metrics import normalize_map, normalize_signed_map
 
 
+def _zero_signed_map_like(image: torch.Tensor) -> SignedAttribution:
+    _, _, height, width = image.shape
+    return SignedAttribution(raw=torch.zeros((height, width), dtype=image.dtype))
+
+
+def _normalize_channel_maps(maps: torch.Tensor) -> torch.Tensor:
+    """Min-max normalize each activation channel independently."""
+    flat = maps.flatten(1)
+    mins = flat.min(dim=1).values.view(-1, 1, 1)
+    maxs = flat.max(dim=1).values.view(-1, 1, 1)
+    denom = torch.clamp(maxs - mins, min=1e-8)
+    normalized = (maps - mins) / denom
+    return torch.nan_to_num(normalized, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def _capture_target_activations(
+    model: nn.Module,
+    image: torch.Tensor,
+    target_layer: nn.Module,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    activations: list[torch.Tensor] = []
+
+    def _hook(
+        _module: nn.Module,
+        _inputs: tuple[torch.Tensor],
+        output: torch.Tensor,
+    ) -> None:
+        activations.append(output.detach())
+
+    handle = target_layer.register_forward_hook(_hook)
+    try:
+        logits = model(image)
+    finally:
+        handle.remove()
+    if not activations:
+        raise RuntimeError("target-layer hook did not capture activations.")
+    return activations[-1], logits
+
+
 # --------------------------------------------------------------------------- #
 # SignedAttribution dataclass
 # --------------------------------------------------------------------------- #
@@ -283,6 +322,124 @@ class GradCAM:
         # smoke script is ported in Phase 1.2-dispatch.
         attribution = self.signed(image, class_idx=class_idx, variant=variant)
         return _project_legacy(attribution, polarity)
+
+
+# --------------------------------------------------------------------------- #
+# Eigen-CAM and Score-CAM
+# --------------------------------------------------------------------------- #
+
+
+def eigen_cam_signed(
+    model: nn.Module,
+    image: torch.Tensor,
+    target_layer: nn.Module,
+    class_idx: int = 1,
+) -> SignedAttribution:
+    """Eigen-CAM attribution from the first activation principal component.
+
+    The target-layer activation tensor is flattened to ``[channels, pixels]``
+    and projected onto the first right-singular vector. SVD sign is arbitrary,
+    so the component is flipped when necessary to agree with the mean activation
+    direction before interpolation and signed normalization.
+    """
+    model.eval()
+    with torch.inference_mode():
+        activations, _logits = _capture_target_activations(model, image, target_layer)
+    if activations.ndim != 4 or activations.shape[0] != 1:
+        raise ValueError("eigen_cam_signed expects a single-image 4-D activation tensor.")
+
+    activation = torch.nan_to_num(activations[0].float(), nan=0.0, posinf=0.0, neginf=0.0)
+    channels, height, width = activation.shape
+    if channels == 0 or height == 0 or width == 0:
+        return _zero_signed_map_like(image)
+
+    flattened = activation.flatten(1)
+    centered = flattened - flattened.mean(dim=1, keepdim=True)
+    try:
+        _u, _s, vh = torch.linalg.svd(centered, full_matrices=False)
+        component = vh[0].view(height, width)
+    except RuntimeError:
+        return _zero_signed_map_like(image)
+
+    mean_activation = activation.mean(dim=0)
+    if torch.sum(component * mean_activation) < 0:
+        component = -component
+    component = F.interpolate(
+        component.view(1, 1, height, width),
+        size=image.shape[-2:],
+        mode="bilinear",
+        align_corners=False,
+    )[0, 0]
+    return SignedAttribution(raw=normalize_signed_map(component.cpu()))
+
+
+def score_cam_signed(
+    model: nn.Module,
+    image: torch.Tensor,
+    target_layer: nn.Module,
+    class_idx: int = 1,
+    channels_cap: int = 256,
+    batch_size: int = 32,
+    baseline: torch.Tensor | None = None,
+) -> SignedAttribution:
+    """Signed Score-CAM attribution with optional activation-channel cap.
+
+    Each selected activation channel is normalized to a mask, multiplied into
+    the input image, and scored by the classifier. The signed channel weight is
+    ``masked_score - baseline_score``; positive values indicate evidence toward
+    the target class relative to the baseline image, while negative values
+    indicate suppressive evidence.
+    """
+    if channels_cap < 0:
+        raise ValueError("channels_cap must be non-negative; use 0 to disable capping.")
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive.")
+
+    model.eval()
+    with torch.inference_mode():
+        activations, _logits = _capture_target_activations(model, image, target_layer)
+    if activations.ndim != 4 or activations.shape[0] != 1:
+        raise ValueError("score_cam_signed expects a single-image 4-D activation tensor.")
+
+    activation = torch.nan_to_num(activations[0].float(), nan=0.0, posinf=0.0, neginf=0.0)
+    channels, height, width = activation.shape
+    if channels == 0 or height == 0 or width == 0:
+        return _zero_signed_map_like(image)
+
+    upsampled = F.interpolate(
+        activation.unsqueeze(0),
+        size=image.shape[-2:],
+        mode="bilinear",
+        align_corners=False,
+    )[0]
+    masks = _normalize_channel_maps(upsampled)
+    if channels_cap and masks.shape[0] > channels_cap:
+        channel_scores = masks.flatten(1).mean(dim=1)
+        keep = torch.topk(channel_scores, k=channels_cap, largest=True).indices
+        masks = masks[keep]
+
+    if masks.numel() == 0:
+        return _zero_signed_map_like(image)
+
+    if baseline is None:
+        baseline = torch.zeros_like(image)
+    baseline = baseline.to(device=image.device, dtype=image.dtype)
+
+    weights: list[torch.Tensor] = []
+    with torch.inference_mode():
+        baseline_score = model(baseline)[:, class_idx]
+        for start in range(0, masks.shape[0], batch_size):
+            batch_masks = masks[start:start + batch_size].to(
+                device=image.device,
+                dtype=image.dtype,
+            )
+            masked_batch = image.detach() * batch_masks.unsqueeze(1)
+            masked_scores = model(masked_batch)[:, class_idx]
+            weights.append((masked_scores - baseline_score).detach().cpu())
+    masks_cpu = masks.detach().cpu()
+    channel_weights = torch.cat(weights).to(dtype=masks_cpu.dtype)
+    attribution = (channel_weights.view(-1, 1, 1) * masks_cpu).sum(dim=0)
+    return SignedAttribution(raw=normalize_signed_map(attribution))
 
 
 # --------------------------------------------------------------------------- #
