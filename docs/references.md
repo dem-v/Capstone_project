@@ -493,6 +493,33 @@ Access date for URLs checked: 2026-05-24, 2026-05-25, and 2026-05-27 (the latter
 - Reliability status: high; peer-reviewed journal article describing the dataset, ground truth, and challenge protocol, plus official Kaggle competition page for dataset access.
 - Thesis relevance: provides the canonical reference for the CT pilot modality and dataset. The 2019 RSNA challenge released ~870k labeled CT slices with per-subtype hemorrhage labels (epidural, intraparenchymal, intraventricular, subarachnoid, subdural, any). Useful as evidence that off-the-shelf public CT hemorrhage classifiers exist and have a clinically meaningful class head. If the Phase 5.4 hour-1 model-availability check finds an off-the-shelf classifier, the thesis cites this dataset/challenge as the training distribution; if not, this reference frames the qualitative-only fallback as scoped against a recognized public CT task.
 
+### <a id="ref-vit"></a>`REF-VIT` — Vision Transformer (ViT)
+
+- IEEE-style entry: A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby, "An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale," in *Proc. International Conference on Learning Representations (ICLR)*, 2021.
+- Verified URLs:
+  - OpenReview: https://openreview.net/forum?id=YicbFdNTTy
+  - arXiv: https://arxiv.org/abs/2010.11929
+- Reliability status: high; peer-reviewed ICLR paper, the foundational Vision Transformer reference.
+- Thesis relevance: the Phase 5.4 CT hemorrhage classifier is a ViT-base-patch16-224 backbone. Establishes why CAM-family methods do not transfer directly to the CT pilot: a ViT represents an image as a sequence of patch tokens plus a class token, with no native two-dimensional convolutional feature map for activation-based CAMs to weight and upsample.
+
+### <a id="ref-attention-rollout"></a>`REF-ATTENTION-ROLLOUT` — Attention Rollout
+
+- IEEE-style entry: S. Abnar and W. Zuidema, "Quantifying Attention Flow in Transformers," in *Proc. 58th Annual Meeting of the Association for Computational Linguistics (ACL)*, 2020, pp. 4190-4197.
+- Verified URLs:
+  - ACL Anthology: https://aclanthology.org/2020.acl-main.385/
+  - arXiv: https://arxiv.org/abs/2005.00928
+- Reliability status: high; peer-reviewed ACL paper.
+- Thesis relevance: a transformer-specific explanation technique. Cited as the type of architecture-native method that would be required to explain a Vision Transformer spatially in place of CAM-family methods, supporting the framing of a CAM-on-ViT CT extension as future work.
+
+### <a id="ref-transformer-attribution"></a>`REF-TRANSFORMER-ATTRIBUTION` — Transformer Interpretability Beyond Attention
+
+- IEEE-style entry: H. Chefer, S. Gur, and L. Wolf, "Transformer Interpretability Beyond Attention Visualization," in *Proc. IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)*, 2021, pp. 782-791.
+- Verified URLs:
+  - CVF: https://openaccess.thecvf.com/content/CVPR2021/html/Chefer_Transformer_Interpretability_Beyond_Attention_Visualization_CVPR_2021_paper.html
+  - arXiv: https://arxiv.org/abs/2012.09838
+- Reliability status: high; peer-reviewed CVPR paper.
+- Thesis relevance: a gradient-based relevance-propagation method designed for transformers. Together with attention rollout it represents the transformer-native alternative to CAM-family methods, justifying the exclusion of CAM methods from the controlled cross-modality comparison and the deferral of ViT-specific spatial explanation to future work.
+
 ## Working Notes on Source Reliability
 
 - `Dataset Ninja` and similar mirrors were not used as primary references, even when they contain convenient dataset counts, because the user requested reliable, verifiable sources. Official SIIM/Kaggle pages and local dataset verification should be preferred for final counts.
