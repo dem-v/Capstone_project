@@ -520,6 +520,23 @@ Access date for URLs checked: 2026-05-24, 2026-05-25, and 2026-05-27 (the latter
 - Reliability status: high; peer-reviewed CVPR paper.
 - Thesis relevance: a gradient-based relevance-propagation method designed for transformers. Together with attention rollout it represents the transformer-native alternative to CAM-family methods, justifying the exclusion of CAM methods from the controlled cross-modality comparison and the deferral of ViT-specific spatial explanation to future work.
 
+### <a id="ref-vit-cx"></a>`REF-VIT-CX` — ViT-CX (Causal Explanation of Vision Transformers)
+
+- IEEE-style entry: W. Xie, X.-H. Li, C. C. Cao, and N. L. Zhang, "ViT-CX: Causal Explanation of Vision Transformers," in *Proc. 32nd International Joint Conference on Artificial Intelligence (IJCAI)*, 2023.
+- Verified URLs:
+  - IJCAI proceedings: https://www.ijcai.org/proceedings/2023/0174
+  - arXiv: https://arxiv.org/abs/2211.03064
+- Reliability status: high; peer-reviewed IJCAI 2023 paper.
+- Thesis relevance: a Vision-Transformer-specific, Score-CAM-style causal explanation method built on patch-embedding masks rather than convolutional activations. Concrete evidence that CAM-style spatial explanation of a ViT is possible, but only via a transformer-specific method rather than the convolutional CAM implementation reused across the CXR pipeline. Cited in future work as a candidate for a CAM-comparable CT explanation that would let the full method panel (and a four-method consensus) be evaluated on the CT classifier.
+
+### <a id="ref-pytorch-gradcam"></a>`REF-PYTORCH-GRADCAM` — pytorch-grad-cam (software library)
+
+- IEEE-style entry: J. Gildenblat and contributors, *PyTorch library for CAM methods (pytorch-grad-cam)*, GitHub repository, 2021.
+- Verified URLs:
+  - Repository: https://github.com/jacobgil/pytorch-grad-cam
+- Reliability status: medium; widely-used open-source software library, not a peer-reviewed publication. Cited as a software tool only (consistent with the source-reliability working notes), not as empirical evidence.
+- Thesis relevance: the de-facto open-source CAM implementation. It exposes a `reshape_transform` that folds ViT patch tokens into a two-dimensional grid so Grad-CAM/Grad-CAM++/Eigen-CAM/Score-CAM can be run on transformer backbones. Demonstrates that running CAM-family methods on a ViT is feasible via an architecture-specific adapter — i.e., a different code path from the convolutional CXR implementation — which supports the controlled-comparison rationale for excluding CAMs from the CT transfer experiment in the current draft.
+
 ## Working Notes on Source Reliability
 
 - `Dataset Ninja` and similar mirrors were not used as primary references, even when they contain convenient dataset counts, because the user requested reliable, verifiable sources. Official SIIM/Kaggle pages and local dataset verification should be preferred for final counts.
