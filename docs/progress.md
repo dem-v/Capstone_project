@@ -3073,3 +3073,169 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
 - **Branch A is now viable under two scenarios**: full pipeline (HF + PhysioNet) with `brain_window_center` faithfulness, OR degraded pipeline (HF + vbookshelf JPG) with `black`-only faithfulness and explicit methodology caveat. Both are thesis-defensible; Branch B remains only if all model candidates fail OR no mask source loads at all.
 - Doc-only update; no code or tests changed.
 
+### 2026-06-01 (Calibration wait-time thesis preparation) - Chapter 3/4 scaffolding updated
+
+- Updated `thesis/thesis_skeleton.md` while v3 calibration runs are pending: Chapter 3 now treats `eigen_cam` and `score_cam` as implemented Phase 5.1 methods, keeps the frozen four-method consensus definition explicit, and adds calibration-vs-held-out plus Wilcoxon/Holm/bootstrap methodology prose for Phase 5.2.
+- Replaced the Chapter 3 conclusion placeholder with draft text summarizing the four-layer validation design, off-the-shelf DenseNet/ResNet model framing, `SignedAttribution` four-view contract, v3 calibration discipline, and the improvement-experiment statistical framework.
+- Added Chapter 4 table templates for classifier performance, Stage A model-localization comparison, Phase 5.2 paired improvement results, and the balanced 40-case radiologist review score/failure distributions. Known Stage A and review counts are filled where already established; calibration-dependent improvement cells remain `TODO` until held-out runs finish.
+- No experiment runs or tests were needed for this documentation-only pass.
+
+### 2026-06-01 (Thesis writing expansion) - Chapters 1/2/5 and limitations drafted
+
+- Expanded `thesis/thesis_skeleton.md` with thesis-ready prose for Chapter 1: research context, problem statement, five research questions, novelty/practical significance, thesis structure, and the required Chapter 1 conclusion.
+- Drafted Chapter 2 literature-review sections: search strategy, deep learning in radiology, XAI method families, explanation validation, research gap, and the required Chapter 2 conclusion. Added Table 2.1 summarizing XAI method families and validation concerns.
+- Strengthened front-matter planning with concrete candidate tables, figures, graphs, and charts; added Table 3.3 as a metric interpretation guide so localization, faithfulness, agreement, and review evidence stay conceptually separate.
+- Rewrote Chapter 4.6 into structured threats to validity: internal, construct, external, statistical, visualization/interpretation, and scope limits. Replaced result-dependent Chapter 4 TODOs with finalization notes that preserve train/test and CT-branch discipline.
+- Drafted Chapter 5 main findings, practical recommendations, and future work with conditional wording for pending Phase 5.2 consensus results. Added a provisional abstract plus bibliography and appendix scaffolds for experiment configuration, radiologist review, and additional figures.
+- Remaining result-dependent gaps: final classifier metrics, v3 calibration outputs, Phase 5.2 paired statistics/plots, selected Chapter 4 figures, final page numbers, personal metadata/signature fields, and final bibliography formatting.
+
+### 2026-06-02 (Phase 5.1 v3 calibration complete) - Phase 5.2 ready to run
+
+- Confirmed both expanded-method v3 calibration artifacts exist and are ready to freeze for held-out Phase 5.2: `outputs/iter_49_densenet_calibration_v3/calibrated_thresholds_v3.csv` and `outputs/iter_50_resnet_calibration_v3/calibrated_thresholds_v3.csv`.
+- Both calibration CSVs contain the expected long-format schema (`method`, `selected_fraction`, `selection_metric`, `selection_metric_mean`, `n`) with `144` rows, `32` unique method/view entries, and `200` train-split positive masked cases per selected fraction. The `dice` rows cover all positive-view methods required by `scripts/run_improvement_experiment.py`.
+- Dice-selected positive-view top fractions for DenseNet-all: `consensus=0.10`, `grad_cam=0.10`, `grad_cam_plus_plus=0.45`, `integrated_gradients=0.25`, `gradient_shap=0.30`, `occlusion=0.25`, `eigen_cam=0.70`, `score_cam=0.40`.
+- Dice-selected positive-view top fractions for ResNet-50: `consensus=0.15`, `grad_cam=0.10`, `grad_cam_plus_plus=0.15`, `integrated_gradients=0.20`, `gradient_shap=0.25`, `occlusion=0.20`, `eigen_cam=0.25`, `score_cam=0.15`.
+- Phase 5.2 preflight check passed: the held-out test split has `290` positive masked rows, so the planned `--max-positive 200 --random-sample --seed 20260515` run is feasible without exhausting the test positives.
+- Full Phase 5.2 runs should be launched manually rather than through a short agent session because they evaluate `200` held-out positive cases with `Score-CAM` and occlusion. Use the corrected argument name `--calibration-csv` (not the earlier draft `--calibrated-fractions`). Do not pass a classifier threshold here: `scripts/run_improvement_experiment.py` evaluates positive masked held-out rows and does not classify/filter by operating point.
+
+DenseNet-all Phase 5.2 command:
+
+```powershell
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_improvement_experiment.py `
+  --weights densenet121-res224-all `
+  --image-size 224 `
+  --split test `
+  --max-positive 200 `
+  --random-sample `
+  --seed 20260515 `
+  --ig-steps 16 `
+  --gradshap-samples 8 `
+  --occlusion-patch-size 32 `
+  --occlusion-stride 16 `
+  --score-cam-channels-cap 256 `
+  --calibration-csv outputs/iter_49_densenet_calibration_v3/calibrated_thresholds_v3.csv `
+  --device auto `
+  --output-dir outputs/iter_51_densenet_improvement_v3
+```
+
+ResNet-50 Phase 5.2 command:
+
+```powershell
+wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_explainAI python3 scripts/run_improvement_experiment.py `
+  --weights resnet50-res512-all `
+  --image-size 512 `
+  --split test `
+  --max-positive 200 `
+  --random-sample `
+  --seed 20260515 `
+  --ig-steps 16 `
+  --gradshap-samples 8 `
+  --occlusion-patch-size 32 `
+  --occlusion-stride 16 `
+  --score-cam-channels-cap 256 `
+  --calibration-csv outputs/iter_50_resnet_calibration_v3/calibrated_thresholds_v3.csv `
+  --device auto `
+  --output-dir outputs/iter_52_resnet_improvement_v3
+```
+
+### 2026-06-02 (Phase 5.2 DenseNet improvement complete) - ResNet in progress
+
+- Ran the held-out consensus-vs-individual improvement experiment for `densenet121-res224-all` → `outputs/iter_51_densenet_improvement_v3/` (200 random-sampled test-split positive masked cases, seed `20260515`, v3 calibration `outputs/iter_49_densenet_calibration_v3/calibrated_thresholds_v3.csv`, dice-selected top-fractions, git `75dfd1c`, CUDA 12.8 / torch 2.10.0).
+- Reference method `consensus` vs each of the 7 individual methods, paired Wilcoxon signed-rank + Holm-Bonferroni at α=0.05, 10k-bootstrap 95% CI on the paired median difference (reference − compared).
+- Result (factual; Discussion narrative owned by the student):
+  - `IoU`: no Holm-significant consensus-vs-individual difference (any method).
+  - `Dice`: no Holm-significant consensus-vs-individual difference (any method).
+  - `pointing_hit`: Holm-significant vs `eigen_cam` and `score_cam`, but median Δ = 0.0000 — an artifact of the near-universal pointing-hit collapse, not a substantive localization gap.
+  - `precision_at_fraction`: Holm-significant vs `integrated_gradients` (−0.0001), `gradient_shap` (−0.0005), `occlusion` (+0.0009), `eigen_cam` (−0.0005), `score_cam` (−0.0006). All |median Δ| < 0.001 — statistically detectable at n=200, practically negligible.
+  - Net: consensus is statistically indistinguishable from its best constituents on IoU/Dice; the few significant cells elsewhere are vanishingly small. Consistent with deferring `consensus_attention` to Future Work.
+- Committed the Phase 5.2 deliverables that produced this run: `scripts/run_improvement_experiment.py` (with RollingLogDisplay 15-line progress logging), `src/explainai_thesis/stats.py`, and tests (`501928c`).
+- Added a reusable paired-stats tabulator `scripts/tabulate_improvement_paired.py` + stats edge-case tests (`c53b20c`). Generated the DenseNet results table at `outputs/iter_51_densenet_improvement_v3/improvement_experiment_table.md`; the same script will render the ResNet table from `outputs/iter_52_resnet_improvement_v3/improvement_experiment_paired.csv` once that run finishes.
+- ResNet-50 (`resnet50-res512-all`, `outputs/iter_52_resnet_improvement_v3/`) improvement run is in progress at time of writing (Score-CAM × 200 cases @ 512px is the slow path).
+
+### 2026-06-02 (Phase 5.4 gate probe + locked CT I/O scaffold) - gate not yet run
+
+- Productive use of the GPU-busy window (ResNet improvement run holding the GPU): probed the Phase 5.4 hour-1 gate dependencies without starting Branch-A model work.
+- Gate probe results: `transformers` is NOT installed; `nibabel` 5.4.2 IS installed (NIfTI path ready); HuggingFace is reachable (HTTP 200 on the DifeiT model card). Network is up, so the model track is technically openable, but it requires `pip install transformers` + ~330 MB model download, and the mask track (PhysioNet credentialed access or Kaggle creds for the vbookshelf re-host) is user-owned. The hour-1 binary Branch-A/Branch-B decision has NOT been made.
+- Built only the gate-independent, network-free, CPU-cheap core (commit `c0b3ffd`):
+  - `src/explainai_thesis/ct/__init__.py`, `src/explainai_thesis/ct/io.py` — locked brain-window HU transform (WL=40, WW=80; midpoint HU=40 → display 0.5, which is the `brain_window_center` baseline fill in display space), 3-channel replication, float-preserving resize, axial slice extraction, lazy-`nibabel` NIfTI loader.
+  - `tests/test_ct_io.py` — 12 tests (windowing midpoint/bounds/clipping, custom-width formula, replication, resize/slice shapes, end-to-end preprocessing, synthetic-NIfTI round-trip). All pass; full suite still collects 101 tests cleanly.
+- Deferred to integration (Branch A, post-gate) by design, per advisor review: `ct/models.py` (ViT input contract "to be confirmed at integration"), the `faithfulness.py` `brain_window_center` branch (fill constant is model-derived from the chosen `AutoImageProcessor`; the plan's `ctx.brain_window_center_normalized` does not match the current `faithfulness_baseline_tensor(model_input, baseline)` signature, so the interface is unsettled), `scripts/build_ct_manifest.py`, and `scripts/run_ct_smoke.py`. Writing these blind risks coding against the wrong contract; they wait for the hour-1 gate.
+
+### 2026-06-02 (Phase 5.4 model-track gate RUN) - model viable, attribution target must change
+
+- Installed `transformers` 5.9.0 (CPU; no GPU contention with the ResNet run) and ran the model-track gate probe `scripts/ct_gate_probe.py` against `DifeiT/rsna-intracranial-hemorrhage-detection`.
+- PASS items: model loads (`ViTForImageClassification`), one CPU forward pass on a random 224x224x3 image produces finite probabilities, and the license is **`apache-2.0`** (research use OK).
+- CONTRACT MISMATCH vs pre-baked research (caught by the gate, the reason the gate exists):
+  - Pre-baked plan assumed a 6-output head set `any, epidural, intraparenchymal, intraventricular, subarachnoid, subdural` with a binary `any` attribution target.
+  - ACTUAL: `id2label = {0: epidural, 1: intraparenchymal, 2: intraventricular, 3: normal, 4: subarachnoid, 5: subdural}`, `problem_type = single_label_classification` (softmax over 6 mutually-exclusive classes). There is **no `any` head**; there is a `normal` (no-hemorrhage) class plus 5 hemorrhage subtypes.
+  - Consequence: the binary-hemorrhage attribution target analogous to the CXR `Pneumothorax` head must be redefined as **hemorrhage = 1 − P(normal)** (e.g., attribute the negated `normal` logit, or an aggregate of the 5 subtype logits). DECISION DEFERRED to integration / user input.
+- Image processor normalization: `image_mean = image_std = (0.5, 0.5, 0.5)` → input range [−1, 1]. Therefore `brain_window_center_normalized = (0.5 − 0.5)/0.5 = 0.0` per channel: for THIS checkpoint the `brain_window_center` faithfulness baseline is numerically identical to `zero_tensor`. `black` (−1024, air) remains a distinct stress-test baseline. This further de-risks the deferred faithfulness branch (it is degenerate for this model) but the design note must be carried into Chapter 3.
+- Mask track: user confirmed they have PhysioNet credentialed access and are downloading `ct-ich` v1.3.1 (NIfTI, preserves HU). `nibabel` 5.4.2 already present.
+- Net gate status: model track PASS-with-caveat (target redefinition needed); mask track in progress (user). Branch A is looking viable. Still NOT building `ct/models.py`/`run_ct_smoke.py`/manifest until the attribution-target decision is made and real slices are available.
+- Model checkpoint (~330 MB) is now cached under `~/.cache/huggingface` in WSL.
+
+### 2026-06-02 (Phase 5.4 gate FULLY PASSES — Branch A confirmed) - real-slice end-to-end
+
+- User provided credentialed PhysioNet `ct-ich` v1.3.1 at `data_local/physionet.org/files/ct-ich/1.3.1` (76 patient NIfTI volumes + matched masks; subjects 59-65 missing per the dataset readme). Confirmed target decision: **hemorrhage = 1 − P(normal)**.
+- Dataset structure: `ct_scans/NNN.nii` + `masks/NNN.nii` (volumes are (H, W, n_slices), slices on axis=2); per-slice labels in `hemorrhage_diagnosis_raw_ct.csv` (cols: PatientNumber, SliceNumber [1-indexed], 5 subtypes, No_Hemorrhage [1=normal], Fracture). 2814 total slices, **318 hemorrhage-positive** (matches the dataset's documented 318-with-masks), 2496 normal.
+- Ran `scripts/ct_slice_verify.py` (gate steps 4-5, GPU-free) on patient 49 through the locked `ct/io.py` brain window + DifeiT ViT:
+  - Positive slice 14 (Epidural GT): **1−P(normal) = 0.9918** (WW=80); mask 436 nonzero px.
+  - Normal slice 1: **1−P(normal) = 0.0534**, argmax `normal`; mask 0 px.
+  - HU preserved (range [−1024, 2914]); masks align (512×512) and are nonzero only on positive.
+  - Windowing sensitivity: WW=80 → 0.9918 vs WW=120 → 0.7892, so the thesis lock (WW=80) gives the stronger hemorrhage signal. No reason to deviate.
+  - All gate checks PASS. Subtype argmax is imperfect (intraparenchymal vs GT epidural) but irrelevant to the binary 1−P(normal) target.
+- **DECISION: Branch A is GO.** Model track + mask track + end-to-end all verified. Clear to build the deferred modules (`ct/models.py` with the 1−P(normal) target, `faithfulness.py` `brain_window_center` branch, `build_ct_manifest.py`, `run_ct_smoke.py`) against the now-confirmed contract.
+
+
+### 2026-06-03 (Phase 5.2 held-out improvement complete) - consensus result is model-dependent
+
+- Confirmed both held-out Phase 5.2 improvement runs completed: `outputs/iter_51_densenet_improvement_v3/` for `densenet121-res224-all` and `outputs/iter_52_resnet_improvement_v3/` for `resnet50-res512-all`.
+- Each run produced `improvement_experiment.csv`, `improvement_experiment_paired.csv`, `improvement_experiment_summary.md`, aggregate boxplots, paired-difference plots, and `run_meta.json`. Each per-case metric CSV has `1,600` rows (`200` positive masked test cases x `8` positive-view methods).
+- DenseNet-all result: consensus has the highest mean Dice (`0.0423`) but no Holm-significant consensus-vs-individual difference for Dice or IoU. DenseNet consensus should therefore not be claimed as a statistically superior localization method; it is at best a weak/stabilizing aggregate under this baseline.
+- ResNet-50 result: consensus has mean Dice `0.0488`, behind `grad_cam` (`0.0540`) and `score_cam` (`0.0513`) by mean Dice, but the paired Wilcoxon/Holm analysis shows significant consensus Dice/IoU differences versus `grad_cam_plus_plus`, `integrated_gradients`, `gradient_shap`, `occlusion`, and `eigen_cam`. Consensus is not significantly different from `grad_cam` or `score_cam` for Dice/IoU.
+- Interpretation for Chapter 4/5: consensus behavior is model-dependent. It can stabilize localization relative to several weaker individual methods under the ResNet-50 baseline, but averaging methods does not automatically create clinically strong lesion localization. Absolute overlap remains low across all methods and models, so thesis-safe wording should remain diagnostic rather than clinical-deployment oriented.
+- Updated `thesis/thesis_skeleton.md` with Phase 5.2 quantitative narrative, Dice paired-comparison table, Chapter 4 conclusion, Chapter 5 consensus finding, and corrected improvement-experiment appendix argument name (`--calibration-csv`).
+
+
+### 2026-06-03 (Phase 5.4 Branch A delivered) - CT hemorrhage XAI smoke complete
+
+- Ran `scripts/run_ct_smoke.py` on the full test split → `outputs/iter_53_ct_smoke_test/` (105 positive masked slices, DifeiT ViT, target 1−P(normal), top-fraction 0.2 uniform, faithfulness baseline zero_tensor (= brain-window-center for this ViT), faithfulness fractions 0.1–0.5). Methods: IG, GradientSHAP, Occlusion (identical-code input-space transfer) + exploratory `consensus_input3`.
+- Model confidence: median 1−P(normal) = 0.998 on the positives (min 0.019).
+- Localization (mask overlap, fraction 0.2), per-method means: consensus_input3 IoU 0.0179 / Dice 0.0347 / pointing_hit 0.305 / precision 0.0185; gradient_shap pointing 0.238; integrated_gradients pointing 0.200; occlusion pointing 0.038. consensus_input3 is the best method on every localization metric, most notably pointing-game.
+- Faithfulness: consensus best insertion AUC (0.330); IG best deletion-drop AUC (0.686, consensus 0.646).
+- Agreement (signed cosine): IG–gradshap 0.47; occlusion–{IG,gradshap} ~0.01; occlusion–consensus 0.95 (consensus signed structure tracks occlusion, but its positive-view peak relocates toward method agreement → consensus pointing_hit 0.305 >> occlusion 0.038).
+- FACTUAL finding (Discussion narrative user-owned): on CT the 3-method input-space consensus is the best method on pointing-game and insertion faithfulness — a more favorable consensus signal than the CXR null. CAVEATS: descriptive only (no paired Wilcoxon/Holm run on CT yet); 3-method input-space consensus ≠ frozen CXR 4-method consensus; uniform 0.2 top-fraction (no CT calibration).
+- Branch A is DELIVERED: gate passed, full Branch-A pipeline built (ct/io.py, ct/models.py, build_ct_manifest.py, run_ct_smoke.py) and run end-to-end on real PhysioNet data. Outputs are gitignored; scripts committed (c0b3ffd, dff6276, 411a7cd, 7c46331).
+
+### 2026-06-03 (Phase 5.2 ResNet improvement complete) - both models done; cross-model contrast
+
+- ResNet-50 held-out improvement run finished → `outputs/iter_52_resnet_improvement_v3/` (200 random test positives, seed 20260515, v3 calibration iter_50, dice-selected fractions). Rendered table: `outputs/iter_52_resnet_improvement_v3/improvement_experiment_table.md`.
+- Reference `consensus` vs 7 individuals, paired Wilcoxon + Holm-Bonferroni (α=0.05), 10k bootstrap CI. Result (factual; Discussion narrative user-owned):
+  - IoU: consensus Holm-significantly HIGHER than eigen_cam (+0.0026), grad_cam_plus_plus (+0.0015), integrated_gradients (+0.0020), gradient_shap (+0.0020), occlusion (+0.0001); NOT significant vs grad_cam (+0.0001) or score_cam (+0.0002).
+  - Dice: same pattern; consensus > eigen_cam (+0.0051), grad_cam_plus_plus (+0.0030), IG (+0.0039), gradient_shap (+0.0040), occlusion (+0.0001); n.s. vs grad_cam, score_cam.
+  - precision_at_fraction: consensus > the same 5; n.s. vs grad_cam, score_cam.
+  - pointing_hit: no Holm-significant differences (collapse).
+- Cross-model contrast: DenseNet (iter_51) = NULL on IoU/Dice (no significant consensus-vs-individual difference); ResNet-50 = consensus significantly HIGHER than the 5 weaker methods on IoU/Dice/precision and ties the 2 strongest (grad_cam, score_cam). Every significant delta is positive → consensus never loses to an individual. Effect sizes small (median Δ ≈ 0.001–0.005) but Holm-significant at n=200.
+- Reporting nuance: for integrated_gradients the Wilcoxon p is highly significant while the bootstrap median CI grazes zero (IoU [-0.0000, 0.0051], Dice [-0.0001, 0.0098]) — paired differences consistently one-signed (drives rank test) vs a wide median CI. Report both.
+- GPU now free (ResNet run released it). Phase 5.2 complete for both co-primary CXR models.
+
+### 2026-06-03 (Phase 5.4 CT improvement experiment — calibrated, tested) - cross-modality result
+
+- Built and ran `scripts/run_ct_improvement_experiment.py` (calibrate on train → freeze → held-out test → paired Wilcoxon/Holm/10k-bootstrap), GPU, 17.5 min → `outputs/iter_54_ct_improvement_test/`. Reference `consensus_input3` (3-method input-space aggregate; Grad-CAM cannot transfer to the ViT) vs IG/GradientSHAP/Occlusion.
+- Calibration (213 train positives, dice): all four methods selected fraction 0.05 — the sweep FLOOR. Boundary effect: dice-optimal fraction for these tiny hemorrhage masks may be <0.05; overlap-metric results are at a boundary-calibrated fraction. Pointing-hit is fraction-independent, so it is robust to this.
+- Held-out test (105 positives) per-method means: consensus IoU 0.0411 / Dice 0.0754 / pointing 0.343 / precision 0.0458; gradient_shap 0.0392/0.0731/0.229/0.0489; integrated_gradients 0.0352/0.0659/0.200/0.0444; occlusion 0.0390/0.0709/0.038/0.0421.
+- Paired result (factual; Discussion narrative user-owned):
+  - pointing_hit: consensus Holm-significantly > all three — vs integrated_gradients p=0.0035 (win/tie/loss 19/82/4), vs gradient_shap p=0.0143 (18/81/6), vs occlusion p<0.0001 (33/71/1). Median paired Δ=0 because pointing-hit is binary per case; the signed-rank test (wins ≫ losses), not the median, is the correct lens. Report win/tie/loss + rates alongside.
+  - IoU / Dice / precision_at_fraction: no Holm-significant consensus-vs-individual difference (consensus highest on IoU/Dice descriptively; gradient_shap edges precision). 
+  - Net CT finding: consensus significantly improves PEAK localization (pointing-game) over all three individuals — most strongly over occlusion (33:1) — while broad overlap is a wash.
+- THREE-PANEL CROSS-MODALITY SUMMARY: CXR DenseNet = null (ties all); CXR ResNet-50 = consensus significantly higher IoU/Dice/precision vs 5 weaker, ties 2 best; CT ViT = consensus significantly better pointing-game vs all 3, overlap null. Consensus NEVER significantly loses to an individual in any setting, and significantly wins on ≥1 metric in two of three. Table: `outputs/iter_54_ct_improvement_test/improvement_experiment_table.md`.
+- Caveats: CT consensus = 3-method input-space (≠ frozen CXR 4-method); single dataset/ViT/input-space methods; calibration floor at 0.05; pointing-hit median-vs-rank reporting nuance.
+- Script committed; outputs gitignored.
+
+### 2026-06-03 (CORRECTION to the cross-modality synthesis above) - symmetric reading
+
+- The "three-panel" summary in the two entries above overstated the result. After applying the SAME pointing-hit win/tie/loss + per-method-rate decomposition to the CXR experiments (which the CT entry used but the CXR judgement had not), two claims do not hold and are withdrawn:
+  1. WITHDRAWN "consensus never significantly loses to an individual." FALSE: on DenseNet (iter_51) `precision_at_fraction`, consensus is Holm-significantly LOWER than integrated_gradients (−0.0001), gradient_shap (−0.0005), eigen_cam (−0.0005), score_cam (−0.0006). Tiny (|Δ|<0.001) but significant negative deltas. (Consensus is also significantly HIGHER than occlusion there, +0.0009 — i.e. mixed sign.)
+  2. WITHDRAWN "consensus improves peak localization (pointing-game)" as a cross-modality theme. The CT pointing win does NOT generalize to CXR. CXR pointing-hit is floor-level for all methods (≤4%): DenseNet consensus 0.040 (nominally top; 8/200 wins vs the 0%-rate eigen/score, ~tie vs occlusion 6:5); ResNet consensus 0.010, among the LOWEST, descriptively below grad_cam/score_cam (0.040) — and all ResNet pointing differences are Holm-n.s.
+- CORRECTED honest synthesis: there is NO general "consensus improves localization" law. On CXR, consensus is statistically ≈ its best individual constituent — differences are almost all |Δ|<0.006, of mixed sign, and model/metric-dependent (DenseNet IoU/Dice null; ResNet small significant overlap gains over the 5 weaker methods but ties the 2 best, grad_cam/score_cam). The one substantial, clean consensus advantage anywhere is the CT pointing-game (consensus 0.343 vs 0.038–0.229; Holm-significant vs all three; 33:1 vs occlusion), which is fraction-independent and robust. This is consistent with the thesis's cautionary stance: consensus is about as good as its best constituent, not a reliable improvement over it.
+- Reporting standard going forward (symmetric): for binary pointing-hit, always report per-method rates + win/tie/loss + the rank-test p together; never the median Δ alone, and never call the same (significant-p, Δ=0) signature an "artifact" in one experiment and a "finding" in another without the rate decomposition.
