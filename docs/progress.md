@@ -3239,3 +3239,35 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
   2. WITHDRAWN "consensus improves peak localization (pointing-game)" as a cross-modality theme. The CT pointing win does NOT generalize to CXR. CXR pointing-hit is floor-level for all methods (≤4%): DenseNet consensus 0.040 (nominally top; 8/200 wins vs the 0%-rate eigen/score, ~tie vs occlusion 6:5); ResNet consensus 0.010, among the LOWEST, descriptively below grad_cam/score_cam (0.040) — and all ResNet pointing differences are Holm-n.s.
 - CORRECTED honest synthesis: there is NO general "consensus improves localization" law. On CXR, consensus is statistically ≈ its best individual constituent — differences are almost all |Δ|<0.006, of mixed sign, and model/metric-dependent (DenseNet IoU/Dice null; ResNet small significant overlap gains over the 5 weaker methods but ties the 2 best, grad_cam/score_cam). The one substantial, clean consensus advantage anywhere is the CT pointing-game (consensus 0.343 vs 0.038–0.229; Holm-significant vs all three; 33:1 vs occlusion), which is fraction-independent and robust. This is consistent with the thesis's cautionary stance: consensus is about as good as its best constituent, not a reliable improvement over it.
 - Reporting standard going forward (symmetric): for binary pointing-hit, always report per-method rates + win/tie/loss + the rank-test p together; never the median Δ alone, and never call the same (significant-p, Δ=0) signature an "artifact" in one experiment and a "finding" in another without the rate decomposition.
+
+### 2026-06-03 (thesis results consolidation) - Chapter 4/5 synchronized with final artifacts
+
+- Ran the missing ResNet-50 full test classifier screen for final Table 4.1: `outputs/iter_55_resnet_classifier_eval_test/` (`resnet50-res512-all`, image size 512, split test, threshold 0.525, 1372 rows, 290 positives). Result: AUC `0.9163`, AP `0.7617`, accuracy `0.8601`, sensitivity `0.7103`, specificity `0.9002`, F1 `0.6821` (`206` TP, `108` FP, `974` TN, `84` FN).
+- DenseNet-all test row for Table 4.1 uses existing `outputs/cxr_torchxray_model_eval_test/` at threshold `0.62`: AUC `0.7711`, AP `0.4120`, accuracy `0.6006`, sensitivity `0.8621`, specificity `0.5305`, F1 `0.4771` (`250` TP, `508` FP, `574` TN, `40` FN).
+- Updated `thesis/thesis_skeleton.md` to replace conditional CT wording with the completed CT pilot/improvement result, fill CXR classifier and Stage A localization tables, add a cross-modality consensus summary table, and synchronize Chapter 4/5 with the corrected symmetric interpretation above.
+- Final thesis wording now treats CT as a completed pilot with caveats: `consensus_input3` has the cleanest CT advantage on pointing-hit only; CXR consensus remains model/metric-dependent; no general "consensus improves localization" law is claimed.
+- Remaining non-experimental work: final source/bibliography formatting, front-matter list generation, final figure placement/captions, final PDF formatting, and supervisor-owned details such as Student ID/signature dates and appendix-label convention if required.
+
+### 2026-06-03 (DenseNet baseline correction) - CheX rerun complete
+
+- Corrected the DenseNet baseline decision: `densenet121-res224-chex` supersedes the original `densenet121-res224-all` checkpoint as the selected DenseNet baseline because Stage A showed better DenseNet-branch localization. `densenet121-res224-all` remains historical/original continuity evidence only.
+- Ran the missing CheX classifier test screen → `outputs/iter_56_chex_classifier_eval_test/` (`densenet121-res224-chex`, split test, threshold `0.565`, 1372 rows, 290 positives). Result: AUC `0.7460`, AP `0.4224`, accuracy `0.6822`, sensitivity `0.7138`, specificity `0.6738`, F1 `0.4871` (`207` TP, `353` FP, `729` TN, `83` FN). Interpretation: CheX is the selected DenseNet baseline by Stage A localization, not a uniformly stronger classifier than DenseNet-all.
+- Ran CheX v3 XAI calibration → `outputs/iter_57_chex_calibration_v3/calibrated_thresholds_v3.csv` (`200` positive masked train cases, classifier threshold `0.565`, expanded Phase 5.1 method panel).
+- Ran CheX held-out improvement → `outputs/iter_58_chex_improvement_v3/` (`200` random positive masked test cases, `1600` metric rows, seed `20260515`, calibration `iter_57`). Aggregate positive-view means: consensus IoU `0.0203`, Dice `0.0383`, pointing-hit `0.050`, precision `0.0213`; occlusion and Grad-CAM++ have slightly higher mean Dice (`0.0411` and `0.0409`).
+- CheX paired result: consensus is Holm-significantly better than `score_cam` for Dice/IoU/precision, but not significantly better than stronger aggregate Dice alternatives. Pointing-hit differences are significant versus several methods but median effects remain zero because the metric is binary/sparse.
+- Updated `reports/weekly/week_5_report.md` and `thesis/thesis_skeleton.md` so final DenseNet references use CheX artifacts (`iter_56`, `iter_57`, `iter_58`) while DenseNet-all is described only as the historical/original baseline.
+
+### 2026-06-04 (Chapters 1-4 AI-assisted thesis draft pass) - pending human review
+
+- Reviewed and updated `thesis/thesis_skeleton.md` Chapters 1-4 as an AI-assisted draft for supervisor/student review, with a draft-status note at the top of the document.
+- Normalized wording so CT is treated as a completed but limited pilot, not a conditional future branch, and CheX is the selected DenseNet baseline while DenseNet-all remains historical context.
+- Added traceable visual/graph references for final artifacts: CheX and ResNet Phase 5.2 boxplots/paired-difference graphs (`iter_58`, `iter_52`), CT pilot graphs (`iter_54`), and candidate review-workbook figures from the balanced ResNet review (`iter_48`).
+- Converted remaining open items into explicit `TODO (human review)` markers for final figure selection, chart generation from review counts, citation/access-date verification, template formatting, and final caption/page-number work.
+- Verification: all newly referenced artifact paths exist; code tests were not run because this pass is documentation-only.
+
+### 2026-06-04 (Standalone Chapter 1-2 and 3-4 AI draft exports) - generated for PDF review
+
+- Generated two standalone Markdown files alongside the thesis skeleton: `thesis/chapters_1_2_final_AI_draft.md` and `thesis/chapters_3_4_final_AI_draft.md`.
+- `chapters_1_2_final_AI_draft.md` contains only Chapters 1-2 plus built-in reference/source notes and a built-in conceptual Figure 2.1 schematic for standalone rendering.
+- `chapters_3_4_final_AI_draft.md` contains Chapters 3-4 plus built-in reference/source notes; all local Chapter 3-4 images/graphs/figures are embedded as inline data URIs so the file can render without external image files.
+- Verification: no remaining `](../` relative image links were found in the two generated draft files, no missing-image placeholders were produced, and file sizes are approximately `76 KB` and `4.46 MB` respectively. Code tests were not run because this is documentation-only.

@@ -2,6 +2,8 @@
 
 Author: Dmytro Valantsevych
 
+Draft status: AI-assisted thesis draft prepared on `2026-06-04` for human supervisor/student review. Chapters 1-4 are populated with current experiment results, tables, graph/image references, and thesis-safe interpretations. Remaining `TODO (human review)` markers indicate items that require human confirmation, formatting in the final template, source/citation verification, or final figure selection before submission.
+
 A Master's Thesis submitted to Neoversity in partial fulfillment of the requirements for the degree of Master of Science in Computer Science
 
 Student ID: TODO
@@ -72,9 +74,10 @@ TODO: populate at finalization. Template format requires a table with columns `T
 | 3.3 | Metric interpretation guide for localization, faithfulness, and review scores | TODO |
 | 4.1 | CXR classifier performance summary | TODO |
 | 4.2 | Stage A TorchXRayVision model-localization comparison | TODO |
-| 4.3 | Phase 5.2 improvement-experiment paired Dice comparison | TODO |
+| 4.3 | Cross-modality consensus summary | TODO |
 | 4.4 | Balanced 40-case radiologist review score distribution | TODO |
 | 4.5 | Balanced 40-case review failure taxonomy | TODO |
+| 4.6 | Phase 5.2 improvement-experiment paired Dice comparison | TODO |
 | … | … | … |
 
 ## List of Figures
@@ -86,8 +89,8 @@ TODO: populate at finalization. Template format requires a table with `Figure No
 | 2.1 | Conceptual risk of visually plausible but clinically misleading saliency maps | TODO |
 | 3.1 | End-to-end validation pipeline: data, classifier, XAI methods, metrics, and review | TODO |
 | 3.2 | Four explanation views derived from signed attribution: positive, negative, magnitude, signed | TODO |
-| 4.1 | Representative classifier-outcome examples (`tp`, `fp`, `tn`, `fn`) with explanation overlays | TODO |
-| 4.2 | Representative radiologist-review failure modes | TODO |
+| 4.1 | Representative review-workbook explanation case with source image and method/view overlays | TODO |
+| 4.2 | Representative radiologist-review failure modes selected from the balanced 40-case workbook | TODO |
 | … | … | … |
 
 ## List of Graphs
@@ -97,7 +100,10 @@ TODO: populate at finalization. Template explicitly distinguishes graphs from fi
 | Graph No. | Title | Page No. |
 | :---: | ----- | :---: |
 | 4.1 | Deletion and insertion faithfulness curves by method family | TODO |
-| 4.2 | Phase 5.2 consensus-vs-individual paired localization distributions | TODO |
+| 4.2 | DenseNet-chex Phase 5.2 localization metric distributions | TODO |
+| 4.3 | ResNet-50 Phase 5.2 localization metric distributions | TODO |
+| 4.4 | CT pilot localization metric distributions | TODO |
+| 4.5 | Phase 5.2 consensus-vs-individual paired localization differences | TODO |
 | … | … | … |
 
 ## List of Charts
@@ -115,11 +121,11 @@ TODO: populate at finalization. Template distinguishes charts (bar charts, pie c
 
 Draft abstract (final formatting and word-count check still required; target `250-300` words):
 
-This thesis investigates how explainable artificial intelligence methods can be validated for medical image classification rather than used only as visual illustrations. The study focuses primarily on chest X-ray pneumothorax detection using the SIIM-ACR pneumothorax dataset and off-the-shelf TorchXRayVision classifiers, with a conditional head CT intracranial hemorrhage pilot retained as a cross-modality methodological extension. The aim is to compare several post-hoc explanation methods and assess whether their highlighted evidence is localized, faithful to the model, and clinically useful.
+This thesis investigates how explainable artificial intelligence methods can be validated for medical image classification rather than used only as visual illustrations. The study focuses primarily on chest X-ray pneumothorax detection using the SIIM-ACR pneumothorax dataset and off-the-shelf TorchXRayVision classifiers, with a completed head CT intracranial hemorrhage pilot used as a cross-modality methodological extension. The aim is to compare several post-hoc explanation methods and assess whether their highlighted evidence is localized, faithful to the model, and clinically useful.
 
 The methodology separates classifier behavior from explanation quality. Pneumothorax classifiers are evaluated at frozen thresholds, while explanation maps are generated with `Grad-CAM`, `Grad-CAM++`, `Integrated Gradients`, `GradientSHAP`, `Occlusion`, `Eigen-CAM`, `Score-CAM`, and a frozen four-method consensus. Each method is interpreted through positive, negative, magnitude, and signed views. Explanations are validated with lesion-mask localization metrics, negative-evidence diagnostics, deletion/insertion faithfulness curves, method-agreement analysis, and a structured radiologist-style review of selected cases.
 
-Current CXR results show that the ResNet-50 TorchXRayVision model improves over the original DenseNet-all baseline in relative localization terms, but absolute pneumothorax-mask overlap remains weak. The held-out Phase 5.2 improvement experiment shows model-dependent consensus behavior: DenseNet-all does not show Holm-significant consensus gains for Dice/IoU, whereas ResNet-50 consensus significantly improves Dice/IoU over several weaker individual methods but not over the strongest CAM comparators. The balanced 40-case review shows mixed usefulness: many maps contain interpretable evidence, yet clinically misleading, indirect, device-related, or high-contrast non-lesion evidence remains common.
+Current CXR results show that DenseNet-chex supersedes the original DenseNet-all checkpoint as the selected DenseNet baseline, while ResNet-50 remains the strongest tested TorchXRayVision follow-up in relative localization terms; nevertheless, absolute pneumothorax-mask overlap remains weak. The held-out Phase 5.2 improvement experiment shows model-dependent consensus behavior: DenseNet-chex consensus mainly improves over Score-CAM in paired overlap tests, whereas ResNet-50 consensus significantly improves Dice/IoU over several weaker individual methods but not over the strongest CAM comparators. The balanced 40-case review shows mixed usefulness: many maps contain interpretable evidence, yet clinically misleading, indirect, device-related, or high-contrast non-lesion evidence remains common.
 
 The practical significance of the work is a reproducible validation workflow for auditing medical image explanations. The thesis argues that heatmaps should be treated as model-behavior diagnostics, not anatomical segmentations or automatic generators of clinical trust.
 
@@ -199,7 +205,7 @@ Deep learning has become a central technology in medical image analysis because 
 
 Explainable AI (XAI) methods are often proposed as a way to make deep learning systems more transparent. Saliency maps, class activation maps, occlusion maps, and attribution maps can highlight image regions that contribute to a model output. These visualizations are especially attractive in radiology because they resemble the spatial reasoning used by clinicians. Nevertheless, a visually plausible heatmap is not automatically a clinically valid explanation. A model may highlight devices, image borders, text markers, bone edges, or treatment-related correlates rather than the visible pathology itself.
 
-This thesis is situated in that gap between visual explanation and validated explanation. It treats XAI maps as class-specific model-behavior diagnostics, not as direct pathology segmentations. The primary empirical setting is chest X-ray pneumothorax classification on the SIIM-ACR pneumothorax dataset using off-the-shelf TorchXRayVision classifiers. A conditional head CT hemorrhage pilot is kept as a methodological extension if a suitable pretrained classifier and mask source are available within the thesis timeframe.
+This thesis is situated in that gap between visual explanation and validated explanation. It treats XAI maps as class-specific model-behavior diagnostics, not as direct pathology segmentations. The primary empirical setting is chest X-ray pneumothorax classification on the SIIM-ACR pneumothorax dataset using off-the-shelf TorchXRayVision classifiers. A completed head CT hemorrhage pilot is included as a methodological extension after verifying a PhysioNet masked CT dataset and a DifeiT Vision Transformer classifier. The CT branch is intentionally narrower than the CXR study and is used to test whether the validation workflow transfers across modality without claiming a full second clinical benchmark.
 
 ### 1.2 Problem Statement and Relevance
 
@@ -213,7 +219,7 @@ The thesis is guided by the following research questions:
 2. How do common XAI methods differ when evaluated by mask-overlap metrics, peak-localization metrics, faithfulness curves, and signed-evidence diagnostics?
 3. Does a frozen cross-method consensus improve localization compared with individual methods under held-out paired testing?
 4. Can structured radiologist-style review reveal explanation failure modes that are not captured by automatic metrics alone?
-5. To what extent can the same validation design be extended to a second modality such as head CT hemorrhage without over-claiming empirical cross-modality results?
+5. To what extent does the same validation design transfer to a second modality such as head CT hemorrhage without over-claiming empirical cross-modality results?
 
 ### 1.3 Aim and Research Objectives
 
@@ -237,13 +243,13 @@ The practical significance is a thesis-ready validation workflow for auditing me
 
 ### 1.5 Thesis Structure
 
-Chapter 1 introduces the research context, problem statement, aim, objectives, and thesis contribution. Chapter 2 reviews deep learning in radiology, post-hoc XAI methods, explanation-validation approaches, and known risks such as shortcut learning and visually plausible but unreliable saliency maps. Chapter 3 describes the experimental methodology, including datasets, preprocessing, classifier baselines, XAI methods, threshold calibration, localization and faithfulness metrics, statistical testing, and radiologist-centered review. Chapter 4 presents and discusses the empirical results, including classifier behavior, quantitative explanation validation, model comparison, radiologist review, and the consensus-improvement experiment once the held-out Phase 5.2 outputs are available. Chapter 5 summarizes the main findings, practical recommendations, limitations, and future-work directions.
+Chapter 1 introduces the research context, problem statement, aim, objectives, and thesis contribution. Chapter 2 reviews deep learning in radiology, post-hoc XAI methods, explanation-validation approaches, and known risks such as shortcut learning and visually plausible but unreliable saliency maps. Chapter 3 describes the experimental methodology, including datasets, preprocessing, classifier baselines, XAI methods, threshold calibration, localization and faithfulness metrics, statistical testing, and radiologist-centered review. Chapter 4 presents and discusses the empirical results, including classifier behavior, quantitative explanation validation, model comparison, radiologist review, CXR consensus-improvement experiments, and the completed CT pilot. Chapter 5 summarizes the main findings, practical recommendations, limitations, and future-work directions.
 
 ### Conclusions to Chapter 1
 
 Chapter 1 established the motivation for validating explainable AI in medical imaging. Deep learning models can produce useful predictions in radiology, but the clinical meaning of those predictions depends on the evidence used by the model. Post-hoc heatmaps can make this evidence visible, yet visual plausibility alone is insufficient: a heatmap may emphasize non-pathological high-contrast structures, treatment devices, image artifacts, or dataset-specific shortcut cues. For this reason, the thesis frames explanation maps as model-behavior diagnostics rather than anatomical segmentations or automatic trust generators.
 
-The research problem is the reliability of XAI explanations for medical image classification. The primary case study is chest X-ray pneumothorax classification and explanation using SIIM-ACR data and off-the-shelf TorchXRayVision baselines. A head CT hemorrhage pilot is retained as a conditional modality extension, but the main empirical claims are built around the CXR pipeline unless the CT availability gate is satisfied. The next chapter situates this research design in the literature on radiology classification, saliency and attribution methods, explanation faithfulness, localization validation, human-centered XAI, and shortcut learning.
+The research problem is the reliability of XAI explanations for medical image classification. The primary case study is chest X-ray pneumothorax classification and explanation using SIIM-ACR data and off-the-shelf TorchXRayVision baselines. The head CT hemorrhage pilot is included as a completed but limited modality extension, while the strongest empirical claims remain built around the CXR pipeline because it has a broader method panel, classifier screening, and radiologist-centered review. The next chapter situates this research design in the literature on radiology classification, saliency and attribution methods, explanation faithfulness, localization validation, human-centered XAI, and shortcut learning.
 
 ## Chapter 2. Literature Review
 
@@ -263,7 +269,9 @@ However, public CXR datasets are not interchangeable. They differ in institution
 
 Pneumothorax is a useful focused case study because it has image-level clinical relevance and, in the SIIM-ACR challenge context, available segmentation masks for positive cases. These masks make it possible to evaluate whether model explanations overlap the visible abnormality. The thesis uses off-the-shelf TorchXRayVision models as baselines rather than locally fine-tuned pneumothorax segmenters. This choice makes the study a transfer/generalization audit: it asks how pretrained medical classifiers behave when their explanations are tested against a specific pneumothorax localization reference.
 
-Head CT intracranial hemorrhage is methodologically relevant as a second modality because it differs from radiography in image physics, intensity scale, preprocessing, and clinically meaningful perturbation baselines. CT data are typically represented in Hounsfield units and interpreted through diagnostic windows, whereas CXR inputs are 2D radiographs with different normalization assumptions. For this reason, CT is treated as a conditional pilot: it can strengthen the cross-modality methodology if a suitable pretrained classifier and mask source are available, but the thesis does not depend on over-claiming a completed CT evaluation.
+Head CT intracranial hemorrhage is methodologically relevant as a second modality because it differs from radiography in image physics, intensity scale, preprocessing, and clinically meaningful perturbation baselines. CT data are typically represented in Hounsfield units and interpreted through diagnostic windows, whereas CXR inputs are 2D radiographs with different normalization assumptions. In this draft, CT is treated as a completed pilot: it strengthens the cross-modality methodology with one verified pretrained classifier and one public masked dataset, but its narrower scope prevents a claim of complete CT clinical validation.
+
+TODO (human review): verify final dataset citations, access dates, and exact bibliographic entries for SIIM-ACR/Kaggle, PhysioNet `ct-ich`, TorchXRayVision, and the DifeiT CT checkpoint before final submission.
 
 ### 2.3 Explainable AI Methods for Image Classification
 
@@ -303,6 +311,10 @@ Human-centered evaluation complements automatic metrics. A radiologist-style rev
 
 The central limitation of saliency maps is that they are easy to over-interpret. They can show where attribution is high, but they do not prove causality in the clinical sense, and they do not replace reporting of the model, data, target class, preprocessing, perturbation baseline, thresholding rule, or calibration split. For this reason, the thesis reports explanation maps together with classifier behavior, localization metrics, faithfulness curves, and review scores.
 
+Figure 2.1 is reserved for the final literature-review illustration. It should show the conceptual risk that a heatmap can be visually plausible while highlighting clinically indirect or confounded image regions rather than the annotated lesion. The final figure may use one de-identified project example from the review workbook or a schematic if data-license constraints prevent publication of clinical images.
+
+TODO (human review): select or draw Figure 2.1 and confirm that any clinical image used in Chapter 2 is allowed under the relevant dataset license and institutional submission rules.
+
 ### 2.5 Research Gap
 
 The reviewed literature supports three conclusions. First, deep learning classifiers can be useful in radiology, but image-level performance does not guarantee lesion-aligned reasoning. Second, XAI methods are diverse and method-dependent: CAM maps, pixel attributions, Shapley-style approximations, and occlusion diagnostics answer different questions. Third, explanation validation remains difficult because a visually plausible heatmap may be unfaithful, poorly localized, or clinically misleading.
@@ -332,9 +344,31 @@ This thesis uses an experimental validation design for post-hoc explainable AI m
 
 The primary case study is chest X-ray pneumothorax classification and explanation using the SIIM-ACR pneumothorax dataset and off-the-shelf TorchXRayVision classifiers. Pneumothorax is suitable because the task is clinically meaningful, the public challenge context includes image-level classification and segmentation framing, and positive cases provide masks that can be used as an approximate reference standard for localization-style evaluation.
 
-The secondary case study is planned as a head CT intracranial hemorrhage pilot. It is intentionally described as a pilot because the CT workflow depends on the availability of a suitable off-the-shelf hemorrhage classifier and a small local set of annotated positive cases. CT is methodologically useful because it differs from CXR in image physics, preprocessing, and perturbation baselines: CT uses Hounsfield-unit windowing rather than 0-255 radiograph normalization. If a verified CT classifier is not available, the CT component is treated as limited qualitative or future-work validation rather than a full parallel experiment.
+The secondary case study is a head CT intracranial hemorrhage pilot. It is intentionally described as a pilot rather than a full parallel clinical validation because it uses one verified off-the-shelf hemorrhage classifier, one public masked CT dataset, and a narrower input-space explanation panel than the CXR study. CT is methodologically useful because it differs from CXR in image physics, preprocessing, and perturbation baselines: CT uses Hounsfield-unit windowing rather than 0-255 radiograph normalization.
 
 The methodology follows transparent-reporting principles from medical-imaging AI guidance such as CLAIM, TRIPOD+AI, QUADAS-AI, and DECIDE-AI. The practical implication is that the thesis reports the data source, local dataset snapshot, model source, preprocessing, split/calibration strategy, target output, XAI settings, thresholding choices, metrics, qualitative review task, and limitations together. Explanation maps are never described as direct pathology segmentations; they are model-behavior visualizations with respect to the selected target class.
+
+Figure 3.1: End-to-end validation pipeline used in the thesis draft
+
+```text
+Medical image + label/mask
+        |
+        v
+Frozen classifier and target score
+        |
+        v
+Post-hoc XAI methods -> positive / negative / magnitude / signed views
+        |
+        +--> calibrated top-fraction localization metrics
+        +--> deletion / insertion faithfulness curves
+        +--> signed-evidence and agreement diagnostics
+        +--> radiologist-centered review workbook
+        |
+        v
+Separated interpretation of classifier behavior, localization, faithfulness, and usefulness
+```
+
+TODO (human review): replace this text schematic with a polished visual diagram before final PDF export, or keep it as a simple figure only if the supervisor accepts Markdown-rendered diagrams.
 
 ### 3.2 Datasets
 
@@ -348,7 +382,7 @@ The project distinguishes calibration, exploratory, and held-out use. Classifier
 
 #### 3.2.2 Head CT hemorrhage pilot dataset
 
-The planned CT pilot uses local head CT data with a small student-annotated positive subset. Because the CT component is not yet at the same maturity as the CXR pipeline, the methodology treats it as conditional. If a public pretrained intracranial hemorrhage classifier with a verified hemorrhage output is integrated, the CT pilot follows the same high-level protocol: load images, apply CT-appropriate windowing, generate explanations for the hemorrhage target score, compare against available masks where possible, and report qualitative limitations. If no usable classifier is verified, CT remains a future-work or qualitative extension and is not presented as a completed cross-modality validation.
+The CT pilot uses the credentialed PhysioNet `ct-ich` v1.3.1 dataset stored locally under `data_local/physionet.org/files/ct-ich/1.3.1`. The dataset contains NIfTI CT volumes and matched masks (`ct_scans/NNN.nii` and `masks/NNN.nii`) plus per-slice hemorrhage labels. The verified local snapshot has `2,814` slices, including `318` hemorrhage-positive slices with masks and `2,496` normal slices. The final CT improvement experiment uses the train/test split produced by the CT manifest builder: `213` positive train slices for calibration and `105` positive test slices for held-out evaluation.
 
 When the integrated CT classifier is a Vision Transformer, as in the current pilot, the CT explanation panel is restricted to the input-space methods (`Integrated Gradients`, `GradientSHAP`, `Occlusion`). These methods read only the model input and the output score, so their implementations are model-agnostic and run with identical code on the chest-X-ray and CT pipelines, which keeps the cross-modality comparison controlled. CAM-family methods (`Grad-CAM`, `Grad-CAM++`, `Eigen-CAM`, `Score-CAM`) are not applied on the CT classifier: they weight a two-dimensional convolutional activation map, and a Vision Transformer instead represents the image as a sequence of patch tokens with no such feature map. Running a CAM on a transformer would require a token-to-grid reshape that constitutes a different explanation technique and would confound transfer of the *same* methods; transformer-native spatial-explanation methods such as attention rollout or transformer attribution are therefore noted as future work rather than used here. Because the frozen four-method consensus includes `Grad-CAM`, it cannot be reproduced unchanged on the CT classifier; any CT-side consensus is reported separately as an exploratory aggregate over the three input-space methods and is explicitly distinguished from the frozen chest-X-ray consensus.
 
@@ -358,7 +392,7 @@ For CXR experiments, each source image is loaded as a grayscale radiograph and c
 
 Masks are loaded as binary reference images for positive pneumothorax cases. For mask-based metrics, heatmaps and masks are brought to the same spatial grid before thresholding and comparison. Continuous attribution maps are normalized only for visualization and selection; normalization does not make them segmentations.
 
-For CT, preprocessing must not reuse CXR normalization. CT images require Hounsfield-unit handling and a clinically chosen window, such as a brain window. Perturbation baselines also differ: replacing CXR pixels with black is not equivalent to replacing CT voxels with a meaningful HU value. Therefore, the CT pilot requires an explicit CT baseline such as `brain_window_center` if faithfulness curves are computed from HU-preserving data; if only JPG fallback data are available, CT faithfulness must use a degraded `black`-baseline caveat.
+For CT, preprocessing does not reuse CXR normalization. CT images are loaded from HU-preserving NIfTI volumes and rendered through a locked brain window (`WL=40`, `WW=80`) before replication into the three-channel format required by the DifeiT ViT image processor. Perturbation baselines also differ: replacing CXR pixels with black is not equivalent to replacing CT voxels with a meaningful HU value. For the integrated DifeiT checkpoint, the image processor uses `image_mean = image_std = 0.5`, so the brain-window midpoint maps to normalized value `0.0`; in this specific model contract, `brain_window_center` is numerically identical to `zero_tensor`, while black/air remains a separate stress-test baseline.
 
 All random sampling and balanced outcome selection use fixed seeds where implemented. Stochastic explanation methods, especially GradientSHAP, are reported with their sample count and noise settings. Broad exploratory runs may use faster settings, while thesis-quality selected cases are rerun with higher-stability settings.
 
@@ -393,6 +427,16 @@ The project moved from a legacy v1 naming scheme with separate polarity-suffixed
 - `signed`: the normalized signed map used for diverging overlays and signed diagnostics.
 
 This design avoids recomputing the same method separately for each polarity and makes the interpretation of positive, negative, magnitude, and signed outputs explicit. For pixel-level methods such as Integrated Gradients and GradientSHAP, optional smoothing may be applied for review readability; if smoothing is used, metrics should be computed from the same maps shown to the reviewer so that visualization and quantitative evaluation remain aligned.
+
+Figure 3.2 illustrates the four-view contract used throughout the CXR review workbook. The example paths below point to one balanced-review case and should be replaced by the final selected thesis-quality case after human figure selection.
+
+Figure 3.2: Example four-view explanation contract for one review case (`case_31`, source `101_test_1_`)
+
+| Positive evidence | Negative evidence | Magnitude view | Signed view |
+| --- | --- | --- | --- |
+| ![Consensus positive evidence example](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_continuous_heatmap.png) | ![Consensus negative evidence example](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_negative_continuous_heatmap.png) | ![Consensus magnitude example](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_magnitude_continuous_heatmap.png) | ![Consensus signed example](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_signed_continuous_heatmap.png) |
+
+TODO (human review): confirm that `case_31` is the desired final Figure 3.2 example; otherwise replace the paths with a case that better illustrates the four views without overstating clinical correctness.
 
 Table 3.1 summarizes the method panel and the semantic role of each output view. The table is intended as a final-writing scaffold; exact run parameters such as `ig_steps`, `gradshap_samples`, occlusion patch/stride, and `score_cam_channels_cap` must be filled from the final run metadata.
 
@@ -453,7 +497,7 @@ Signed-capable runs may also report method-agreement diagnostics, such as cosine
 
 Classifier thresholds and explanation thresholds are calibrated separately. The classifier threshold converts the pneumothorax probability into an image-level outcome (`tp`, `fp`, `tn`, or `fn`). In contrast, the XAI top-fraction threshold selects a spatial region from each heatmap for mask comparison. Tuning one threshold does not tune the other, and neither should be optimized on the final held-out test results.
 
-For the expanded Phase 5.1 method panel, XAI top fractions are recalibrated as `v3` artifacts on positive masked train-split cases. The canonical calibration output is `calibrated_thresholds_v3.csv`, generated separately for each classifier because the model architecture, native input size, and attribution maps differ between DenseNet-all and ResNet-50. The held-out Phase 5.2 improvement experiment then uses the frozen `v3` calibration file and evaluates positive masked cases from the test split.
+For the expanded Phase 5.1 method panel, XAI top fractions are recalibrated as `v3` artifacts on positive masked train-split cases. The canonical calibration output is `calibrated_thresholds_v3.csv`, generated separately for each selected classifier because the model architecture, native input size, and attribution maps differ between DenseNet-chex and ResNet-50. The held-out Phase 5.2 improvement experiment then uses the frozen `v3` calibration file and evaluates positive masked cases from the test split.
 
 The improvement experiment compares the frozen four-method consensus against each individual method using paired case-level metrics. The primary statistical test is the Wilcoxon signed-rank test, chosen because localization scores are bounded, often zero-inflated, and not safely assumed to be normally distributed. Multiple consensus-vs-method comparisons are corrected with Holm-Bonferroni family-wise error control at `alpha = 0.05`. The effect-size companion is the median paired difference with a bootstrap 95% confidence interval under a fixed seed. This framing separates statistical evidence for paired improvement from visual or clinical usefulness, which is still assessed through representative cases and the radiologist-centered review.
 
@@ -510,6 +554,10 @@ The software environment is part of the methodology. Python runs are performed i
 
 The CXR pipeline is organized around reusable scripts and package modules. The main classifier-screening script is `scripts/evaluate_cxr_torchxray_model.py`. The main CXR XAI run script is `scripts/run_cxr_torchxray_smoke.py`. XAI top-fraction calibration is performed by `scripts/calibrate_cxr_xai_thresholds.py`. Single-case threshold diagnostics use `scripts/visualize_cxr_threshold_selection.py`, and outcome-balanced visualizations use `scripts/visualize_cxr_classifier_outcome_thresholds.py`. Review workbooks are generated with `scripts/build_review_workbook.py`.
 
+The final draft currently uses the following result-producing artifacts as Chapter 4 sources: DenseNet-chex classifier screen `outputs/iter_56_chex_classifier_eval_test/`, DenseNet-chex v3 XAI calibration `outputs/iter_57_chex_calibration_v3/`, DenseNet-chex held-out improvement `outputs/iter_58_chex_improvement_v3/`, ResNet-50 classifier screen `outputs/iter_55_resnet_classifier_eval_test/`, ResNet-50 v3 XAI calibration `outputs/iter_50_resnet_calibration_v3/`, ResNet-50 held-out improvement `outputs/iter_52_resnet_improvement_v3/`, balanced review workbook and analysis `outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/` and `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/`, CT smoke test `outputs/iter_53_ct_smoke_test/`, and CT improvement run `outputs/iter_54_ct_improvement_test/`.
+
+TODO (human review): before submission, copy the final chosen figures into a stable thesis figure folder if required by the document build process; the current Markdown links intentionally point to reproducible output artifacts for traceability.
+
 Experiment outputs are stored under ordinal folders such as `outputs/iter_XX_<short_experiment_name>`. Root-level CSV summaries are kept at the run root, and image artifacts are grouped by case so copied PNG files remain traceable. For classifier-outcome visualizations, top-level folders preserve `tp`, `fp`, `tn`, and `fn` grouping.
 
 When Python source files or output schemas change, syntax checks and relevant tests are run through WSL. The canonical local test command is `wsl.exe python3 -m pytest tests/ -v`; for script-only changes, at least `wsl.exe python3 -m py_compile <changed_python_files>` is required. Documentation-only changes do not require tests, but the Markdown diff should still be reviewed for scope and thesis-safe wording.
@@ -518,7 +566,7 @@ When Python source files or output schemas change, syntax checks and relevant te
 
 The methodology defines XAI validation as a layered experimental problem rather than as a visual-inspection exercise. The classifier layer measures whether an off-the-shelf medical image classifier assigns the correct image-level pneumothorax label. The localization layer tests whether selected attribution regions overlap available pneumothorax masks. The faithfulness layer asks whether perturbing highly attributed pixels changes the actual model probability in the expected direction. The human-centered layer then checks whether a medically trained reviewer finds the explanations useful, misleading, or clinically incomplete under a defined scoring rubric. Keeping these layers separate is essential because a heatmap can be faithful to the model while still being poorly localized to clinically expected pathology.
 
-The CXR pipeline uses TorchXRayVision classifiers without local fine-tuning, with DenseNet-all as the original external baseline and ResNet-50 as the co-primary follow-up selected after the Stage A diagnostic sweep. Explanation methods are implemented through the `SignedAttribution` contract, which provides positive, negative, magnitude, and signed views from one underlying attribution map. The method panel includes CAM-family, pixel-attribution, perturbation, and consensus approaches; the consensus remains frozen to the original four constituents so that cross-iteration comparison is not invalidated by the later Eigen-CAM and Score-CAM additions.
+The CXR pipeline uses TorchXRayVision classifiers without local fine-tuning. DenseNet-all remains the original historical external baseline, but the Stage A diagnostic sweep identified DenseNet-chex as the stronger DenseNet-121 checkpoint, and ResNet-50 as the strongest tested TorchXRayVision follow-up overall. Explanation methods are implemented through the `SignedAttribution` contract, which provides positive, negative, magnitude, and signed views from one underlying attribution map. The method panel includes CAM-family, pixel-attribution, perturbation, and consensus approaches; the consensus remains frozen to the original four constituents so that cross-iteration comparison is not invalidated by the later Eigen-CAM and Score-CAM additions.
 
 The evaluation protocol protects the train/test boundary by separating classifier-threshold calibration, XAI top-fraction calibration, and held-out testing. Phase 5.1 recalibrates top fractions as `v3` artifacts for the expanded method panel, and Phase 5.2 uses those frozen artifacts for paired test-set comparisons. Wilcoxon signed-rank tests, Holm-Bonferroni correction, and bootstrap confidence intervals provide a non-parametric statistical framework for consensus-vs-individual comparisons. The scripts, output folders, seeds, and run metadata make the experiments reproducible, while Chapter 4 returns to the main limitations: off-the-shelf model mismatch, mask-reference imperfections, perturbation-baseline sensitivity, and the exploratory scale of the radiologist-centered review.
 
@@ -526,46 +574,52 @@ The evaluation protocol protects the train/test boundary by separating classifie
 
 ### 4.1 Classification Performance
 
-Finalization note: fill the numeric `AUC`, accuracy, sensitivity, specificity, and F1 values from the final classifier-screening artifacts. Keep this as classifier-performance evidence only; do not use these values as evidence that explanations are clinically localized.
+Classifier screening confirms that the selected CXR baselines differ substantially in image-level ranking performance. DenseNet-chex replaces DenseNet-all as the current DenseNet baseline because Stage A showed better aggregate localization among DenseNet-121 checkpoints; the full CheX test screen in `outputs/iter_56_chex_classifier_eval_test/` shows moderate image-level performance but not a uniformly better classifier-ranking profile than the original DenseNet-all. ResNet-50 is a stronger co-primary TorchXRayVision follow-up: the full test screen in `outputs/iter_55_resnet_classifier_eval_test/` gives higher AUC, average precision, specificity, and F1 at the Stage A threshold. These classifier values are reported only as image-level behavior. They do not imply that either model localizes pneumothorax well.
 
-Conditional CT section: include CT classification metrics only if Phase 5.4 Branch A executes (off-the-shelf hemorrhage classifier and a usable mask source both pass the hour-1 availability check). If Phase 5.4 collapses to Branch B (qualitative external-validation only), this section presents CXR metrics alone and the CT modality is discussed under future work rather than Results.
+The CT branch is not reported as a conventional binary classifier-performance table because the integrated DifeiT ViT checkpoint is a multi-class ICH subtype classifier and the thesis target is defined as `1 - P(normal)` for positive masked hemorrhage slices. Its role in this chapter is therefore cross-modality explanation validation on verified positive slices rather than a complete CT screening benchmark.
 
-Draft notes from current CXR experiments:
-- Treat `densenet121-res224-all` as the original weak external TorchXRayVision baseline. It is useful because it demonstrates that an off-the-shelf medical classifier can have moderate ranking/classification behavior while still producing clinically weak pneumothorax localization.
+Key interpretation points for the current CXR experiments:
+- Treat `densenet121-res224-all` as the original historical TorchXRayVision baseline, not as the final selected DenseNet baseline. It remains useful because it demonstrates that an off-the-shelf medical classifier can have moderate ranking/classification behavior while still producing clinically weak pneumothorax localization.
+- Treat `densenet121-res224-chex` as the selected DenseNet baseline after Stage A because it had better aggregate localization than DenseNet-all among DenseNet-121 checkpoints (`mean_dice=0.0284`, `mean_iou=0.0160` versus DenseNet-all `mean_dice=0.0237`, `mean_iou=0.0130`).
 - Stage A TorchXRayVision model comparison selected `resnet50-res512-all` as the strongest tested follow-up candidate by localization aggregate, not as a clinically strong model. In `outputs/iter_33_stage_a_diagnostic_ab/weights_ab_summary.csv`, `resnet50-res512-all` had the highest mean Dice/IoU among tested TorchXRayVision candidates (`mean_dice=0.0397`, `mean_iou=0.0221`), but absolute mask overlap remained very low.
-- Thesis-safe wording: ResNet-50 showed a relative improvement over DenseNet-all within this diagnostic sweep, but the result should not be interpreted as reliable lesion segmentation or clinically sufficient pneumothorax localization.
+- Thesis-safe wording: ResNet-50 showed a relative improvement over the DenseNet branch within this diagnostic sweep, but the result should not be interpreted as reliable lesion segmentation or clinically sufficient pneumothorax localization.
 
-Table 4.1 should be filled from the final classifier-screening artifacts before submission. Keep classifier performance separate from explanation quality: a model can rank cases moderately well while producing attribution maps that are weakly localized to the lesion mask.
+Table 4.1 keeps classifier performance separate from explanation quality: a model can rank cases well while producing attribution maps that are weakly localized to the lesion mask.
+
+TODO (human review): verify that the CheX and ResNet classifier thresholds in Table 4.1 are the exact frozen thresholds intended for final reporting and that the threshold-source wording matches the final methods text.
 
 Table 4.1: CXR classifier performance summary
 
 | Model | Split | Threshold source | Threshold | AUC | Accuracy | Sensitivity | Specificity | F1 | Notes |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| `densenet121-res224-all` | test | train-calibrated best F1 / Youden's J | `0.62` | TODO | TODO | TODO | TODO | TODO | original weak external baseline |
-| `resnet50-res512-all` | test | Stage A threshold sweep | `0.525` | TODO | TODO | TODO | TODO | TODO | co-primary TorchXRayVision follow-up |
+| `densenet121-res224-chex` | test | Stage A / CheX rerun operating point | `0.565` | `0.7460` | `0.6822` | `0.7138` | `0.6738` | `0.4871` | selected DenseNet baseline after Stage A localization; `207` TP, `353` FP, `729` TN, `83` FN |
+| `resnet50-res512-all` | test | Stage A threshold sweep | `0.525` | `0.9163` | `0.8601` | `0.7103` | `0.9002` | `0.6821` | co-primary TorchXRayVision follow-up; `206` TP, `108` FP, `974` TN, `84` FN |
 
-Table 4.2 summarizes the already completed Stage A localization signal that motivated keeping ResNet-50 as a co-primary baseline. Remaining rows can be filled from `outputs/iter_33_stage_a_diagnostic_ab/weights_ab_summary.csv` if the final thesis includes the full model panel.
+Table 4.2 summarizes the already completed Stage A localization signal that motivated keeping ResNet-50 as a co-primary baseline. Values are aggregate positive-view localization means from `outputs/iter_33_stage_a_diagnostic_ab/weights_ab_summary.csv`.
 
 Table 4.2: Stage A TorchXRayVision model-localization comparison
 
 | Model | Mean Dice | Mean IoU | Mean precision at fraction | Interpretation |
 | --- | ---: | ---: | ---: | --- |
 | `resnet50-res512-all` | `0.0397` | `0.0221` | `0.0296` | best tested TorchXRayVision candidate by aggregate localization, but still weak in absolute terms |
-| `densenet121-res224-chex` | `0.0284` | `0.0160` | TODO | strongest DenseNet-121 comparator noted in Stage A summary |
-| `densenet121-res224-all` | `0.0237` | `0.0130` | TODO | original baseline; lower localization than ResNet-50 |
-| other DenseNet-121 weights (`mimic_ch`, `mimic_nb`, `nih`, `pc`) | TODO | TODO | TODO | include if space allows; they clustered below the top ResNet result |
+| `densenet121-res224-chex` | `0.0284` | `0.0160` | `0.0216` | strongest DenseNet-121 comparator in the Stage A summary |
+| `densenet121-res224-all` | `0.0237` | `0.0130` | `0.0182` | original baseline; lower localization than ResNet-50 |
+| `densenet121-res224-nih` | `0.0194` | `0.0108` | `0.0151` | weaker DenseNet-121 comparator |
+| `densenet121-res224-pc` | `0.0180` | `0.0097` | `0.0127` | weaker DenseNet-121 comparator |
+| `densenet121-res224-mimic_ch` | `0.0139` | `0.0073` | `0.0095` | weaker DenseNet-121 comparator |
+| `densenet121-res224-mimic_nb` | `0.0128` | `0.0070` | `0.0098` | weakest tested DenseNet-121 comparator |
 
 ### 4.2 Quantitative Explanation Validation
 
 The final Phase 5.2 held-out improvement experiments were run after freezing the expanded-method `v3` calibration artifacts. Both CXR baselines used `200` randomly sampled positive masked test-split cases (`seed=20260515`) and the same positive-view localization metric panel: `IoU`, `Dice`, `pointing_hit`, and `precision_at_fraction`. The quantitative results support three thesis-safe conclusions.
 
-First, absolute pneumothorax-mask overlap remains low for all methods. For DenseNet-all, the best mean Dice among the evaluated positive views is the frozen consensus (`0.0423`), with `grad_cam` close behind (`0.0403`) and most other methods in the `0.026-0.039` range. For ResNet-50, `grad_cam` has the highest mean Dice (`0.0540`), followed by `score_cam` (`0.0513`) and consensus (`0.0488`). These values are useful for relative method comparison, but they are not clinically strong segmentation-like localization.
+First, absolute pneumothorax-mask overlap remains low for all methods. For DenseNet-chex, the highest mean Dice values are `occlusion` (`0.0411`) and `grad_cam_plus_plus` (`0.0409`), with consensus close behind (`0.0383`) and the remaining methods in the `0.026-0.036` range. For ResNet-50, `grad_cam` has the highest mean Dice (`0.0540`), followed by `score_cam` (`0.0513`) and consensus (`0.0488`). These values are useful for relative method comparison, but they are not clinically strong segmentation-like localization.
 
-Second, consensus behavior is model-dependent. In the DenseNet-all held-out run (`outputs/iter_51_densenet_improvement_v3/`), consensus does not differ significantly from any individual method for Dice or IoU after Holm-Bonferroni correction. In the ResNet-50 run (`outputs/iter_52_resnet_improvement_v3/`), consensus significantly improves Dice/IoU over `grad_cam_plus_plus`, `integrated_gradients`, `gradient_shap`, `occlusion`, and `eigen_cam`, but not over `grad_cam` or `score_cam`. Therefore, consensus should be framed as a stabilizing method in the ResNet setting, not as a universally superior explanation.
+Second, consensus behavior is model-dependent. In the DenseNet-chex held-out run (`outputs/iter_58_chex_improvement_v3/`), consensus significantly improves Dice, IoU, and precision-at-fraction over `score_cam`, but it does not significantly beat the stronger aggregate Dice methods such as `occlusion` or `grad_cam_plus_plus`. In the ResNet-50 run (`outputs/iter_52_resnet_improvement_v3/`), consensus significantly improves Dice/IoU over `grad_cam_plus_plus`, `integrated_gradients`, `gradient_shap`, `occlusion`, and `eigen_cam`, but not over `grad_cam` or `score_cam`. Therefore, consensus should be framed as a stabilizing method in some settings, not as a universally superior explanation.
 
 Third, `pointing_hit` remains a strict and sparse diagnostic. Most methods have median `pointing_hit=0.0`; significant differences in this metric should be interpreted cautiously because the maximum-attribution pixel rarely falls inside the pneumothorax mask. This confirms the earlier Stage A pattern that selected-region overlap metrics and peak-localization metrics should not be treated as interchangeable.
 
-Draft notes from current CXR experiments:
+Key interpretation points for quantitative CXR explanation validation:
 - Quantitative overlap metrics and peak-localization metrics answer different questions. Across Stage A all-model correlations (`outputs/iter_35_metric_correlations_iter33_stage_a_all_models/`), IoU, Dice, and precision-at-fraction were almost redundant, while pointing-hit was only weakly associated with those overlap metrics. Use pointing-hit as a strict peak-localization diagnostic, not as an interchangeable replacement for Dice/IoU.
 - Signed diagnostics are conceptually separate from positive lesion overlap. Negative attribution should not be scored as successful because it overlaps the pneumothorax mask; for suppressive evidence, lesion avoidance is often more meaningful than lesion overlap.
 - Faithfulness and localization must be separated in the discussion. Deletion/insertion curves test whether a heatmap explains the model behavior under perturbation, whereas mask metrics test agreement with annotated pathology location. A method can be faithful to the model while still clinically poorly localized.
@@ -573,17 +627,55 @@ Draft notes from current CXR experiments:
 
 These results distinguish calibration-dependent Phase 5.2 evidence from the earlier diagnostic Stage A evidence. The interpretation is intentionally conservative: averaging weak or mislocalized method families does not automatically create clinically aligned evidence, but under the stronger ResNet-50 baseline the frozen consensus can improve localization relative to several weaker individual methods.
 
+Graph 4.2: DenseNet-chex Phase 5.2 localization metric distributions
+
+![DenseNet-chex Phase 5.2 localization metric boxplots](../outputs/iter_58_chex_improvement_v3/improvement_experiment_boxplots.png)
+
+Graph 4.3: ResNet-50 Phase 5.2 localization metric distributions
+
+![ResNet-50 Phase 5.2 localization metric boxplots](../outputs/iter_52_resnet_improvement_v3/improvement_experiment_boxplots.png)
+
+TODO (human review): decide whether Graphs 4.2-4.3 should be kept at full `0-1` y-axis scale for honest comparability or supplemented with zoomed versions in the appendix for readability.
+
 ### 4.3 Cross-Modality Comparison
 
-Conditional finalization note: compare whether the same explanation methods behave similarly on CXR and CT only if Phase 5.4 Branch A executes and produces a usable CT smoke run on the 20-30 positive slices from the hour-1-verified mask source.
+Phase 5.4 Branch A was completed, so the thesis includes a real CT pilot rather than only a methodological extension. The verified PhysioNet `ct-ich` v1.3.1 branch uses NIfTI volumes with matched masks, HU-preserving preprocessing, the DifeiT ViT checkpoint, and the binary target `1 - P(normal)`. The full CT smoke run is stored in `outputs/iter_53_ct_smoke_test/`, and the calibrated held-out CT improvement experiment is stored in `outputs/iter_54_ct_improvement_test/`.
 
-If Phase 5.4 collapses to Branch B (no off-the-shelf hemorrhage classifier or no usable mask source within the hour-1 window), this section is rewritten as a qualitative external-validation discussion only: it notes the cross-modality goal from Chapter 1, explains why no quantitative CT comparison was possible in this thesis cycle, and points the reader at Chapter 5.3 Future Work for the path to a full CT evaluation (RSNA-IHD-derived classifier integration, larger annotated CT subset). The thesis title and abstract still cover "Cross-Modality Validation" because the methodological apparatus (MethodSpec registry, `SignedAttribution` contract, mask-based localization metrics, and modality-specific faithfulness baselines such as `brain_window_center` for HU-preserving CT) is modality-agnostic; the cross-modality claim is methodological rather than empirical under Branch B.
+The cross-modality result is deliberately asymmetric. The CXR experiments evaluate the frozen four-method CXR consensus across CAM, input-gradient, and perturbation families. The CT pilot evaluates `consensus_input3`, an input-space consensus of `integrated_gradients`, `gradient_shap`, and `occlusion`, because the convolutional CAM implementation does not transfer directly to the Vision Transformer checkpoint. Therefore, CT results are valid evidence that the validation framework transfers across modalities, but they are not a one-to-one replication of the CXR method panel.
+
+Table 4.3 summarizes the corrected cross-modality consensus reading. The important negative control is that there is no general law that consensus improves localization. DenseNet-chex shows significant overlap gains mainly over `score_cam`, while stronger aggregate Dice methods remain competitive or better descriptively. ResNet-50 shows small significant overlap gains over weaker methods while tying the strongest CAM methods. CT shows the cleanest consensus benefit, but only for peak localization (`pointing_hit`), while broad overlap metrics remain non-significant.
+
+Table 4.3: Cross-modality consensus summary
+
+| Setting | Reference consensus | Test set | Main significant result | Aggregate consensus metrics | Thesis interpretation |
+| --- | --- | --- | --- | --- | --- |
+| CXR DenseNet-chex | frozen four-method CXR `consensus` | `200` SIIM test positives | Dice/IoU/precision higher than `score_cam`; pointing-hit differs from several methods with zero median effects | IoU `0.0203`, Dice `0.0383`, pointing `0.050`, precision `0.0213` | consensus is competitive but not best by aggregate Dice; not universally superior |
+| CXR ResNet-50 | frozen four-method CXR `consensus` | `200` SIIM test positives | Dice/IoU/precision higher than five weaker methods; not significant vs `grad_cam` or `score_cam` | IoU `0.0265`, Dice `0.0488`, pointing `0.010`, precision `0.0289` | consensus stabilizes weak/noisy methods but remains comparable to the best CAM alternatives |
+| CT DifeiT ViT | `consensus_input3` from input-space methods | `105` PhysioNet CT positive slices | pointing-hit significantly higher than IG, GradientSHAP, and occlusion; overlap metrics non-significant | IoU `0.0411`, Dice `0.0754`, pointing `0.343`, precision `0.0458` | strongest consensus signal is peak localization on CT, not broad overlap |
+
+The CT finding should be reported with four caveats. First, the CT calibration selected fraction `0.05` for all methods, which is the floor of the sweep and suggests that smaller fractions may be relevant for tiny hemorrhage masks. Second, `pointing_hit` is binary per case, so the proper interpretation combines per-method rates, win/tie/loss counts, and the paired rank test; median paired differences alone are not informative. Third, the CT pilot uses one classifier and one dataset. Fourth, CAM-family transformer explanations remain future work because adopting transformer-specific CAM or attention methods would introduce a different implementation path from the CXR convolutional code.
+
+Graph 4.4: CT pilot localization metric distributions
+
+![CT pilot localization metric boxplots](../outputs/iter_54_ct_improvement_test/ct_improvement_experiment_boxplots.png)
+
+TODO (human review): verify whether this CT graph should remain in the main Chapter 4 cross-modality section or be moved to an appendix if the supervisor wants the main results to stay CXR-focused.
 
 ### 4.4 Radiologist Assessment and Failure Taxonomy
 
-Finalization note: insert 2-4 representative review figures here after final figure selection. The numerical review distributions are already available below; the remaining writing task is to connect those counts to visual examples of direct localization, indirect clinically related evidence, device/tube confounding, high-contrast non-lesion evidence, and clinically misleading maps.
+This section combines the automatic metrics with the structured balanced 40-case ResNet review. The numerical distributions are already available below; the remaining human-review task is to choose the final 2-4 representative visual examples. The candidate figures should connect the counts to direct localization, indirect clinically related evidence, device/tube confounding, high-contrast non-lesion evidence, and clinically misleading maps.
 
-Draft notes from the balanced 40-case ResNet review (`outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/`, scored 2026-05-25). This is the canonical radiologist-review evidence for the thesis; the earlier 10-case smoothed review at `outputs/iter_45_resnet_review_analysis_smoothed/` is preserved as a methodological pilot but is superseded by the balanced outcome-stratified 40-case scoring.
+Figure 4.1: Candidate review-workbook case for explanation visual inspection
+
+![Candidate review source image](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1_.png)
+
+| Consensus positive view | Consensus threshold sweep | Consensus signed view |
+| --- | --- | --- |
+| ![Candidate consensus positive heatmap](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_continuous_heatmap.png) | ![Candidate consensus threshold sweep](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_threshold_sweep_panel.png) | ![Candidate consensus signed heatmap](../outputs/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness/review/assets/case_31/101_test_1__consensus_signed_continuous_heatmap.png) |
+
+TODO (human review): replace Figure 4.1 with the final selected good/partial/misleading examples from the balanced workbook and ensure the caption states the classifier outcome, probability, source split, method settings, and that the overlays are attribution maps, not segmentations.
+
+Key interpretation points from the balanced 40-case ResNet review (`outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/`, scored 2026-05-25). This is the canonical radiologist-review evidence for the thesis; the earlier 10-case smoothed review at `outputs/iter_45_resnet_review_analysis_smoothed/` is preserved as a methodological pilot but is superseded by the balanced outcome-stratified 40-case scoring.
 - Review score distribution (`n=40`, with 10 cases per `tp`/`fp`/`tn`/`fn` outcome): localization was `correct` in 11/40 cases, `partial` in 15/40, and `incorrect` in 14/40. Usefulness was `useful` in 12/40, `potentially_useful` in 13/40, `misleading` in 14/40, and `not_useful` in 1/40. The split between useful + potentially useful (25/40) and misleading + not useful (15/40) supports a nuanced Chapter 4 framing: many maps carry some interpretable signal, but clinically misleading or poorly localized explanations remain common.
 - Failure taxonomy counts: `correct` 10/40, `partial` 8/40, `non_pathological_high_contrast` 13/40, `clinically_misleading` 7/40, and `devices_text_artifacts` 2/40. The dominant failure mode at this stage of the off-the-shelf TorchXRayVision baseline is attention on non-pathological high-contrast structures (bones, rib edges, lung apex) rather than on device/text artifacts.
 - Qualitative flags from the completed scoring sheet: devices/tubes were relevant in 19/40 cases, indirect evidence in 8/40, method disagreement in 8/40, weak pixel attribution in 4/40, subcutaneous emphysema in 4/40, and mask-quality issue in 3/40. The high devices/tubes flag rate is a structural confounder of the off-the-shelf classifier on SIIM pneumothorax: devices co-occur with positive cases and the classifier's evidence frequently latches onto treatment correlates rather than pneumothorax-specific findings.
@@ -593,6 +685,10 @@ Draft notes from the balanced 40-case ResNet review (`outputs/iter_48_resnet_rev
 - Exploratory score-metric correlations on the balanced 40-case set are modest: strongest absolute Spearman associations are about `|rho| <= 0.42`. Frame these as supporting evidence alongside the structured radiologist categories, not as standalone proof that any automatic metric captures clinical usefulness.
 
 Table 4.4 gives the canonical balanced 40-case review score distribution.
+
+Chart 4.2 should visualize Table 4.4 as review-score counts. The current artifact set contains the source counts in `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv`; a final chart image should be generated or manually formatted from those counts during final document production.
+
+TODO (human review): generate the final Chart 4.2 image from `review_score_counts.csv` or confirm that the table-only presentation is sufficient.
 
 Table 4.4: Balanced 40-case radiologist review score distribution
 
@@ -608,6 +704,10 @@ Table 4.4: Balanced 40-case radiologist review score distribution
 
 Table 4.5 summarizes the failure taxonomy for the same review set.
 
+Chart 4.3 should visualize Table 4.5 as failure-taxonomy counts. The source counts and flags are in `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv` and `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_flag_counts.csv`.
+
+TODO (human review): generate the final Chart 4.3 image and choose 1-2 visual examples for Figure 4.2 that illustrate the dominant failure category `non_pathological_high_contrast` without implying that all non-mask evidence is clinically irrelevant.
+
 Table 4.5: Balanced 40-case review failure taxonomy
 
 | Failure category | Count / 40 | Interpretation |
@@ -620,26 +720,36 @@ Table 4.5: Balanced 40-case review failure taxonomy
 
 ### 4.5 Explanation Improvement Experiment
 
-The Phase 5.2 explanation-improvement experiment evaluates whether the frozen four-method consensus improves positive-lesion localization over individual methods on held-out positive CXR test cases. The run uses train-split top-fraction calibration only: `outputs/iter_49_densenet_calibration_v3/calibrated_thresholds_v3.csv` for DenseNet-all and `outputs/iter_50_resnet_calibration_v3/calibrated_thresholds_v3.csv` for ResNet-50. The held-out outputs are stored in `outputs/iter_51_densenet_improvement_v3/` and `outputs/iter_52_resnet_improvement_v3/`.
+The Phase 5.2 explanation-improvement experiment evaluates whether the frozen four-method consensus improves positive-lesion localization over individual methods on held-out positive CXR test cases. The selected-baseline run uses train-split top-fraction calibration only: `outputs/iter_57_chex_calibration_v3/calibrated_thresholds_v3.csv` for DenseNet-chex and `outputs/iter_50_resnet_calibration_v3/calibrated_thresholds_v3.csv` for ResNet-50. The held-out outputs are stored in `outputs/iter_58_chex_improvement_v3/` and `outputs/iter_52_resnet_improvement_v3/`. The earlier DenseNet-all outputs remain historical/original-baseline continuity artifacts, not the current selected DenseNet baseline.
 
-Each run produced `1,600` per-case metric rows (`200` cases x `8` positive-view methods), paired consensus-vs-method Wilcoxon signed-rank tests, Holm-Bonferroni adjusted p-values, bootstrap confidence intervals, and aggregate plots. Table 4.3 reports the Dice-focused paired comparison because Dice is the most interpretable overlap summary for selected attribution regions. Full IoU, pointing-hit, and precision-at-fraction results remain available in `improvement_experiment_paired.csv` for both runs.
+Each run produced `1,600` per-case metric rows (`200` cases x `8` positive-view methods), paired consensus-vs-method Wilcoxon signed-rank tests, Holm-Bonferroni adjusted p-values, bootstrap confidence intervals, and aggregate plots. Table 4.6 reports the Dice-focused paired comparison because Dice is the most interpretable overlap summary for selected attribution regions. Full IoU, pointing-hit, and precision-at-fraction results remain available in `improvement_experiment_paired.csv` for both runs.
 
-Draft notes from current improvement/visualization work:
+Key interpretation points for the improvement and visualization work:
 - The top-fraction sweep now stops after selected-mask coverage reaches approximately full-image coverage (`--stop-fractions-at-coverage 0.95`). This avoids showing redundant high-fraction panels when lower fractions already cover the whole image and prevents over-interpreting visually saturated masks.
 - Smoothed IG/GradientSHAP maps improved review readability, but the improvement is best framed as making pixel-level attribution more inspectable, not necessarily more clinically correct.
 - Exploratory cross-case pattern analysis found moderately high visual cosine similarity for IG/GradientSHAP maps across the 10 review cases (`mean` roughly `0.53-0.55` across positive, negative, magnitude, and signed views). Higher cross-case similarity tended to associate with lower localization score in this small sample, with strongest observed Spearman around `rho=-0.54` on `n=10` for magnitude views. Treat this as a hypothesis-generating observation: pixel-level methods may sometimes show case-invariant or preprocessing-driven patterns, so qualitative review should check whether maps are case-specific.
 
-Table 4.3: Phase 5.2 improvement-experiment paired Dice comparison
+Final figure candidates for this section are the aggregate boxplots and paired-difference plots from `outputs/iter_58_chex_improvement_v3/improvement_experiment_boxplots.png`, `outputs/iter_58_chex_improvement_v3/improvement_experiment_paired_diff.png`, `outputs/iter_52_resnet_improvement_v3/improvement_experiment_boxplots.png`, and `outputs/iter_52_resnet_improvement_v3/improvement_experiment_paired_diff.png`. The CT improvement run provides matching figures generated with the same plotting style, `outputs/iter_54_ct_improvement_test/ct_improvement_experiment_boxplots.png` and `outputs/iter_54_ct_improvement_test/ct_improvement_experiment_paired_diff.png`, so the CT panel can be shown alongside the CXR ones without mixing incomparable visual encodings.
+
+Graph 4.5: Phase 5.2 paired consensus-vs-individual localization differences
+
+| DenseNet-chex paired differences | ResNet-50 paired differences | CT paired differences |
+| --- | --- | --- |
+| ![DenseNet-chex paired differences](../outputs/iter_58_chex_improvement_v3/improvement_experiment_paired_diff.png) | ![ResNet-50 paired differences](../outputs/iter_52_resnet_improvement_v3/improvement_experiment_paired_diff.png) | ![CT paired differences](../outputs/iter_54_ct_improvement_test/ct_improvement_experiment_paired_diff.png) |
+
+TODO (human review): decide whether the CT paired-difference graph should share Graph 4.5 with CXR or be kept as a separate cross-modality graph, because the CT consensus definition differs from the frozen CXR consensus.
+
+Table 4.6: Phase 5.2 improvement-experiment paired Dice comparison
 
 | Model | Method compared with frozen consensus | Metric | Consensus median | Method median | Median paired difference | 95% bootstrap CI | Wilcoxon p | Holm-adjusted p | Interpretation |
 | --- | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | --- |
-| `densenet121-res224-all` | `grad_cam` | Dice | `0.0166` | `0.0158` | `0.0000` | `[0.0000, 0.0004]` | `0.4343` | `0.6062` | not significant |
-| `densenet121-res224-all` | `grad_cam_plus_plus` | Dice | `0.0166` | `0.0210` | `0.0000` | `[-0.0018, 0.0060]` | `0.3031` | `0.6062` | not significant |
-| `densenet121-res224-all` | `integrated_gradients` | Dice | `0.0166` | `0.0185` | `-0.0005` | `[-0.0043, 0.0047]` | `0.0247` | `0.0776` | not significant |
-| `densenet121-res224-all` | `gradient_shap` | Dice | `0.0166` | `0.0172` | `-0.0011` | `[-0.0045, 0.0058]` | `0.0129` | `0.0776` | not significant |
-| `densenet121-res224-all` | `occlusion` | Dice | `0.0166` | `0.0155` | `0.0011` | `[0.0000, 0.0064]` | `0.0106` | `0.0743` | not significant |
-| `densenet121-res224-all` | `eigen_cam` | Dice | `0.0166` | `0.0190` | `-0.0013` | `[-0.0047, 0.0055]` | `0.0144` | `0.0776` | not significant |
-| `densenet121-res224-all` | `score_cam` | Dice | `0.0166` | `0.0190` | `-0.0015` | `[-0.0046, 0.0061]` | `0.0147` | `0.0776` | not significant |
+| `densenet121-res224-chex` | `grad_cam` | Dice | `0.0211` | `0.0222` | `0.0000` | `[0.0000, 0.0016]` | `0.0441` | `0.2205` | not significant |
+| `densenet121-res224-chex` | `grad_cam_plus_plus` | Dice | `0.0211` | `0.0127` | `0.0000` | `[0.0000, 0.0009]` | `0.8024` | `0.8024` | not significant |
+| `densenet121-res224-chex` | `integrated_gradients` | Dice | `0.0211` | `0.0226` | `-0.0005` | `[-0.0033, 0.0041]` | `0.1972` | `0.3945` | not significant |
+| `densenet121-res224-chex` | `gradient_shap` | Dice | `0.0211` | `0.0213` | `-0.0002` | `[-0.0024, 0.0052]` | `0.0499` | `0.2205` | not significant |
+| `densenet121-res224-chex` | `occlusion` | Dice | `0.0211` | `0.0191` | `0.0000` | `[-0.0017, 0.0000]` | `0.1111` | `0.3333` | not significant |
+| `densenet121-res224-chex` | `eigen_cam` | Dice | `0.0211` | `0.0186` | `0.0004` | `[-0.0013, 0.0036]` | `0.0309` | `0.1855` | not significant |
+| `densenet121-res224-chex` | `score_cam` | Dice | `0.0211` | `0.0190` | `0.0015` | `[-0.0002, 0.0068]` | `0.0005` | `0.0033` | significant, small effect |
 | `resnet50-res512-all` | `grad_cam` | Dice | `0.0218` | `0.0172` | `0.0001` | `[0.0000, 0.0010]` | `0.6000` | `0.9789` | not significant |
 | `resnet50-res512-all` | `grad_cam_plus_plus` | Dice | `0.0218` | `0.0085` | `0.0030` | `[0.0007, 0.0054]` | `0.0002` | `0.0006` | significant |
 | `resnet50-res512-all` | `integrated_gradients` | Dice | `0.0218` | `0.0184` | `0.0039` | `[-0.0001, 0.0098]` | `<0.0001` | `<0.0001` | significant |
@@ -648,7 +758,7 @@ Table 4.3: Phase 5.2 improvement-experiment paired Dice comparison
 | `resnet50-res512-all` | `eigen_cam` | Dice | `0.0218` | `0.0139` | `0.0051` | `[0.0011, 0.0076]` | `<0.0001` | `0.0002` | significant |
 | `resnet50-res512-all` | `score_cam` | Dice | `0.0218` | `0.0144` | `0.0004` | `[0.0000, 0.0024]` | `0.4894` | `0.9789` | not significant |
 
-The Dice table should be read together with the aggregate means. For DenseNet-all, consensus has the highest mean Dice (`0.0423`) but no Holm-significant paired Dice/IoU advantage, so it cannot be claimed as a statistically superior method for that baseline. For ResNet-50, consensus is statistically better than several methods by Dice/IoU, but `grad_cam` and `score_cam` remain competitive and the absolute overlap remains weak. This supports a nuanced conclusion: consensus can stabilize localization when individual methods are noisy or weak, but it is not a substitute for a clinically aligned classifier.
+The Dice table should be read together with the aggregate means. For DenseNet-chex, consensus is statistically better than `score_cam` by Dice/IoU/precision, but it is not the best method by aggregate mean Dice (`occlusion` and `grad_cam_plus_plus` are slightly higher descriptively). For ResNet-50, consensus is statistically better than several methods by Dice/IoU, but `grad_cam` and `score_cam` remain competitive and the absolute overlap remains weak. This supports a nuanced conclusion: consensus can stabilize localization when individual methods are noisy or weak, but it is not a substitute for a clinically aligned classifier.
 
 ### 4.6 Limitations
 
@@ -664,15 +774,15 @@ This study should be interpreted through explicit threats to validity rather tha
 
 **Visualization and interpretation limits.** Heatmap readability depends on color mapping, selected view, selected top fraction, smoothing, and overlay opacity. All thesis figures should state these settings and should remind the reader that attribution maps are class-specific model-evidence visualizations, not anatomical segmentations. Faithfulness curves have a related limitation: they evaluate sensitivity of the model output to a perturbation design, so their clinical meaning depends on whether the replacement baseline is appropriate for the modality.
 
-**Scope limits.** The CT component remains conditional. If Phase 5.4 Branch A is not completed, the thesis should not present quantitative CT results. Instead, CT should be discussed as a methodological extension and future-work path. Similarly, `LIME`, Captum infidelity/sensitivity, and attention-weighted consensus should be reported only if implemented and verified; otherwise they remain future-work items.
+**Scope limits.** The CT component is a completed pilot, not a full second clinical validation study. It uses one PhysioNet CT hemorrhage dataset, one DifeiT ViT checkpoint, positive masked slices, and input-space explanation methods only. The CXR and CT consensus definitions also differ: CXR uses the frozen four-method consensus, whereas CT uses `consensus_input3` because the convolutional CAM implementations do not directly apply to the Vision Transformer. Similarly, `LIME`, Captum infidelity/sensitivity, attention-weighted consensus, and transformer-specific CAM/attention methods should be reported only if implemented and verified; otherwise they remain future-work items.
 
 ### Conclusions to Chapter 4
 
-Chapter 4 shows that the evaluation of explanations must be separated from the evaluation of classifier predictions. The original DenseNet-all baseline remains useful as a weak external reference, while the Stage A sweep identifies `resnet50-res512-all` as the strongest tested TorchXRayVision follow-up by aggregate localization. However, the absolute localization values remain low, so the model comparison supports a relative improvement claim rather than a clinical localization claim.
+Chapter 4 shows that the evaluation of explanations must be separated from the evaluation of classifier predictions. The original DenseNet-all baseline remains useful as a historical weak external reference, while DenseNet-chex is the selected DenseNet baseline after Stage A and `resnet50-res512-all` is the strongest tested TorchXRayVision follow-up by aggregate localization. However, the absolute localization values remain low, so the model comparison supports a relative improvement claim rather than a clinical localization claim.
 
 The quantitative explanation results should be interpreted through complementary metrics. `IoU`, `Dice`, and `precision_at_fraction` describe selected-region overlap with the pneumothorax mask, while `pointing_hit` is a stricter peak-localization diagnostic. Signed diagnostics and negative-evidence measures answer a different question and should not be collapsed into positive lesion-overlap scores. Faithfulness curves add another layer by testing whether highlighted pixels affect the model output under deletion or insertion, but they do not prove that the highlighted evidence is clinically appropriate.
 
-The balanced 40-case ResNet review provides the strongest qualitative evidence currently available. It shows that explanations can be useful or potentially useful in many cases, but clinically misleading and poorly localized maps remain common. Non-pathological high-contrast evidence, device/tube confounding, indirect clinically related signs, method disagreement, weak pixel attribution, subcutaneous emphysema, and mask-quality concerns all affect interpretation. The Phase 5.2 improvement experiment adds that consensus behavior is model-dependent: it does not significantly improve DenseNet-all Dice/IoU, but it improves ResNet-50 Dice/IoU over several weaker methods while remaining comparable to strong CAM alternatives. Together, these findings support the broader thesis framing: XAI maps are valuable when they are validated as model-behavior diagnostics, not when they are displayed as automatic evidence of trustworthiness.
+The balanced 40-case ResNet review provides the strongest qualitative CXR evidence currently available. It shows that explanations can be useful or potentially useful in many cases, but clinically misleading and poorly localized maps remain common. Non-pathological high-contrast evidence, device/tube confounding, indirect clinically related signs, method disagreement, weak pixel attribution, subcutaneous emphysema, and mask-quality concerns all affect interpretation. The Phase 5.2 and Phase 5.4 improvement experiments add that consensus behavior is model-, metric-, and modality-dependent: for DenseNet-chex it mainly improves over Score-CAM in paired overlap tests, for ResNet-50 it improves Dice/IoU over several weaker methods while remaining comparable to strong CAM alternatives, and for CT it gives its clearest benefit on pointing-hit rather than broad overlap. Together, these findings support the broader thesis framing: XAI maps are valuable when they are validated as model-behavior diagnostics, not when they are displayed as automatic evidence of trustworthiness.
 
 ## Chapter 5. Conclusions and Recommendations
 
@@ -680,11 +790,13 @@ The balanced 40-case ResNet review provides the strongest qualitative evidence c
 
 The thesis supports a cautious interpretation of explainable AI in medical image classification. The main finding is that heatmaps can be useful for auditing model behavior, but they should not be treated as automatic evidence of clinical correctness. In the CXR pneumothorax case study, the tested off-the-shelf TorchXRayVision models can produce class-specific attribution maps, yet many maps remain weakly localized to the pneumothorax masks or highlight indirect, confounded, or high-contrast non-lesion structures.
 
-The Stage A model comparison shows that model choice matters. `resnet50-res512-all` is the strongest tested TorchXRayVision candidate by aggregate localization in the completed diagnostic sweep, and it improves over the original `densenet121-res224-all` baseline in relative terms. However, the absolute localization values remain low. This means the ResNet-50 result should be interpreted as a better co-primary baseline, not as a clinically strong pneumothorax localizer.
+The Stage A model comparison shows that model choice matters. `densenet121-res224-chex` improves over the original `densenet121-res224-all` checkpoint within the DenseNet-121 branch, while `resnet50-res512-all` is the strongest tested TorchXRayVision candidate by aggregate localization in the completed diagnostic sweep. However, the absolute localization values remain low. This means the CheX and ResNet-50 results should be interpreted as better relative baselines, not as clinically strong pneumothorax localizers.
 
 The radiologist-centered review reinforces the quantitative caution. In the balanced 40-case ResNet review, explanation usefulness was mixed: many cases contained some interpretable signal, but misleading or poorly localized maps remained common. Non-pathological high-contrast evidence, device/tube confounding, indirect evidence, method disagreement, weak pixel attribution, subcutaneous emphysema, and mask-quality issues all appeared as clinically relevant interpretation factors. These findings support the thesis claim that XAI is most valuable when used to expose model limitations rather than to create trust automatically.
 
-The Phase 5.2 consensus-improvement experiment shows that consensus is not universally superior. In the DenseNet-all baseline, the frozen consensus does not significantly improve Dice or IoU over individual methods after Holm correction. In the ResNet-50 baseline, consensus significantly improves Dice/IoU over several weaker methods, but not over `grad_cam` or `score_cam`. This supports a model-dependent conclusion: cross-method consensus can stabilize localization under some baselines, but averaging weak or mislocalized evidence does not automatically produce clinically aligned explanations. The methodological contribution remains that explanation claims should be evaluated through classifier behavior, localization, faithfulness, method agreement, and clinical review together.
+The Phase 5.2 consensus-improvement experiment shows that consensus is not universally superior. In the DenseNet-chex baseline, the frozen consensus significantly improves overlap mainly over `score_cam`, while `occlusion` and `grad_cam_plus_plus` remain slightly higher by aggregate mean Dice. In the ResNet-50 baseline, consensus significantly improves Dice/IoU over several weaker methods, but not over `grad_cam` or `score_cam`. This supports a model-dependent conclusion: cross-method consensus can stabilize localization under some baselines, but averaging weak or mislocalized evidence does not automatically produce clinically aligned explanations. The methodological contribution remains that explanation claims should be evaluated through classifier behavior, localization, faithfulness, method agreement, and clinical review together.
+
+The completed CT pilot extends this conclusion across modality without turning it into a universal consensus claim. On positive masked CT hemorrhage slices, `consensus_input3` significantly improves `pointing_hit` over all three input-space constituent methods, but its overlap metrics are not Holm-significantly better than individual methods. The result is useful because it shows that the same validation framework can be executed beyond CXR and can reveal a different consensus signature; it remains limited by a single CT model/dataset, a calibration-floor effect at top fraction `0.05`, and the absence of transformer-specific CAM methods in the current draft.
 
 ### 5.2 Practical Recommendations
 
@@ -706,7 +818,7 @@ Several extensions follow directly from the limitations of the current work.
 
 First, future work should evaluate stronger pneumothorax-specific or externally trained classifiers. The current off-the-shelf TorchXRayVision baselines are useful for auditing transfer behavior, but a full clinical claim would require models whose development target, labels, preprocessing, and validation data are closer to SIIM pneumothorax localization. Any stronger model should undergo the same protocol: classifier-threshold calibration, XAI top-fraction calibration, held-out localization metrics, negative-evidence diagnostics, faithfulness curves, and radiologist-centered review.
 
-Second, the CT component should be expanded only after a verified hemorrhage classifier and mask source are available. A full CT extension would use HU-preserving preprocessing, CT-appropriate faithfulness baselines, larger annotated hemorrhage masks, and ideally multi-rater annotation. Candidate future sources include RSNA-IHD-derived classifier work and public CT hemorrhage datasets with masks, but the implementation must verify class heads, licenses, preprocessing, and data compatibility before results are claimed.
+Second, the CT pilot should be expanded beyond the current Branch A scope. The present draft verifies one hemorrhage classifier and one mask source, but a full CT study would add broader test screening, larger or multi-source annotated hemorrhage masks, subtype-aware analysis, multi-rater review, and a calibration sweep that extends below top fraction `0.05` for small hemorrhage masks. Candidate future sources include RSNA-IHD-derived classifier work and additional public CT hemorrhage datasets with masks, but every extension must verify class heads, licenses, preprocessing, and data compatibility before results are claimed.
 
 Third, the radiologist review should be scaled beyond the current single-rater balanced review. A stronger reader study would include multiple radiologists, inter-rater reliability statistics, a larger and prospectively defined case sample, blinded scoring, and clearer separation between direct lesion localization and indirect clinically relevant evidence. DECIDE-AI-style reporting would be appropriate for any study that moves closer to workflow evaluation.
 
@@ -738,11 +850,14 @@ Include reproducibility information that would interrupt the main text if placed
 
 - final environment snapshot: WSL Ubuntu, Python version, PyTorch version, CUDA availability, `torchxrayvision` version, and project editable-install note;
 - final dataset-count verification for the local SIIM-ACR snapshot: number of PNG images, masks, positive cases, negative cases, and split counts;
-- final DenseNet-all v3 calibration command and output folder;
+- final DenseNet-chex v3 calibration command and output folder;
 - final ResNet-50 v3 calibration command and output folder;
-- final DenseNet-all Phase 5.2 improvement-experiment command and output folder;
+- final DenseNet-chex Phase 5.2 improvement-experiment command and output folder;
 - final ResNet-50 Phase 5.2 improvement-experiment command and output folder;
-- classifier threshold sources, including `0.62` for `densenet121-res224-all` and the frozen ResNet-50 threshold used in final runs;
+- final CT smoke and improvement-experiment commands and output folders: `outputs/iter_53_ct_smoke_test/` and `outputs/iter_54_ct_improvement_test/`;
+- final DenseNet-chex full test classifier screen: `outputs/iter_56_chex_classifier_eval_test/`;
+- final ResNet-50 full test classifier screen: `outputs/iter_55_resnet_classifier_eval_test/`;
+- classifier threshold sources, including `0.565` for `densenet121-res224-chex`, `0.525` for `resnet50-res512-all`, and the historical `0.62` operating point for `densenet121-res224-all`;
 - random seeds, `ig_steps`, `gradshap_samples`, occlusion patch/stride, `score_cam_channels_cap`, faithfulness baseline, smoothing settings, and selected calibrated-fraction files;
 - note that historical v1/v2 output folders are preserved and not overwritten.
 
@@ -765,6 +880,19 @@ wsl.exe --cd /mnt/c/Users/Dmytro.Valantsevych/Downloads/master_thesis_draft_expl
   --device auto `
   --output-dir outputs/<improvement_run>
 ```
+
+Final command/path checklist to preserve in the appendix:
+
+| Purpose | Output artifact |
+| --- | --- |
+| DenseNet-chex full test classifier screen | `outputs/iter_56_chex_classifier_eval_test/` |
+| DenseNet-chex CXR calibration v3 | `outputs/iter_57_chex_calibration_v3/calibrated_thresholds_v3.csv` |
+| ResNet-50 CXR calibration v3 | `outputs/iter_50_resnet_calibration_v3/calibrated_thresholds_v3.csv` |
+| DenseNet-chex CXR held-out improvement | `outputs/iter_58_chex_improvement_v3/` |
+| ResNet-50 CXR held-out improvement | `outputs/iter_52_resnet_improvement_v3/` |
+| CT smoke test | `outputs/iter_53_ct_smoke_test/` |
+| CT calibrated improvement test | `outputs/iter_54_ct_improvement_test/` |
+| ResNet-50 full test classifier screen | `outputs/iter_55_resnet_classifier_eval_test/` |
 
 ### Appendix B. Radiologist Review Template
 
@@ -793,9 +921,10 @@ Suggested contents:
 - additional representative `tp`, `fp`, `tn`, and `fn` cases with all method rows and four views per method;
 - threshold-sweep panels showing how top-fraction selection changes selected regions;
 - examples of direct lesion localization, indirect clinically related evidence, device/tube confounding, non-pathological high-contrast evidence, and clinically misleading explanations;
-- comparison panels for DenseNet-all versus ResNet-50 on matched or similar cases if final artifacts support this;
+- comparison panels for DenseNet-chex versus ResNet-50 on matched or similar cases if final artifacts support this;
 - faithfulness-curve details and family-split plots not included in the main chapter;
-- final Phase 5.2 consensus-vs-individual figures once the held-out improvement experiment completes.
+- final Phase 5.2 consensus-vs-individual figures from `outputs/iter_58_chex_improvement_v3/` and `outputs/iter_52_resnet_improvement_v3/`;
+- optional CT summary plot generated from `outputs/iter_54_ct_improvement_test/ct_improvement_experiment.csv`, if included with the same caption caveats as Table 4.3.
 
 Every appendix figure should include the source image stem in the filename or caption, the model, method, view, classifier probability, threshold/fraction, and whether the case is `tp`, `fp`, `tn`, or `fn`.
 
