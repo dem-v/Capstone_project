@@ -1,6 +1,6 @@
 ﻿# Chapters 3-4 Final AI Draft
 
-Standalone AI-assisted draft generated on `2026-06-04` from `thesis/thesis_skeleton.md`. This file intentionally contains Chapters 3 and 4 plus embedded reference/source notes needed for standalone PDF rendering. All local image links used in these chapters are converted to inline data URIs for standalone rendering. Human review is still required for final citations, template formatting, and any `TODO (human review)` markers.
+Standalone AI-assisted draft generated on `2026-06-04` from `thesis/thesis_skeleton.md`. This file intentionally contains Chapters 3 and 4 plus embedded reference/source notes needed for standalone PDF rendering. All local image links used in these chapters are converted to inline data URIs for standalone rendering. Human review is still required including for final citations, template formatting, and any `TODO (human review)` markers.
 ## Chapter 3. Methodology
 
 ### 3.1 General Research Design

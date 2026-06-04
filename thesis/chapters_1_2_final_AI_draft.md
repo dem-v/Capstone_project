@@ -1,6 +1,6 @@
-﻿# Chapters 1-2 Final AI Draft
+# Chapters 1-2 Final AI Draft
 
-Standalone AI-assisted draft generated on `2026-06-04` from `thesis/thesis_skeleton.md`. This file intentionally contains only Chapters 1 and 2 plus embedded reference/source notes needed for standalone PDF rendering. Human review is still required for final citations, template formatting, and any `TODO (human review)` markers.
+Standalone AI-assisted draft generated on `2026-06-04` from `thesis/thesis_skeleton.md`. This file intentionally contains only Chapters 1 and 2 plus embedded reference/source notes needed for standalone PDF rendering. Human review is still required, including for final citations, template formatting, and any `TODO (human review)` markers.
 ## Chapter 1. Introduction
 
 ### 1.1 Research Context
@@ -117,7 +117,28 @@ The central limitation of saliency maps is that they are easy to over-interpret.
 
 Figure 2.1: Conceptual risk of visually plausible but clinically misleading saliency maps
 
-![Figure 2.1 conceptual validation-risk schematic](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjUyMCIgdmlld0JveD0iMCAwIDEyMDAgNTIwIj4KICA8cmVjdCB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI1MjAiIGZpbGw9IiNmOGZhZmMiLz4KICA8dGV4dCB4PSI2MDAiIHk9IjU0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxMTE4MjciPldoeSB2aXN1YWxseSBwbGF1c2libGUgaGVhdG1hcHMgc3RpbGwgbmVlZCB2YWxpZGF0aW9uPC90ZXh0PgogIDxyZWN0IHg9IjYwIiB5PSIxMDUiIHdpZHRoPSIzMjAiIGhlaWdodD0iMjg1IiByeD0iMjQiIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iI2QxZDVkYiIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPHJlY3QgeD0iMTA1IiB5PSIxNDUiIHdpZHRoPSIyMzAiIGhlaWdodD0iMTg1IiByeD0iMTgiIGZpbGw9IiNlNWU3ZWIiIHN0cm9rZT0iIzljYTNhZiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPGVsbGlwc2UgY3g9IjIyMCIgY3k9IjIzNyIgcng9Ijc4IiByeT0iMTA1IiBmaWxsPSIjY2JkNWUxIiBzdHJva2U9IiM2NDc0OGIiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxjaXJjbGUgY3g9IjI1NSIgY3k9IjIwNSIgcj0iMzgiIGZpbGw9IiNlZjQ0NDQiIGZpbGwtb3BhY2l0eT0iMC43MiIvPgogIDxwYXRoIGQ9Ik0xODAgMjg4IEMyMjAgMjYwIDI1MCAyNjUgMjkyIDI5MiIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjEwIiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8dGV4dCB4PSIyMjAiIHk9IjM2NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTExODI3Ij5BdHRyaWJ1dGlvbiBtYXA8L3RleHQ+CiAgPHRleHQgeD0iMjIwIiB5PSI0MTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzM3NDE1MSI+UmVkIHJlZ2lvbiBtYXkgbG9vayBwbGF1c2libGUsPC90ZXh0PgogIDx0ZXh0IHg9IjIyMCIgeT0iNDQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiMzNzQxNTEiPmJ1dCBpdCBpcyBub3QgYSBzZWdtZW50YXRpb24uPC90ZXh0PgogIDxwYXRoIGQ9Ik00MjAgMjQ1IEg1MzUiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNNTM1IDI0NSBMNTA1IDIyNSBNNTM1IDI0NSBMNTA1IDI2NSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxyZWN0IHg9IjU3NSIgeT0iMTA1IiB3aWR0aD0iNTY1IiBoZWlnaHQ9IjI4NSIgcng9IjI0IiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNkMWQ1ZGIiIHN0cm9rZS13aWR0aD0iMyIvPgogIDx0ZXh0IHg9Ijg1OCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxMTE4MjciPkxheWVyZWQgdmFsaWRhdGlvbjwvdGV4dD4KICA8ZyBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiMxZjI5MzciPgogICAgPGNpcmNsZSBjeD0iNjQwIiBjeT0iMjAwIiByPSIxMyIgZmlsbD0iIzI1NjNlYiIvPjx0ZXh0IHg9IjY3MCIgeT0iMjA3Ij5DbGFzc2lmaWVyIHRocmVzaG9sZCBhbmQgb3V0Y29tZTwvdGV4dD4KICAgIDxjaXJjbGUgY3g9IjY0MCIgY3k9IjI0NSIgcj0iMTMiIGZpbGw9IiMxNmEzNGEiLz48dGV4dCB4PSI2NzAiIHk9IjI1MiI+TG9jYWxpemF0aW9uIGFnYWluc3QgbGVzaW9uIG1hc2tzPC90ZXh0PgogICAgPGNpcmNsZSBjeD0iNjQwIiBjeT0iMjkwIiByPSIxMyIgZmlsbD0iIzkzMzNlYSIvPjx0ZXh0IHg9IjY3MCIgeT0iMjk3Ij5EZWxldGlvbiAvIGluc2VydGlvbiBmYWl0aGZ1bG5lc3M8L3RleHQ+CiAgICA8Y2lyY2xlIGN4PSI2NDAiIGN5PSIzMzUiIHI9IjEzIiBmaWxsPSIjZjk3MzE2Ii8+PHRleHQgeD0iNjcwIiB5PSIzNDIiPlJhZGlvbG9naXN0LXN0eWxlIHVzZWZ1bG5lc3MgcmV2aWV3PC90ZXh0PgogIDwvZz4KICA8dGV4dCB4PSI2MDAiIHk9IjQ3NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmaWxsPSIjMzc0MTUxIj5UaGVzaXMgcG9zaXRpb246IFhBSSBtYXBzIGFyZSBtb2RlbC1iZWhhdmlvciBkaWFnbm9zdGljcyBhbmQgbXVzdCBiZSB2YWxpZGF0ZWQgYmVmb3JlIHRoZXkgc3VwcG9ydCB0cnVzdC48L3RleHQ+Cjwvc3ZnPg==)
+```text
+Image-level classifier says "positive"
+             |
+             v
+      Saliency / attribution map
+             |
+   +---------+---------+
+   |                   |
+   v                   v
+Lesion-aligned     Visually plausible but
+model evidence     clinically misleading evidence
+(mask overlap,     (device, border, text marker,
+faithful score      high-contrast anatomy, or
+change, reviewer    shortcut cue)
+support)
+   |                   |
+   +---------+---------+
+             |
+             v
+Validation is required before interpreting the map as clinical evidence:
+localization metrics + faithfulness curves + method agreement + human review.
+```
 
 The schematic emphasizes the core literature-review point used in this thesis draft: a visually plausible region of high attribution is not equivalent to a clinically validated lesion explanation. The map must be interpreted together with classifier behavior, localization, faithfulness, and human-centered review.
 
