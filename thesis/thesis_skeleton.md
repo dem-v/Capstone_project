@@ -586,7 +586,7 @@ Key interpretation points for the current CXR experiments:
 
 Table 4.1 keeps classifier performance separate from explanation quality: a model can rank cases well while producing attribution maps that are weakly localized to the lesion mask.
 
-TODO (human review): verify that the CheX and ResNet classifier thresholds in Table 4.1 are the exact frozen thresholds intended for final reporting and that the threshold-source wording matches the final methods text.
+VERIFIED (2026-06-06): the Table 4.1 thresholds and metrics match the frozen sources exactly. CheX `0.565` is the `default_threshold` operating point in `outputs/iter_56_chex_classifier_eval_test/classification_metrics.csv` (AUC `0.745962`, acc `0.682216`, sens `0.713793`, spec `0.673752`, F1 `0.487059`, `207`/`353`/`729`/`83` TP/FP/TN/FN). ResNet `0.525` is the `default_threshold` operating point in `outputs/iter_55_resnet_classifier_eval_test/classification_metrics.csv` (AUC `0.916290`, acc `0.860058`, sens `0.710345`, spec `0.900185`, F1 `0.682119`, `206`/`108`/`974`/`84`). Note for the human pass: these are the frozen Stage A operating points, distinct from each model's `best_f1`/`best_youden_j` in `selected_thresholds.csv` (CheX `0.57`, ResNet `0.515`); confirm only that the "Threshold source" wording matches the final methods text.
 
 Table 4.1: CXR classifier performance summary
 
@@ -686,9 +686,13 @@ Key interpretation points from the balanced 40-case ResNet review (`outputs/iter
 
 Table 4.4 gives the canonical balanced 40-case review score distribution.
 
-Chart 4.2 should visualize Table 4.4 as review-score counts. The current artifact set contains the source counts in `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv`; a final chart image should be generated or manually formatted from those counts during final document production.
+Chart 4.2 visualizes Table 4.4 as review-score counts. The chart is generated from the canonical counts in `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv` by `scripts/make_thesis_charts.py`.
 
-TODO (human review): generate the final Chart 4.2 image from `review_score_counts.csv` or confirm that the table-only presentation is sufficient.
+Chart 4.2: Balanced 40-case review score distribution (localization and usefulness)
+
+![Chart 4.2 review score distribution](../outputs/iter_61_thesis_charts/chart_4_2_review_scores.png)
+
+TODO (human review): confirm Chart 4.2 styling/caption and decide whether the table-only or chart-plus-table presentation is preferred for the final document.
 
 Table 4.4: Balanced 40-case radiologist review score distribution
 
@@ -704,9 +708,13 @@ Table 4.4: Balanced 40-case radiologist review score distribution
 
 Table 4.5 summarizes the failure taxonomy for the same review set.
 
-Chart 4.3 should visualize Table 4.5 as failure-taxonomy counts. The source counts and flags are in `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv` and `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_flag_counts.csv`.
+Chart 4.3 visualizes Table 4.5 as failure-taxonomy counts alongside the qualitative review flags. The chart is generated from `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_score_counts.csv` and `outputs/iter_48_resnet_review_analysis_balanced40_smoothed_faithfulness/review_flag_counts.csv` by `scripts/make_thesis_charts.py`.
 
-TODO (human review): generate the final Chart 4.3 image and choose 1-2 visual examples for Figure 4.2 that illustrate the dominant failure category `non_pathological_high_contrast` without implying that all non-mask evidence is clinically irrelevant.
+Chart 4.3: Balanced 40-case review failure taxonomy and qualitative flags
+
+![Chart 4.3 failure taxonomy and flags](../outputs/iter_61_thesis_charts/chart_4_3_failure_taxonomy.png)
+
+TODO (human review): choose 1-2 visual examples for Figure 4.2 that illustrate the dominant failure category `non_pathological_high_contrast` without implying that all non-mask evidence is clinically irrelevant.
 
 Table 4.5: Balanced 40-case review failure taxonomy
 

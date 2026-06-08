@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
 from pathlib import Path
 
 import pytest
 
-
-SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_improvement_experiment.py"
-SPEC = importlib.util.spec_from_file_location("run_improvement_experiment", SCRIPT_PATH)
-assert SPEC is not None and SPEC.loader is not None
-improvement = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(improvement)
+# The implementation now lives in the package (migrated verbatim from
+# `scripts/run_improvement_experiment.py`, which remains as a thin shim).
+from explainai_thesis.cli.commands import run_improvement_experiment as improvement
 
 
 def test_read_calibrated_fractions_by_metric_filters_metric(tmp_path: Path) -> None:

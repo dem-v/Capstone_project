@@ -18,32 +18,28 @@ subprocess is feasible but belongs in `@pytest.mark.slow`.
 from __future__ import annotations
 
 import csv
-import importlib.util
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_PATH = REPO_ROOT / "scripts" / "visualize_cxr_classifier_outcome_thresholds.py"
 
 
 def _load_script_module():
-    """Import the classifier-outcome script as a module for unit testing.
+    """Import the classifier-outcome implementation module for unit testing.
 
-    The script is not a package — it's invoked with `python scripts/...`.
-    We deliberately avoid running its `main()` here; only top-level
-    definitions (helpers, schema, resume primitives) matter to us.
+    The logic now lives in the package as
+    ``explainai_thesis.cli.commands.visualize_cxr_classifier_outcome_thresholds``
+    (migrated verbatim; ``scripts/visualize_cxr_classifier_outcome_thresholds.py``
+    remains as a thin shim). We deliberately avoid running its ``main()`` here;
+    only top-level definitions (helpers, schema, resume primitives) matter.
     """
-    spec = importlib.util.spec_from_file_location(
-        "_classifier_outcome_under_test", SCRIPT_PATH
+    from explainai_thesis.cli.commands import (
+        visualize_cxr_classifier_outcome_thresholds as module,
     )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+
     return module
 
 

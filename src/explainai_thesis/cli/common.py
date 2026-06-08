@@ -35,12 +35,13 @@ def add_split_arg(
     *,
     default: str = "test",
     choices: tuple[str, ...] = ("train", "test", "any"),
+    help: str | None = "Manifest split to sample.",
 ) -> None:
     parser.add_argument(
         "--split",
         default=default,
         choices=list(choices),
-        help="Manifest split to sample.",
+        help=help,
     )
 
 
@@ -57,12 +58,13 @@ def add_device_arg(
     parser: argparse.ArgumentParser,
     *,
     default: str = "auto",
+    help: str | None = "Compute device. `auto` prefers CUDA when available.",
 ) -> None:
     parser.add_argument(
         "--device",
         default=default,
         choices=["auto", "cpu", "cuda"],
-        help="Compute device. `auto` prefers CUDA when available.",
+        help=help,
     )
 
 

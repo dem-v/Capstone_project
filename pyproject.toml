@@ -24,6 +24,12 @@ dependencies = [
     "torchxrayvision",
 ]
 
+[project.scripts]
+# Single bundled console entry point over the existing scripts/ set. The
+# dispatcher runs each script unchanged (run_name="__main__"), so output is
+# byte-for-byte identical to `python scripts/<x>.py ...`.
+explainai-thesis = "explainai_thesis.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest",

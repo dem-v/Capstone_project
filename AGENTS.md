@@ -59,6 +59,12 @@ This file preserves the practical repository context, experiment conventions, an
 - `scripts/visualize_cxr_classifier_outcome_thresholds.py`: balanced `tp`/`fp`/`tn`/`fn` visualization with progress, ETA, checkpointing, six-line live progress, and `--resume`.
 - `scripts/diagnose_cxr_torchxray_baselines.py`: diagnostic tool for faithfulness baseline behavior.
 
+### Bundled CLI (added 2026-06-06)
+
+- All commands are reachable as subcommands of a single installable console entry point `explainai-thesis <command>` (and `python -m explainai_thesis <command>`), implemented in `src/explainai_thesis/cli/` (`_registry.py` auto-discovers command modules, `dispatcher.py` runs them via `runpy` with `run_name="__main__"`). Command names are the kebab-case module stem (e.g. `run-cxr-torchxray-smoke`). Full index + output-preservation guarantee in `docs/cli.md`.
+- **Standalone-module migration (2026-06-06):** each command's logic now lives as an importable module under `src/explainai_thesis/cli/commands/<x>.py` (the single source of truth, migrated verbatim from the old `scripts/*.py`). Every `scripts/<x>.py` is now a thin shim that imports `main` from the matching command module, so the legacy `wsl.exe python3 scripts/<x>.py ...` invocations in this file and `docs/progress.md` remain valid and produce byte-for-byte identical output. Use whichever form is convenient. Scope/verification recorded in `docs/refactor_plan_standalone_module.md` (Status: Executed).
+- **Phase D argparse dedup (2026-06-06):** the two flags with genuinely repeated structure (`--device`, `--split`) are now consolidated through `src/explainai_thesis/cli/common.py` helpers (`add_device_arg`, `add_split_arg`, both with an optional `help=` override) across all scripts that define them; per-script `default=`/`choices=`/`help=` are passed so every command's `--help` stays byte-identical (verified). The two `probe_taheera_vit*` `--device` definitions and the `--manifest`/`--seed`/`--output-dir`/IG/GradientSHAP/Occlusion flags remain inline by design (no shared structure to justify override-heavy helper calls). CLI flag names and defaults are unchanged.
+
 ## Classifier Threshold Rules
 
 - The earlier `0.61` cutoff was exploratory.
