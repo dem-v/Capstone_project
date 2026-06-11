@@ -1,0 +1,42 @@
+This work investigates how explainable artificial intelligence methods
+can be applied for medical image classification rather than used only
+as visual illustrations. The study focuses primarily on chest X-ray
+pneumothorax detection using the SIIM-ACR pneumothorax dataset and
+off-the-shelf TorchXRayVision classifiers, with a completed head CT
+intracranial hemorrhage pilot used as a cross-modality methodological
+extension. The aim is to compare several post-hoc explanation methods 
+against out-of-the-box medical classification models
+and assess whether their highlighted evidence is localized, faithful to
+the model, and clinically useful.
+
+The methodology separates classifier behavior from explanation quality.
+Pneumothorax classifiers are evaluated at frozen thresholds, while
+explanation maps are generated with CAM-family, SHAP and Occlusion methods, 
+and a frozen four-method consensus. Each method is
+interpreted through positive, negative, magnitude, and signed views.
+Explanations are validated with lesion-mask localization metrics,
+negative-evidence diagnostics, deletion/insertion faithfulness curves,
+method-agreement analysis, and a structured radiologist-style review of
+selected cases.
+
+Current CXR results show that DenseNet-chex supersedes the original
+DenseNet-all checkpoint as the selected DenseNet baseline, while
+ResNet-50 remains the strongest tested TorchXRayVision follow-up in
+relative localization terms; nevertheless, absolute pneumothorax-mask
+overlap remains weak. The held-out Phase 5.2 improvement experiment
+shows model-dependent consensus behavior: DenseNet-chex consensus mainly
+improves over Score-CAM in paired overlap tests, whereas ResNet-50
+consensus significantly improves Dice/IoU over several weaker individual
+methods but not over the strongest CAM comparators. The balanced 40-case
+review shows mixed usefulness: many maps contain interpretable evidence,
+yet clinically misleading, indirect, device-related, or high-contrast
+non-lesion evidence remains common.
+
+The practical significance of the work is a reproducible validation
+workflow for auditing medical image explanations. The thesis argues that
+heatmaps should be treated as model-behavior diagnostics, not anatomical
+segmentations or automatic generators of clinical trust.
+
+Keywords: explainable artificial intelligence, medical image
+classification, radiology, Grad-CAM, SHAP, pneumothorax, intracranial
+hemorrhage

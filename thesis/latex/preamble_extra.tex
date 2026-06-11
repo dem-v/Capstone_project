@@ -1,0 +1,80 @@
+% ===========================================================================
+% Neoversity academic-research thesis — formatting per
+% requirements/Шаблон ... .md (technical formatting block).
+% Injected into the pandoc-generated preamble via `pandoc -H`.
+% A4; margins L2.5/R1.5/T2/B2 cm (set via -V geometry); Times New Roman;
+% body 12pt; headings bold 14pt; line spacing 1.5; paragraph indent 1.25 cm;
+% page numbers centred in the bottom footer; chapter titles uppercase.
+% ===========================================================================
+
+% --- Fonts: Times New Roman equivalent for pdfLaTeX (portable, no system font) ---
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+
+% --- Language ---
+\usepackage[english]{babel}
+
+% --- Paragraph indent (1.25 cm) instead of inter-paragraph skip ---
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% --- Justified body text is the LaTeX default; keep it. ---
+
+% --- Custom float families: Graph and Chart (separate from Table/Figure) ---
+\usepackage{newfloat}
+\DeclareFloatingEnvironment[fileext=logrp, listname={List of Graphs}, name=Graph, placement=htbp]{graph}
+\DeclareFloatingEnvironment[fileext=lochr, listname={List of Charts}, name=Chart, placement=htbp]{chart}
+
+% --- Number every float family X.Y by chapter ---
+\counterwithin{table}{chapter}
+\counterwithin{figure}{chapter}
+\counterwithin{graph}{chapter}
+\counterwithin{chart}{chapter}
+
+% --- Graphics: reference reproducible artifacts under repo root ---
+\usepackage{graphicx}
+% figures/ holds packaged copies (self-contained, Overleaf-ready); ../../ is the
+% in-repo fallback if you build before running the figure-packaging step.
+\graphicspath{{figures/}{../../}}
+
+% --- Heading format (titlesec) ---
+\usepackage{titlesec}
+% Chapter title: bold 14pt, UPPERCASE, centred; 2 blank lines before body text.
+\titleformat{\chapter}[hang]
+  {\normalfont\bfseries\fontsize{14}{17}\selectfont\filcenter}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter.}{1ex}
+  {\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{0pt}{2\baselineskip}
+% Sections / subsections: bold 12pt, left, 1 blank line before body text.
+\titleformat{\section}
+  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesection}{0.75em}{}
+\titlespacing*{\section}{0pt}{1.5\baselineskip}{1\baselineskip}
+\titleformat{\subsection}
+  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.75em}{}
+\titlespacing*{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
+
+% --- Page numbers: centred in the bottom footer on all pages ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}\fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
+
+% --- Wide data tables: typeset at \small so many-column tables fit A4 width.
+%     (Template allows tighter spacing inside tables; line spacing there is 1.) ---
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\small}
+\usepackage{pdflscape}  % landscape pages for the widest statistics table
+
+% --- Caption style: label and text, small gap ---
+\usepackage{caption}
+\captionsetup{labelsep=colon, font=normalsize}
+\captionsetup[table]{position=top}
+
+% --- \allowbreak breakpoints are injected into long \texttt identifiers/paths
+%     by build_thesis.py (post-process), so they wrap inside narrow table
+%     columns and never overflow the margin. No hyphen is inserted. ---

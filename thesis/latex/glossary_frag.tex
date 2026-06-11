@@ -1,0 +1,56 @@
+
+\textbf{Attribution map / heatmap} - A two-dimensional visualization
+derived from a trained classifier that assigns relative importance to
+image regions for a selected output score. In this thesis, attribution
+maps are class-specific evidence maps for the selected pneumothorax or
+hemorrhage target, not automatic anatomical segmentations.
+
+\textbf{Positive evidence} - The part of a signed attribution map that
+contributes positively toward the selected target output. For the CXR
+pneumothorax experiments, positive evidence supports the model's
+pneumothorax score.
+
+\textbf{Negative evidence} - The part of a signed attribution map that
+contributes negatively toward the selected target output. Negative
+evidence is interpreted as suppressive evidence against the target score
+and is considered significant for potential improvement when it overlaps 
+the lesion mask.
+
+\textbf{Magnitude view} - The absolute-value view of a signed
+attribution map. It answers which pixels were influential, without
+stating whether their influence increased or decreased the target score.
+
+\textbf{Signed view} - A diverging visualization of the normalized
+signed attribution map. It summarizes the local balance between positive
+and negative evidence but does not replace inspection of the separate
+positive, negative, and magnitude views.
+
+\textbf{Selected view} - A visualization of other views using their absolute values and disregarding the alpha value.
+
+\textbf{Localization validation} - Evaluation of whether
+high-attribution pixels spatially correspond to available lesion
+annotations, using metrics such as IoU, Dice, pointing-hit, and
+precision-at-fraction.
+
+\textbf{Faithfulness validation} - Evaluation of whether the highlighted
+pixels materially affect the model's own output probability when they
+are removed, replaced, or inserted. Faithfulness measures explain AI approach 
+behavior, not clinical correctness.
+
+\textbf{Top-fraction thresholding} - Conversion of a continuous heatmap
+into a binary selected region by keeping a fixed fraction of the
+highest-valued pixels. This makes heatmaps comparable to masks but
+introduces a threshold choice that must be calibrated or reported.
+
+\textbf{Coverage saturation} - A secondary diagnostic describing how
+quickly top-fraction thresholding expands to cover nearly the whole
+image. The proposed value records the smallest swept top-fraction at 
+which selected coverage reaches at
+least \texttt{95\%}; lower values indicate more diffuse or saturated
+maps.
+
+\textbf{Radiologist-centered review} - A structured qualitative
+assessment in which a medically trained reader scores explanation
+localization, usefulness, and failure mode categories under a fixed
+review task. In this thesis it is an early controlled assessment, not
+prospective clinical validation.

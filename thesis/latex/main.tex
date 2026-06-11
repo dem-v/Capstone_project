@@ -1,0 +1,3505 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  12pt,
+  a4paper,
+]{report}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[left=2.5cm,right=1.5cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs}
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+% ===========================================================================
+% Neoversity academic-research thesis — formatting per
+% requirements/Шаблон ... .md (technical formatting block).
+% Injected into the pandoc-generated preamble via `pandoc -H`.
+% A4; margins L2.5/R1.5/T2/B2 cm (set via -V geometry); Times New Roman;
+% body 12pt; headings bold 14pt; line spacing 1.5; paragraph indent 1.25 cm;
+% page numbers centred in the bottom footer; chapter titles uppercase.
+% ===========================================================================
+
+% --- Fonts: Times New Roman equivalent for pdfLaTeX (portable, no system font) ---
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+
+% --- Language ---
+\usepackage[english]{babel}
+
+% --- Paragraph indent (1.25 cm) instead of inter-paragraph skip ---
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% --- Justified body text is the LaTeX default; keep it. ---
+
+% --- Custom float families: Graph and Chart (separate from Table/Figure) ---
+\usepackage{newfloat}
+\DeclareFloatingEnvironment[fileext=logrp, listname={List of Graphs}, name=Graph, placement=htbp]{graph}
+\DeclareFloatingEnvironment[fileext=lochr, listname={List of Charts}, name=Chart, placement=htbp]{chart}
+
+% --- Number every float family X.Y by chapter ---
+\counterwithin{table}{chapter}
+\counterwithin{figure}{chapter}
+\counterwithin{graph}{chapter}
+\counterwithin{chart}{chapter}
+
+% --- Graphics: reference reproducible artifacts under repo root ---
+\usepackage{graphicx}
+% figures/ holds packaged copies (self-contained, Overleaf-ready); ../../ is the
+% in-repo fallback if you build before running the figure-packaging step.
+\graphicspath{{figures/}{../../}}
+
+% --- Heading format (titlesec) ---
+\usepackage{titlesec}
+% Chapter title: bold 14pt, UPPERCASE, centred; 2 blank lines before body text.
+\titleformat{\chapter}[hang]
+  {\normalfont\bfseries\fontsize{14}{17}\selectfont\filcenter}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter.}{1ex}
+  {\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{0pt}{2\baselineskip}
+% Sections / subsections: bold 12pt, left, 1 blank line before body text.
+\titleformat{\section}
+  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesection}{0.75em}{}
+\titlespacing*{\section}{0pt}{1.5\baselineskip}{1\baselineskip}
+\titleformat{\subsection}
+  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.75em}{}
+\titlespacing*{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
+
+% --- Page numbers: centred in the bottom footer on all pages ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}\fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
+
+% --- Wide data tables: typeset at \small so many-column tables fit A4 width.
+%     (Template allows tighter spacing inside tables; line spacing there is 1.) ---
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{\small}
+\usepackage{pdflscape}  % landscape pages for the widest statistics table
+
+% --- Caption style: label and text, small gap ---
+\usepackage{caption}
+\captionsetup{labelsep=colon, font=normalsize}
+\captionsetup[table]{position=top}
+
+% --- \allowbreak breakpoints are injected into long \texttt identifiers/paths
+%     by build_thesis.py (post-process), so they wrap inside narrow table
+%     columns and never overflow the margin. No hyphen is inserted. ---
+
+\author{}
+\date{}
+
+\begin{document}
+
+% ===========================================================================
+% Front matter (inserted right after \begin{document} via pandoc -B).
+% Title page, certification, declaration, acknowledgments, TOC, the four
+% lists, abbreviations, glossary, abstract.  Fill the <BLANK> items before
+% submission (Student ID, supervisor names, dates, signatures).
+% ===========================================================================
+
+% ----------------------------- Title page ---------------------------------
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+\vspace*{2cm}
+{\large\bfseries Cross-Modality Validation of Explainable AI Methods for Medical Image Classification: Chest X-ray Pneumothorax and Head CT Hemorrhage Case Studies\par}
+\vspace{2cm}
+{\normalsize Author: Dmytro Valantsevych\par}
+\vspace{1.5cm}
+{\normalsize A Master's Thesis submitted to Neoversity in partial fulfillment of the requirements for the degree of Master of Science in Computer Science\par}
+\vspace{1cm}
+{\normalsize June, 2026\par}
+\vspace{2cm}
+\begin{flushleft}
+Student ID: \rule{5cm}{0.4pt}\\[0.6em]
+Thesis Supervisor: \rule{5cm}{0.4pt}\\[0.6em]
+Co-Supervisor (if applicable): \rule{5cm}{0.4pt}\\[0.6em]
+Date of Submission: \rule{4cm}{0.4pt} (target draft cutoff 04/06/2026; defense 21/06/2026)
+\end{flushleft}
+\vfill
+{\footnotesize\itshape \copyright{} The dissertation of Dmytro Valantsevych is approved, and it is acceptable in quality and form for publication electronically.\par}
+\end{titlepage}
+\setcounter{page}{2}% title page is page 1 (unprinted); avoid duplicate page.1 hyperref destination
+
+% --------------------------- Certification ---------------------------------
+\chapter*{Thesis Certification}
+\addcontentsline{toc}{chapter}{Thesis Certification}
+I confirm that I have reviewed this study and, in my judgment, it adheres to the appropriate standards of academic presentation. I believe it satisfactorily meets the criteria, in terms of both quality and breadth, to serve as a thesis for the attainment of the Master of Science in Computer Science degree. This thesis has been submitted to Neoversity and is deemed sufficient to fulfill the prerequisites for the Master of Science in Computer Science degree.
+
+\vspace{2cm}
+\noindent\rule{7cm}{0.4pt}\\
+Supervisor
+
+\vspace{1.5cm}
+\noindent\rule{7cm}{0.4pt}\\
+Co-Supervisor (if applicable)
+
+% ---------------------------- Declaration ----------------------------------
+\chapter*{Declaration of Academic Integrity}
+\addcontentsline{toc}{chapter}{Declaration of Academic Integrity}
+I confirm that this thesis, submitted to fulfill the requirements for the Master of Science in Computer Science degree, completed by me from \rule{3cm}{0.4pt} to \rule{3cm}{0.4pt}, is the result of my own individual endeavor. Any contributions from external sources or individuals, including the use of AI tools, are appropriately acknowledged through citation. Furthermore, I confirm that this material has not been previously submitted, in its entirety or in part, for the completion of a degree at this institution or any other.
+
+By making this declaration, I acknowledge that any violation of this statement constitutes academic misconduct. I understand that such misconduct may lead to expulsion from the program and/or disqualification from receiving the degree.
+
+\vspace{0.8cm}
+\noindent Name of the Candidate: Dmytro Valantsevych
+
+\vspace{1.2cm}
+\noindent Signature of Candidate: \rule{6cm}{0.4pt}\hfill Date: \rule{3.5cm}{0.4pt}
+
+\vspace{0.8cm}
+\noindent\textbf{AI tool acknowledgment.} AI and development tools used during the research workflow include GPT-5.5, Codex, PyCharm, Junie, VS~Code, Claude Sonnet~4.6, and Claude Opus~4.7. The Implementation and Reproducibility section of Chapter~3 describes which tool was used for which class of task; this page only confirms that all such use is acknowledged through citation.
+
+% -------------------------- Acknowledgments --------------------------------
+\chapter*{Acknowledgments}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+% Optional per template. Replace this placeholder with personal acknowledgments
+% to the thesis supervisor, colleagues, and family before submission.
+\textit{(Optional -- to be completed before submission.)}
+
+% --------------------- Contents and the four lists -------------------------
+\tableofcontents
+\listoftables
+\listoffigures
+\listofgraphs
+\listofcharts
+
+% ----------------------- List of Abbreviations -----------------------------
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\input{abbrev_frag.tex}
+
+% --------------------------- Glossary --------------------------------------
+\chapter*{Glossary of Methodological Terms}
+\addcontentsline{toc}{chapter}{Glossary of Methodological Terms}
+\input{glossary_frag.tex}
+
+% ---------------------------- Abstract -------------------------------------
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\input{abstract_frag.tex}
+
+\cleardoublepage
+
+\setstretch{1.5}
+\hypertarget{introduction}{%
+\chapter{Introduction}\label{introduction}}
+
+\hypertarget{research-context}{%
+\section{Research Context}\label{research-context}}
+
+Deep learning has become a central technology in medical image analysis
+because convolutional and transformer-based models can learn
+discriminative image patterns from large radiology datasets. In chest
+radiography and computed tomography, such models can support
+classification tasks such as pneumothorax detection or intracranial
+hemorrhage screening. However, the clinical usefulness of a model cannot
+be judged only from an image-level prediction score. In high-risk
+medical settings, a prediction is safer and more informative when the
+evidence behind it can be inspected and compared with expected clinical
+findings.
+
+Explainable AI (XAI) methods are often proposed as a way to make deep
+learning systems more transparent. Saliency maps, class activation maps,
+occlusion maps, and attribution maps can highlight image regions that
+contribute to a model output. These visualizations are especially
+attractive in radiology because they resemble the spatial reasoning used
+by clinicians. Nevertheless, a visually plausible heatmap is not
+automatically a clinically valid explanation. A model may highlight
+devices, image borders, text markers, bone edges, or treatment-related
+correlates rather than the visible pathology itself.
+
+This thesis is situated in that gap between visual explanation and
+validated explanation. It treats XAI maps as class-specific
+model-behavior diagnostics, not as direct pathology segmentations. The
+primary empirical setting is chest X-ray pneumothorax classification on
+the SIIM-ACR pneumothorax dataset using off-the-shelf TorchXRayVision
+classifiers. A completed head CT hemorrhage pilot is included as a
+methodological extension after verifying a PhysioNet masked CT dataset
+and a DifeiT Vision Transformer classifier. The CT branch is
+intentionally narrower than the CXR study and is used to test whether
+the validation workflow transfers across modality without claiming a
+full second clinical benchmark.
+
+\hypertarget{problem-statement-and-relevance}{%
+\section{Problem Statement and
+Relevance}\label{problem-statement-and-relevance}}
+
+Medical image classifiers can achieve useful ranking or classification
+performance while relying on features that are not clinically aligned
+with the target abnormality. This creates a practical validation
+problem: if the explanation map is interpreted as evidence that the
+model ``looked at the right place'', the explanation itself becomes part
+of the model's trust argument. Without validation, this trust argument
+may be misleading.
+
+The problem addressed in this thesis is therefore the clinical and
+methodological reliability of post-hoc XAI explanations for medical
+image classification. The key question is not simply whether a heatmap
+can be generated, but whether it is localized to available lesion
+evidence, whether it faithfully affects the model output under
+perturbation, whether different XAI methods agree, and whether a
+medically trained reviewer judges the explanation useful or misleading.
+
+The thesis is guided by the following research questions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Do off-the-shelf medical image classifiers produce clinically
+  localized explanations on SIIM-ACR pneumothorax cases?
+\item
+  How do common XAI methods differ when evaluated by mask-overlap
+  metrics, peak-localization metrics, faithfulness curves, and
+  signed-evidence diagnostics?
+\item
+  Does a frozen cross-method consensus improve localization compared
+  with individual methods under held-out paired testing?
+\item
+  Can structured radiologist-style review reveal explanation failure
+  modes that are not captured by automatic metrics alone?
+\item
+  To what extent does the same validation design transfer to a second
+  modality such as head CT hemorrhage without over-claiming empirical
+  cross-modality results?
+\end{enumerate}
+
+\hypertarget{aim-and-research-objectives}{%
+\section{Aim and Research
+Objectives}\label{aim-and-research-objectives}}
+
+Aim: To compare, validate, and clinically assess explainable AI methods
+for medical image classification across chest X-ray pneumothorax and
+head CT hemorrhage case studies.
+
+Objectives: - Review recent literature on XAI methods in radiology. -
+Build or reuse classification models for pneumothorax and intracranial
+hemorrhage detection. - Generate explanation maps using multiple XAI
+methods. - Validate explanations against lesion masks using quantitative
+localization metrics. - Perform radiologist-centered qualitative
+assessment of explanation usefulness and failure modes. - Test a simple
+improvement strategy for explanation maps.
+
+\hypertarget{scientific-novelty-and-practical-significance}{%
+\section{Scientific Novelty and Practical
+Significance}\label{scientific-novelty-and-practical-significance}}
+
+The scientific novelty of the work lies in treating XAI validation as a
+layered experimental problem rather than as a set of illustrative
+heatmaps. The thesis combines classifier-threshold calibration,
+lesion-mask localization metrics, perturbation-based faithfulness
+curves, signed positive/negative evidence views, method agreement
+analysis, and radiologist-centered failure taxonomy within one
+reproducible pipeline. This design makes it possible to distinguish four
+ideas that are often conflated: a correct classifier prediction, a
+lesion-overlapping explanation, a model-faithful explanation, and a
+clinically useful explanation.
+
+The project also contributes a cautionary empirical case study. The
+baseline models are not locally fine-tuned pneumothorax segmenters; they
+are off-the-shelf medical image classifiers. This is practically
+important because pretrained clinical AI tools are often reused outside
+their exact development distribution. Showing that a pretrained model
+can be moderately predictive while producing weakly localized or
+confounded explanations is a meaningful result: it demonstrates why
+explanation validation is necessary before heatmaps are used to support
+trust.
+
+The practical significance is a thesis-ready validation workflow for
+auditing medical image explanations. The same workflow can support
+future model comparison, stronger pneumothorax-specific models, larger
+radiologist studies, and modality extensions. In clinical terms, the
+intended contribution is not automated diagnosis, but safer
+interpretation of model evidence: XAI maps can help expose when trust is
+not justified.
+
+\hypertarget{thesis-structure}{%
+\section{Thesis Structure}\label{thesis-structure}}
+
+Chapter 1 introduces the research context, problem statement, aim,
+objectives, and thesis contribution. Chapter 2 reviews deep learning in
+radiology, post-hoc XAI methods, explanation-validation approaches, and
+known risks such as shortcut learning and visually plausible but
+unreliable saliency maps. Chapter 3 describes the experimental
+methodology, including datasets, preprocessing, classifier baselines,
+XAI methods, threshold calibration, localization and faithfulness
+metrics, statistical testing, and radiologist-centered review. Chapter 4
+presents and discusses the empirical results, including classifier
+behavior, quantitative explanation validation, model comparison,
+radiologist review, CXR consensus-improvement experiments, and the
+completed CT pilot. Chapter 5 summarizes the main findings, practical
+recommendations, limitations, and future-work directions.
+
+\hypertarget{conclusions-to-chapter-1}{%
+\section*{Conclusions to Chapter 1}\label{conclusions-to-chapter-1}}
+\addcontentsline{toc}{section}{Conclusions to Chapter 1}
+
+Chapter 1 established the motivation for validating explainable AI in
+medical imaging. Deep learning models can produce useful predictions in
+radiology, but the clinical meaning of those predictions depends on the
+evidence used by the model. Post-hoc heatmaps can make this evidence
+visible, yet visual plausibility alone is insufficient: a heatmap may
+emphasize non-pathological high-contrast structures, treatment devices,
+image artifacts, or dataset-specific shortcut cues. For this reason, the
+thesis frames explanation maps as model-behavior diagnostics rather than
+anatomical segmentations or automatic trust generators.
+
+The research problem is the reliability of XAI explanations for medical
+image classification. The primary case study is chest X-ray pneumothorax
+classification and explanation using SIIM-ACR data and off-the-shelf
+TorchXRayVision baselines. The head CT hemorrhage pilot is included as a
+completed but limited modality extension, while the strongest empirical
+claims remain built around the CXR pipeline because it has a broader
+method panel, classifier screening, and radiologist-centered review. The
+next chapter situates this research design in the literature on
+radiology classification, saliency and attribution methods, explanation
+faithfulness, localization validation, human-centered XAI, and shortcut
+learning.
+
+\hypertarget{literature-review}{%
+\chapter{Literature Review}\label{literature-review}}
+
+\hypertarget{literature-search-strategy}{%
+\section{Literature Search Strategy}\label{literature-search-strategy}}
+
+The literature review uses peer-reviewed papers, official dataset/model
+documentation, and medical-imaging AI reporting guidance. The main
+source categories are: (1) deep learning for radiology and public chest
+X-ray datasets; (2) post-hoc XAI methods for image classifiers; (3)
+explanation-validation methods, including localization,
+perturbation-based faithfulness, sanity checks, and human-centered
+evaluation; (4) shortcut learning and clinical applicability risks; and
+(5) transparent reporting and risk-of-bias guidance for medical AI
+studies.
+
+The working reference inventory is maintained in
+\texttt{docs/\allowbreak references.\allowbreak md}. Preferred sources include official
+proceedings pages, journal records, PubMed/PMC entries,
+CVF/PMLR/NeurIPS/IEEE/ACM records, official dataset pages, and official
+software documentation. Blogs, informal tutorials, and unverified
+dataset mirrors are excluded unless explicitly justified. For final
+submission, online sources should include stable URLs and access dates,
+and the bibliography should be converted consistently to the selected
+final style, currently planned as IEEE.
+
+The review emphasizes recent literature from approximately 2016 onward
+because most widely used post-hoc deep-learning XAI methods and
+medical-imaging AI reporting frameworks emerged or matured during this
+period. Older sources are retained where historically necessary, such as
+occlusion sensitivity and early convolutional-network visualization
+work.
+
+\hypertarget{deep-learning-classification-in-radiology}{%
+\section{Deep Learning Classification in
+Radiology}\label{deep-learning-classification-in-radiology}}
+
+Deep learning classifiers have become common in radiology research
+because they can learn hierarchical image features directly from pixel
+data. Chest X-ray is a particularly active domain: it is widely
+available, clinically important, and represented in large public
+datasets such as ChestX-ray14, CheXpert, MIMIC-CXR, and related curated
+resources. These datasets enabled pretrained CXR models and libraries,
+including TorchXRayVision, which provide practical baselines for
+downstream research.
+
+However, public CXR datasets are not interchangeable. They differ in
+institutions, acquisition workflows, label extraction pipelines,
+uncertainty handling, disease prevalence, and availability of
+localization annotations. Many labels are derived from radiology reports
+rather than pixel-level lesion masks. As a result, a classifier can
+learn image-level associations that support prediction without
+necessarily learning spatial evidence that aligns with a lesion
+annotation. This distinction is central to the present thesis:
+image-level classifier performance and explanation localization must be
+reported separately.
+
+Pneumothorax is a useful focused case study because it has image-level
+clinical relevance and, in the SIIM-ACR challenge context, available
+segmentation masks for positive cases. These masks make it possible to
+evaluate whether model explanations overlap the visible abnormality. The
+thesis uses off-the-shelf TorchXRayVision models as baselines rather
+than locally fine-tuned pneumothorax segmenters. This choice makes the
+study a transfer/generalization audit: it asks how pretrained medical
+classifiers behave when their explanations are tested against a specific
+pneumothorax localization reference.
+
+Head CT intracranial hemorrhage is methodologically relevant as a second
+modality because it differs from radiography in image physics, intensity
+scale, preprocessing, and clinically meaningful perturbation baselines.
+CT data are typically represented in Hounsfield units and interpreted
+through diagnostic windows, whereas CXR inputs are 2D radiographs with
+different normalization assumptions. In this draft, CT is treated as a
+completed pilot: it strengthens the cross-modality methodology with one
+verified pretrained classifier and one public masked dataset, but its
+narrower scope prevents a claim of complete CT clinical validation.
+
+\hypertarget{explainable-ai-methods-for-image-classification}{%
+\section{Explainable AI Methods for Image
+Classification}\label{explainable-ai-methods-for-image-classification}}
+
+Post-hoc XAI methods for image classifiers can be grouped by the type of
+signal they use. CAM-family methods use internal convolutional feature
+maps to produce class-discriminative spatial maps. \texttt{Grad-\allowbreak CAM}
+weights target-layer activations by gradients of the selected class
+score, while \texttt{Grad-\allowbreak CAM++} modifies the gradient weighting scheme
+to better handle multiple or fine-grained discriminative regions. These
+methods are attractive for radiology because they produce relatively
+smooth, spatially coherent maps, but their resolution and interpretation
+are constrained by the selected feature layer.
+
+\texttt{Eigen-\allowbreak CAM} and \texttt{Score-\allowbreak CAM} extend the CAM family in
+different directions. \texttt{Eigen-\allowbreak CAM} derives a map from the
+principal component of target-layer activations and does not require
+gradients, while \texttt{Score-\allowbreak CAM} masks the input with normalized
+activation maps and weights them according to score changes. In the
+current project, both are added as individual methods in the expanded
+Phase 5.1 method panel. They are not added to the frozen consensus
+average because changing consensus constituents mid-thesis would make
+previous consensus results incomparable.
+
+Pixel-attribution methods answer a different question.
+\texttt{Integrated\ Gradients} accumulates gradients along a path from a
+baseline image to the input, making baseline choice an explicit part of
+the explanation. \texttt{GradientSHAP} approximates Shapley-style
+attributions through noisy baseline interpolation and is therefore
+stochastic; sample count and random seed affect stability. In medical
+images, these methods can reveal fine-grained evidence, but they can
+also produce noisy or case-invariant patterns if preprocessing,
+baselines, or smoothing are not handled carefully.
+
+Perturbation methods evaluate model behavior under direct image
+modification. \texttt{Occlusion} replaces patches of the image and
+measures how the selected class score changes. This makes it
+conceptually close to faithfulness testing because it asks what happens
+to the classifier when regions are removed or replaced. However,
+occlusion is computationally expensive and sensitive to patch size,
+stride, and replacement baseline. It should therefore be interpreted as
+a complementary diagnostic rather than as a direct substitute for
+gradient attribution.
+
+\texttt{LIME} represents a region-level surrogate-model family: it
+perturbs interpretable image regions and fits a local linear
+approximation to the classifier. In this thesis it remains a
+lower-priority or future add-on unless explicitly implemented before
+finalization. Its conceptual value is that it belongs to a different
+explanation family, but it also introduces segmentation and perturbation
+hyperparameters that would require separate calibration discipline.
+
+The implemented CXR methods share a \texttt{SignedAttribution} contract.
+Each method can provide positive evidence, negative evidence, magnitude,
+and signed views. This is important because positive evidence toward
+pneumothorax, negative evidence against pneumothorax, absolute impact,
+and signed balance answer different interpretive questions. A
+negative-evidence map should not be scored as clinically successful
+merely because it overlaps a lesion mask.
+
+Table 2.1 summarizes how the main XAI method families differ and why
+none of them is sufficient as a standalone validation signal.
+
+\begin{longtable}[]{@{}llll@{}}
+\caption{Summary of XAI method families and validation
+concerns}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.22\columnwidth}\raggedright
+Method family\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Examples in thesis\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Main question answered\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Main validation concern\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.22\columnwidth}\raggedright
+Method family\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Examples in thesis\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Main question answered\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Main validation concern\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+CAM-family activation maps\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam}, \texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}, \texttt{eigen\_\allowbreak cam},
+\texttt{score\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Which target-layer activation regions support the selected class
+score?\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Spatial resolution, target-layer choice, and possible focus on
+discriminative but non-lesion regions\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Pixel attribution\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{integrated\_\allowbreak gradients}, \texttt{gradient\_\allowbreak shap}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Which input pixels contribute positively or negatively relative to a
+baseline?\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Baseline sensitivity, stochasticity, pixel noise, smoothing, and
+case-invariant patterns\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Perturbation sensitivity\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{occlusion}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+How does the model score change when image patches are replaced?\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Patch size, stride, replacement baseline, and computational cost\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Cross-method consensus\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{consensus}, \texttt{consensus\_\allowbreak signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Do several explanation families agree on spatial evidence?\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Averaging weak or mislocalized maps may not create clinically aligned
+evidence\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Region-level surrogate methods\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{LIME} if implemented\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Which interpretable regions support a local surrogate
+approximation?\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+Superpixel definition, perturbation distribution, local-model stability,
+and separate calibration needs\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{validation-of-explanations}{%
+\section{Validation of Explanations}\label{validation-of-explanations}}
+
+Explanation validation has several non-equivalent dimensions.
+Localization validation compares selected attribution regions with
+available reference annotations. In this thesis the main
+positive-localization metrics are \texttt{IoU}, \texttt{Dice},
+\texttt{pointing\_\allowbreak hit}, and \texttt{precision\_\allowbreak at\_\allowbreak fraction}.
+\texttt{IoU}, \texttt{Dice}, and precision-at-fraction summarize overlap
+between selected heatmap regions and the pneumothorax mask, while
+\texttt{pointing\_\allowbreak hit} is stricter: it checks whether the
+maximum-attribution point falls inside the lesion. These metrics are
+useful for positive cases with masks, but they do not fully capture
+clinical usefulness.
+
+Faithfulness validation asks whether the highlighted pixels materially
+influence the model's own output. Deletion curves start from the
+original image and replace highly attributed pixels; insertion curves
+start from a baseline image and restore highly attributed pixels. If an
+explanation is faithful to the classifier, deleting high-attribution
+regions should reduce the target probability relatively quickly, while
+inserting them should restore it quickly. This evaluates model behavior,
+not clinical correctness. A heatmap may be faithful to a shortcut-driven
+model while still failing to localize the annotated lesion.
+
+Sanity checks and robustness analyses are also important because
+saliency methods can sometimes produce visually stable maps even when
+model parameters or labels are changed. In medical imaging, this concern
+is heightened by structured preprocessing, strong anatomical priors, and
+recurring acquisition artifacts. For pixel-level methods such as
+Integrated Gradients and GradientSHAP, smoothing and cross-case
+similarity should be reported so that readers can distinguish
+case-specific evidence from generic image patterns.
+
+Human-centered evaluation complements automatic metrics. A
+radiologist-style reviewer can identify whether a map highlights direct
+lesion evidence, indirect clinically related evidence, treatment
+correlates, devices, text artifacts, non-pathological high-contrast
+anatomy, or misleading regions. This type of review should be treated as
+structured qualitative evidence, not as prospective clinical validation.
+Its value is that it exposes clinically meaningful failure modes that a
+mask-overlap score may miss.
+
+The central limitation of saliency maps is that they are easy to
+over-interpret. They can show where attribution is high, but they do not
+prove causality in the clinical sense, and they do not replace reporting
+of the model, data, target class, preprocessing, perturbation baseline,
+thresholding rule, or calibration split. For this reason, the thesis
+reports explanation maps together with classifier behavior, localization
+metrics, faithfulness curves, and review scores.
+
+Figure 2.1 is reserved for the final literature-review illustration. It
+should show the conceptual risk that a heatmap can be visually plausible
+while highlighting clinically indirect or confounded image regions
+rather than the annotated lesion. The final figure may use one
+de-identified project example from the review workbook or a schematic if
+data-license constraints prevent publication of clinical images.
+
+\hypertarget{research-gap}{%
+\section{Research Gap}\label{research-gap}}
+
+The reviewed literature supports three conclusions. First, deep learning
+classifiers can be useful in radiology, but image-level performance does
+not guarantee lesion-aligned reasoning. Second, XAI methods are diverse
+and method-dependent: CAM maps, pixel attributions, Shapley-style
+approximations, and occlusion diagnostics answer different questions.
+Third, explanation validation remains difficult because a visually
+plausible heatmap may be unfaithful, poorly localized, or clinically
+misleading.
+
+The research gap addressed by this thesis is the lack of a compact but
+layered validation workflow that compares several XAI methods on the
+same medical imaging task using mask localization, perturbation
+faithfulness, method agreement, signed-evidence interpretation, and
+radiologist-centered failure review. Many studies present heatmaps as
+qualitative illustrations; fewer test whether those heatmaps align with
+available lesion masks, whether they affect the model output under
+controlled perturbation, and whether a medically trained reviewer finds
+them useful or misleading.
+
+The thesis also focuses on a practically important negative possibility:
+a pretrained medical classifier may be predictive enough to appear
+useful while its explanations reveal shortcut learning or weak clinical
+localization. Demonstrating this failure mode is scientifically valuable
+because it clarifies what XAI can and cannot justify. The contribution
+is not the claim that heatmaps automatically create trust, but that
+validated heatmaps can help decide when trust should be withheld.
+
+\hypertarget{conclusions-to-chapter-2}{%
+\section*{Conclusions to Chapter 2}\label{conclusions-to-chapter-2}}
+\addcontentsline{toc}{section}{Conclusions to Chapter 2}
+
+Chapter 2 reviewed the literature background needed for the thesis. Deep
+learning classifiers are now common in radiology research, especially in
+chest X-ray analysis, but public dataset labels, source institutions,
+and clinical contexts differ substantially. A model trained or
+pretrained on one data mixture cannot be assumed to localize pathology
+correctly on another dataset. This motivates the thesis decision to
+evaluate off-the-shelf TorchXRayVision baselines not only by image-level
+prediction, but also by explanation localization and qualitative failure
+modes.
+
+The reviewed XAI methods form complementary families. CAM-family methods
+provide class-discriminative spatial maps from internal activations;
+pixel-attribution methods trace gradients or Shapley-style contributions
+back to the input; occlusion directly perturbs image regions; and
+surrogate approaches such as LIME explain local behavior through
+interpretable region perturbations. Because these methods answer
+different questions, agreement between them is stronger evidence than
+any single heatmap, while disagreement is itself diagnostically useful.
+
+The validation literature shows that heatmaps must be tested rather than
+merely displayed. Localization metrics, faithfulness curves, robustness
+checks, and human-centered review each capture different aspects of
+explanation quality. In medical imaging, this is especially important
+because shortcut cues, devices, acquisition artifacts, and
+non-pathological high-contrast anatomy can all become model evidence.
+The research design in Chapter 3 follows directly from this gap: it
+evaluates explanations through a layered protocol that separates
+classifier behavior, mask localization, faithfulness to the model,
+signed-evidence semantics, and radiologist-centered usefulness.
+
+\hypertarget{methodology}{%
+\chapter{Methodology}\label{methodology}}
+
+\hypertarget{general-research-design}{%
+\section{General Research Design}\label{general-research-design}}
+
+This thesis uses an experimental validation design for post-hoc
+explainable AI methods in medical image classification. The central
+methodological question is not only whether a classifier predicts the
+correct image-level label, but whether the generated explanations are
+faithful to the classifier and clinically plausible with respect to
+available lesion evidence. The study therefore separates four linked but
+non-identical evaluation layers:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Classifier behavior}: the image-level pneumothorax
+  probability, classifier threshold, and resulting
+  \texttt{tp}/\texttt{fp}/\texttt{tn}/\texttt{fn} outcome.
+\item
+  \textbf{Localization against annotations}: whether selected
+  explanation regions overlap available lesion masks or place their
+  maximum attribution inside the mask.
+\item
+  \textbf{Faithfulness to the model}: whether deleting or inserting
+  highly attributed pixels changes the classifier probability in the
+  expected direction.
+\item
+  \textbf{Human-centered usefulness and failure analysis}: whether a
+  radiologist-style reviewer finds the explanation correct, partially
+  useful, misleading, or clinically irrelevant under a defined task.
+\end{enumerate}
+
+The primary case study is chest X-ray pneumothorax classification and
+explanation using the SIIM-ACR pneumothorax dataset and off-the-shelf
+TorchXRayVision classifiers. Pneumothorax is suitable because the task
+is clinically meaningful, the public challenge context includes
+image-level classification and segmentation framing, and positive cases
+provide masks that can be used as an approximate reference standard for
+localization-style evaluation.
+
+The secondary case study is a head CT intracranial hemorrhage pilot. It
+is intentionally described as a pilot rather than a full parallel
+clinical validation because it uses one verified off-the-shelf
+hemorrhage classifier, one public masked CT dataset, and a narrower
+input-space explanation panel than the CXR study. CT is methodologically
+useful because it differs from CXR in image physics, preprocessing, and
+perturbation baselines: CT uses Hounsfield-unit windowing rather than
+0-255 radiograph normalization.
+
+The methodology follows transparent-reporting principles from
+medical-imaging AI guidance such as CLAIM, TRIPOD+AI, QUADAS-AI, and
+DECIDE-AI. The practical implication is that the thesis reports the data
+source, local dataset snapshot, model source, preprocessing,
+split/calibration strategy, target output, XAI settings, thresholding
+choices, metrics, qualitative review task, and limitations together.
+Explanation maps are never described as direct pathology segmentations;
+they are model-behavior visualizations with respect to the selected
+target class.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.95\linewidth}
+\scriptsize
+\begin{verbatim}
+Medical image + label/mask
+        |
+        v
+Frozen classifier and target score
+        |
+        v
+Post-hoc XAI methods -> positive / negative / magnitude / signed views
+        |
+        +--> calibrated top-fraction localization metrics
+        +--> deletion / insertion faithfulness curves
+        +--> signed-evidence and agreement diagnostics
+        +--> radiologist-centered review workbook
+        |
+        v
+Separated interpretation of classifier behavior, localization, faithfulness, and usefulness
+\end{verbatim}
+\end{minipage}
+\caption{End-to-end validation pipeline used in the thesis draft}
+\label{figure:3-1}
+\end{figure}
+
+\hypertarget{datasets}{%
+\section{Datasets}\label{datasets}}
+
+\hypertarget{chest-x-ray-pneumothorax-dataset}{%
+\subsection{Chest X-ray pneumothorax
+dataset}\label{chest-x-ray-pneumothorax-dataset}}
+
+The primary dataset is the local SIIM-ACR pneumothorax chest X-ray
+snapshot stored under
+\texttt{data\_\allowbreak local/\allowbreak cxr\_\allowbreak pneumothorax/\allowbreak siim-\allowbreak acr-\allowbreak pneumothorax}. The
+working dataset state documented during the project contains
+\texttt{12,\allowbreak 047} PNG images and \texttt{12,\allowbreak 047} corresponding PNG masks,
+with \texttt{2,\allowbreak 669} positive pneumothorax cases and \texttt{9,\allowbreak 378}
+negative cases. These counts must be recomputed from the final local
+snapshot before final thesis submission, because the methodology and
+results should cite the exact data actually used.
+
+The dataset is used in two complementary ways. First, image-level labels
+are used to screen classifier performance and define outcome groups
+(\texttt{tp}, \texttt{fp}, \texttt{tn}, \texttt{fn}) at a frozen
+classifier threshold. Second, positive masks are used for localization
+evaluation of explanation maps. Negative images do not have lesion
+masks; therefore, they are mainly used for classifier-outcome
+visualization, false-positive analysis, and qualitative review rather
+than Dice/IoU localization against a pneumothorax mask.
+
+The project distinguishes calibration, exploratory, and held-out use.
+Classifier-threshold calibration and XAI top-fraction calibration must
+not be tuned on final held-out test results. Current CXR work uses a
+train-calibrated TorchXRayVision pneumothorax cutoff of approximately
+\texttt{0.\allowbreak 62}, selected because it was the best or near-best operating
+point for F1 and Youden's J in the calibration analysis.
+Outcome-balanced review sets may use \texttt{-\allowbreak \/\allowbreak -\allowbreak split\ any} for
+exploratory diversity, but any such result must be labelled exploratory
+because it can mix train and test cases.
+
+\hypertarget{head-ct-hemorrhage-pilot-dataset}{%
+\subsection{Head CT hemorrhage pilot
+dataset}\label{head-ct-hemorrhage-pilot-dataset}}
+
+The CT pilot uses the credentialed PhysioNet \texttt{ct-\allowbreak ich} v1.3.1
+dataset stored locally under
+\texttt{data\_\allowbreak local/\allowbreak physionet.\allowbreak org/\allowbreak files/\allowbreak ct-\allowbreak ich/\allowbreak 1.\allowbreak 3.\allowbreak 1}. The dataset
+contains NIfTI CT volumes and matched masks (\texttt{ct\_\allowbreak scans/\allowbreak NNN.\allowbreak nii}
+and \texttt{masks/\allowbreak NNN.\allowbreak nii}) plus per-slice hemorrhage labels. The
+verified local snapshot has \texttt{2,\allowbreak 814} slices, including
+\texttt{318} hemorrhage-positive slices with masks and \texttt{2,\allowbreak 496}
+normal slices. The final CT improvement experiment uses the train/test
+split produced by the CT manifest builder: \texttt{213} positive train
+slices for calibration and \texttt{105} positive test slices for
+held-out evaluation.
+
+When the integrated CT classifier is a Vision Transformer, as in the
+current pilot, the CT explanation panel is restricted to the input-space
+methods (\texttt{Integrated\ Gradients}, \texttt{GradientSHAP},
+\texttt{Occlusion}). These methods read only the model input and the
+output score, so their implementations are model-agnostic and run with
+identical code on the chest-X-ray and CT pipelines, which keeps the
+cross-modality comparison controlled. CAM-family methods
+(\texttt{Grad-\allowbreak CAM}, \texttt{Grad-\allowbreak CAM++}, \texttt{Eigen-\allowbreak CAM},
+\texttt{Score-\allowbreak CAM}) are not applied on the CT classifier: they weight a
+two-dimensional convolutional activation map, and a Vision Transformer
+instead represents the image as a sequence of patch tokens with no such
+feature map. Running a CAM on a transformer would require a
+token-to-grid reshape that constitutes a different explanation technique
+and would confound transfer of the \emph{same} methods;
+transformer-native spatial-explanation methods such as attention rollout
+or transformer attribution are therefore noted as future work rather
+than used here. Because the frozen four-method consensus includes
+\texttt{Grad-\allowbreak CAM}, it cannot be reproduced unchanged on the CT
+classifier; any CT-side consensus is reported separately as an
+exploratory aggregate over the three input-space methods and is
+explicitly distinguished from the frozen chest-X-ray consensus.
+
+\hypertarget{preprocessing}{%
+\section{Preprocessing}\label{preprocessing}}
+
+For CXR experiments, each source image is loaded as a grayscale
+radiograph and converted into the input format expected by the selected
+classifier. TorchXRayVision preprocessing maps an \texttt{H\ x\ W} uint8
+array in the range \texttt{0.\allowbreak .\allowbreak 255} through
+\texttt{xrv.\allowbreak datasets.\allowbreak normalize(array,\allowbreak \ 255)} and returns a
+single-channel tensor with shape \texttt{{[}1,\ H,\ W{]}}. The tensor is
+then moved to the selected device. DenseNet-121 TorchXRayVision weights
+are native to \texttt{224\ x\ 224} inputs, while the tested ResNet-50
+TorchXRayVision weight \texttt{resnet50-\allowbreak res512-\allowbreak all} is native to
+\texttt{512\ x\ 512}; when a script uses a different image size, this
+must be reported because resizing affects both classification and
+heatmap resolution.
+
+Masks are loaded as binary reference images for positive pneumothorax
+cases. For mask-based metrics, heatmaps and masks are brought to the
+same spatial grid before thresholding and comparison. Continuous
+attribution maps are normalized only for visualization and selection;
+normalization does not make them segmentations.
+
+For CT, preprocessing does not reuse CXR normalization. CT images are
+loaded from HU-preserving NIfTI volumes and rendered through a locked
+brain window (\texttt{WL=40}, \texttt{WW=80}) before replication into
+the three-channel format required by the DifeiT ViT image processor.
+Perturbation baselines also differ: replacing CXR pixels with black is
+not equivalent to replacing CT voxels with a meaningful HU value. For
+the integrated DifeiT checkpoint, the image processor uses
+\texttt{image\_\allowbreak mean\ =\ image\_\allowbreak std\ =\ 0.\allowbreak 5}, so the brain-window
+midpoint maps to normalized value \texttt{0.\allowbreak 0}; in this specific model
+contract, \texttt{brain\_\allowbreak window\_\allowbreak center} is numerically identical to
+\texttt{zero\_\allowbreak tensor}, while black/air remains a separate stress-test
+baseline.
+
+All random sampling and balanced outcome selection use fixed seeds where
+implemented. Stochastic explanation methods, especially GradientSHAP,
+are reported with their sample count and noise settings. Broad
+exploratory runs may use faster settings, while thesis-quality selected
+cases are rerun with higher-stability settings.
+
+\hypertarget{classification-models}{%
+\section{Classification Models}\label{classification-models}}
+
+The CXR classifiers are loaded off-the-shelf from TorchXRayVision. The
+original baseline is
+\texttt{xrv.\allowbreak models.\allowbreak DenseNet(weights="densenet121-\allowbreak res224-\allowbreak all")}, used as
+an external pretrained medical classifier without local modification,
+fine-tuning, or forking. This distinction is essential: weak SIIM
+pneumothorax localization should not be interpreted as failure of a
+locally optimized pneumothorax segmenter, but as evidence about transfer
+behavior of a pretrained image-level classifier.
+
+The CXR pipeline now uses a classifier-loading seam,
+\texttt{load\_\allowbreak classifier(name,\allowbreak \ device)}, which returns the model,
+Grad-CAM target layer, pneumothorax class index, and preprocessing
+function. This allows model comparisons without changing downstream XAI
+code. Current TorchXRayVision candidates include DenseNet-121 weights
+such as \texttt{densenet121-\allowbreak res224-\allowbreak all},
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}, \texttt{densenet121-\allowbreak res224-\allowbreak mimic\_\allowbreak ch},
+\texttt{densenet121-\allowbreak res224-\allowbreak mimic\_\allowbreak nb}, \texttt{densenet121-\allowbreak res224-\allowbreak rsna},
+\texttt{densenet121-\allowbreak res224-\allowbreak nih}, and \texttt{densenet121-\allowbreak res224-\allowbreak pc},
+plus the architecturally different \texttt{resnet50-\allowbreak res512-\allowbreak all}
+classifier. The DenseNet Grad-CAM target layer is
+\texttt{model.\allowbreak features.\allowbreak denseblock4}; for the TorchXRayVision ResNet-50
+wrapper, the target layer is \texttt{model.\allowbreak model.\allowbreak layer4}.
+
+The diagnostic model-comparison protocol treats
+\texttt{densenet121-\allowbreak res224-\allowbreak all} as the control and asks whether poor
+localization is stable across pretrained CXR weights or improves
+materially for another model. A later Stage A sweep selected
+\texttt{resnet50-\allowbreak res512-\allowbreak all} as the strongest tested TorchXRayVision
+follow-up candidate by aggregate localization, but absolute overlap
+remained low; therefore it should be framed as a relative model-side
+improvement, not as clinically sufficient localization.
+
+The target output for all CXR explanations is the model's
+\texttt{Pneumothorax} head. If a candidate model lacks a pneumothorax
+class head, it is rejected for this pipeline rather than silently
+attributing another class. Autoencoder-style weights are not valid
+classifiers for this methodology unless a separate reconstruction or
+feature-analysis experiment is explicitly defined.
+
+\hypertarget{explainability-methods}{%
+\section{Explainability Methods}\label{explainability-methods}}
+
+The explanation methods are post-hoc methods applied to an already
+trained classifier. They are generated with respect to the selected
+target score and are therefore class-specific attribution maps. The
+current v3 CXR method registry contains the following primary method
+families:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Grad-CAM} (\texttt{grad\_\allowbreak cam}): a class-discriminative
+  activation-map method using gradients flowing into a final
+  convolutional layer.
+\item
+  \textbf{Grad-CAM++} (\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}): a CAM-family
+  variant with modified activation-map weighting, included as a
+  comparator rather than assumed to be universally superior.
+\item
+  \textbf{Integrated Gradients} (\texttt{integrated\_\allowbreak gradients}): a
+  baseline-dependent path-integration attribution method. The number of
+  integration steps and baseline choice must be reported.
+\item
+  \textbf{GradientSHAP} (\texttt{gradient\_\allowbreak shap}): a stochastic
+  additive-attribution approximation related to SHAP concepts. The
+  number of samples, noise standard deviation, and stability settings
+  must be reported.
+\item
+  \textbf{Occlusion sensitivity} (\texttt{occlusion}): a perturbation
+  method that replaces local patches and measures the target-score
+  response. Patch size, stride, and replacement baseline must be
+  reported.
+\item
+  \textbf{Eigen-CAM} (\texttt{eigen\_\allowbreak cam}): a CAM-family method based on
+  the first principal component of target-layer activations, included to
+  broaden the activation-map comparison beyond gradient-weighted CAMs.
+\item
+  \textbf{Score-CAM} (\texttt{score\_\allowbreak cam}): a CAM-family method that
+  masks the input with normalized activation maps and weights them by
+  signed target-logit changes relative to a baseline. It is
+  computationally expensive because it requires additional forward
+  passes; broad calibration runs therefore report the channel cap used
+  for feasibility.
+\item
+  \textbf{Consensus} (\texttt{consensus}): a sign-aware average of the
+  frozen original constituent methods (\texttt{grad\_\allowbreak cam},
+  \texttt{integrated\_\allowbreak gradients}, \texttt{gradient\_\allowbreak shap}, and
+  \texttt{occlusion}), used to test whether cross-method agreement
+  produces a more stable explanation. Eigen-CAM and Score-CAM are
+  deliberately reported as additional individual methods rather than
+  being folded into the consensus definition, so that consensus results
+  remain comparable across thesis iterations.
+\end{itemize}
+
+The project moved from a legacy v1 naming scheme with separate
+polarity-suffixed method IDs, such as
+\texttt{integrated\_\allowbreak gradients\_\allowbreak positive} and
+\texttt{gradient\_\allowbreak shap\_\allowbreak negative}, to a v2 \texttt{SignedAttribution}
+contract. In v2, each method computes one normalized signed map and
+derives four views from it:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{positive}: non-negative evidence supporting the target score;
+\item
+  \texttt{negative}: suppressive evidence against the target score;
+\item
+  \texttt{magnitude}: absolute attribution strength, independent of
+  direction;
+\item
+  \texttt{signed}: the normalized signed map used for diverging overlays
+  and signed diagnostics.
+\end{itemize}
+
+This design avoids recomputing the same method separately for each
+polarity and makes the interpretation of positive, negative, magnitude,
+and signed outputs explicit. For pixel-level methods such as Integrated
+Gradients and GradientSHAP, optional smoothing may be applied for review
+readability; if smoothing is used, metrics should be computed from the
+same maps shown to the reviewer so that visualization and quantitative
+evaluation remain aligned.
+
+Figure 3.2 illustrates the four-view contract used throughout the CXR
+review workbook.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_continuous_heatmap.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_negative_continuous_heatmap.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_magnitude_continuous_heatmap.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_signed_continuous_heatmap.png}%
+\caption{Example four-view explanation contract for one review case (\texttt{case\_\allowbreak 31}, source \texttt{101\_\allowbreak test\_\allowbreak 1\_\allowbreak })}
+\label{figure:3-2}
+\end{figure}
+
+Table 3.1 summarizes the method panel and the semantic role of each
+output view.
+
+\begin{longtable}[]{@{}lllll@{}}
+\caption{Method panel and explanation-view semantics}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.17\columnwidth}\raggedright
+Method family\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Method id\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Primary evidence type\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Four-view support\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Final parameter fields to report\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.17\columnwidth}\raggedright
+Method family\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Method id\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Primary evidence type\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Four-view support\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Final parameter fields to report\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Grad-CAM\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+target-layer gradient-weighted activation evidence\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+target layer, input size\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Grad-CAM++\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+CAM variant with modified gradient weighting\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+target layer, input size\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Integrated Gradients\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{integrated\_\allowbreak gradients}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+baseline-dependent pixel attribution\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+baseline, \texttt{ig\_\allowbreak steps}, smoothing if used\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+GradientSHAP\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{gradient\_\allowbreak shap}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+stochastic baseline/noise pixel attribution\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+samples, stdevs, seed, smoothing if used\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Occlusion\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{occlusion}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+patch perturbation sensitivity\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+patch size, stride, baseline\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Eigen-CAM\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{eigen\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+activation principal-component map\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+target layer, sign-orientation rule\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Score-CAM\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{score\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+activation-mask forward-pass scoring\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+target layer, channel cap, baseline\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Frozen consensus\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{consensus}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+average of original four constituent methods\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{positive}, \texttt{negative}, \texttt{magnitude},
+\texttt{signed}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+constituent list, signed-map normalization\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{explanation-validation-metrics}{%
+\section{Explanation Validation
+Metrics}\label{explanation-validation-metrics}}
+
+The validation protocol intentionally combines multiple metrics because
+explanation quality has no single ground truth. Mask-overlap,
+peak-localization, negative-evidence, faithfulness, and review-score
+measures answer different questions.
+
+\hypertarget{top-fraction-selection}{%
+\subsection{Top-fraction selection}\label{top-fraction-selection}}
+
+Continuous heatmaps are converted to binary selected regions using
+top-fraction thresholding. Given a fraction \texttt{f}, the pipeline
+keeps the highest-valued \texttt{f} proportion of pixels after
+normalization. The selected region is then compared with the binary
+lesion mask. The fraction can be fixed, swept across values, or selected
+from calibration. Current useful sweep values are \texttt{0.\allowbreak 05} to
+\texttt{0.\allowbreak 95} in increments of \texttt{0.\allowbreak 05}. Broad visualization sweeps
+stop after selected-image coverage reaches approximately \texttt{0.\allowbreak 95}
+to avoid redundant whole-image panels.
+
+\hypertarget{positive-localization-metrics}{%
+\subsection{Positive localization
+metrics}\label{positive-localization-metrics}}
+
+For positive-label cases with masks, the primary localization metrics
+are:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Intersection over Union (IoU)}: the intersection of selected
+  explanation pixels and mask pixels divided by their union.
+\item
+  \textbf{Dice score}: twice the intersection divided by the sum of
+  selected pixels and mask pixels.
+\item
+  \textbf{Pointing hit}: \texttt{1} if the maximum-attribution pixel
+  lies inside the lesion mask, otherwise \texttt{0}.
+\item
+  \textbf{Precision at fraction}: the proportion of selected
+  top-fraction pixels that fall inside the mask.
+\end{itemize}
+
+IoU, Dice, and precision-at-fraction primarily measure overlap. Pointing
+hit measures whether the single strongest attribution point falls inside
+the lesion and should not be treated as interchangeable with overlap
+metrics. Current project evidence suggests that overlap metrics can be
+highly correlated with each other while pointing hit captures a stricter
+peak-localization property.
+
+\hypertarget{negative-evidence-diagnostics}{%
+\subsection{Negative-evidence
+diagnostics}\label{negative-evidence-diagnostics}}
+
+Negative evidence is not evaluated as if lesion overlap were
+automatically desirable. For a negative view, selected pixels inside the
+pneumothorax mask can mean that the model is treating lesion-region
+information as suppressive evidence, which may be clinically concerning.
+The pipeline therefore reports:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{negative mask overlap fraction}: the fraction of selected
+  negative-evidence pixels inside the lesion mask;
+\item
+  \textbf{negative mask avoidance fraction}:
+  \texttt{1\ -\allowbreak \ negative\_\allowbreak mask\_\allowbreak overlap\_\allowbreak fraction}, interpreted as how
+  much selected negative evidence avoids the lesion.
+\end{itemize}
+
+These metrics are diagnostics rather than universal correctness scores.
+They are interpreted together with the classifier outcome, positive
+localization, and visual review.
+
+\hypertarget{faithfulness-curves}{%
+\subsection{Faithfulness curves}\label{faithfulness-curves}}
+
+Faithfulness is evaluated by perturbing the actual model input according
+to each attribution ranking and re-evaluating the classifier
+probability. In a deletion curve, pixels are removed or replaced from
+the original image in descending attribution order; a faithful positive
+explanation is expected to reduce the target probability quickly. In an
+insertion curve, pixels are restored into a baseline image in descending
+attribution order; a faithful explanation is expected to recover the
+target probability quickly.
+
+For current CXR faithfulness runs, the preferred baseline is a true
+black-image baseline in the normalized TorchXRayVision input space.
+Earlier \texttt{zero\_\allowbreak tensor} baselines were found to be misleading
+because they could still produce high pneumothorax probabilities.
+Faithfulness curves are reported as model-behavior tests: a method may
+be faithful to the classifier while remaining clinically poorly
+localized against the pneumothorax mask.
+
+\hypertarget{spatial-saturation-and-agreement-diagnostics}{%
+\subsection{Spatial saturation and agreement
+diagnostics}\label{spatial-saturation-and-agreement-diagnostics}}
+
+The proposed secondary coverage metric,
+\texttt{coverage\_\allowbreak saturation\_\allowbreak fraction\_\allowbreak 95}, records the smallest swept
+top-fraction at which the selected explanation region covers at least
+\texttt{95\%} of the image. It is used only as a spatial diffuseness or
+saturation diagnostic. Lower values indicate that the thresholded map
+becomes whole-image-like quickly; higher values indicate that
+attribution remains more spatially concentrated over the tested
+fractions. It does not decide whether positive or negative evidence is
+clinically correct.
+
+Signed-capable runs may also report method-agreement diagnostics, such
+as cosine similarity between signed maps. Agreement between methods is
+treated as stronger evidence than a single overlay, while disagreement
+is useful for detecting instability, baseline sensitivity, or reliance
+on non-lesion cues.
+
+\hypertarget{calibration-and-paired-statistical-comparison}{%
+\subsection{Calibration and paired statistical
+comparison}\label{calibration-and-paired-statistical-comparison}}
+
+Classifier thresholds and explanation thresholds are calibrated
+separately. The classifier threshold converts the pneumothorax
+probability into an image-level outcome (\texttt{tp}, \texttt{fp},
+\texttt{tn}, or \texttt{fn}). In contrast, the XAI top-fraction
+threshold selects a spatial region from each heatmap for mask
+comparison. Tuning one threshold does not tune the other, and neither
+should be optimized on the final held-out test results.
+
+For the expanded Phase 5.1 method panel, XAI top fractions are
+recalibrated as \texttt{v3} artifacts on positive masked train-split
+cases. The canonical calibration output is
+\texttt{calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv}, generated separately for each
+selected classifier because the model architecture, native input size,
+and attribution maps differ between DenseNet-chex and ResNet-50. The
+held-out Phase 5.2 improvement experiment then uses the frozen
+\texttt{v3} calibration file and evaluates positive masked cases from
+the test split.
+
+The improvement experiment compares the frozen four-method consensus
+against each individual method using paired case-level metrics. The
+primary statistical test is the Wilcoxon signed-rank test, chosen
+because localization scores are bounded, often zero-inflated, and not
+safely assumed to be normally distributed. Multiple consensus-vs-method
+comparisons are corrected with Holm-Bonferroni family-wise error control
+at \texttt{alpha\ =\ 0.\allowbreak 05}. The effect-size companion is the median
+paired difference with a bootstrap 95\% confidence interval under a
+fixed seed. This framing separates statistical evidence for paired
+improvement from visual or clinical usefulness, which is still assessed
+through representative cases and the radiologist-centered review.
+
+Table 3.2 records the intended calibration and held-out evaluation
+discipline.
+
+\begin{longtable}[]{@{}lllll@{}}
+\caption{Calibration and held-out evaluation protocol}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.17\columnwidth}\raggedright
+Stage\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Data used\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Output artifact\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Purpose\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Must not be changed after\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.17\columnwidth}\raggedright
+Stage\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Data used\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Output artifact\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Purpose\strut
+\end{minipage} & \begin{minipage}[b]{0.17\columnwidth}\raggedright
+Must not be changed after\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Classifier threshold calibration\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+train/calibration subset\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+selected probability cutoff per model\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+define \texttt{tp}/\texttt{fp}/\texttt{tn}/\texttt{fn} outcomes\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+before held-out reporting\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+XAI top-fraction calibration v3\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+positive masked train-split cases\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv} per model\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+choose method/view fractions for spatial metrics\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+before Phase 5.2 test evaluation\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Held-out improvement experiment\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+positive masked test-split cases\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+\texttt{improvement\_\allowbreak experiment.\allowbreak csv}, paired statistics, plots\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+compare consensus against individual methods\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+no threshold tuning on these results\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.17\columnwidth}\raggedright
+Qualitative review\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+balanced selected cases\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+review workbook and scored \texttt{scores.\allowbreak csv}\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+assess usefulness and failure modes\strut
+\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
+scoring rubric fixed before review\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+Table 3.3 provides a compact metric interpretation guide for final
+writing. It should be kept close to the methodology text so the reader
+does not confuse localization, faithfulness, and clinical usefulness.
+
+\begin{longtable}[]{@{}llll@{}}
+\caption{Metric interpretation guide for localization, faithfulness, and
+review scores}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.22\columnwidth}\raggedright
+Evidence layer\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Metric or artifact\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+What higher/better means\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+What it does not prove\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.22\columnwidth}\raggedright
+Evidence layer\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+Metric or artifact\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+What higher/better means\strut
+\end{minipage} & \begin{minipage}[b]{0.22\columnwidth}\raggedright
+What it does not prove\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Positive localization\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{IoU}, \texttt{Dice}, \texttt{precision\_\allowbreak at\_\allowbreak fraction}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+selected positive evidence overlaps the pneumothorax mask more
+strongly\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+the model is clinically safe or the heatmap is causal\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Peak localization\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{pointing\_\allowbreak hit}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+the maximum-attribution pixel lies inside the lesion mask\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+broad map quality or overall lesion coverage\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Negative diagnostics\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+\texttt{negative\_\allowbreak mask\_\allowbreak avoidance\_\allowbreak fraction}\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+selected negative evidence avoids the lesion mask\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+negative evidence is clinically correct in all contexts\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Faithfulness\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+deletion/insertion curves and AUC\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+highlighted pixels affect the model probability under the chosen
+perturbation\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+highlighted pixels are clinically appropriate pathology evidence\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Method agreement\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+signed-map cosine similarity or qualitative agreement\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+multiple methods highlight similar signed evidence\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+the shared evidence is necessarily lesion-aligned\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.22\columnwidth}\raggedright
+Human-centered review\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+localization/usefulness/failure taxonomy\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+a medically trained reviewer finds the explanation useful or identifies
+a failure mode\strut
+\end{minipage} & \begin{minipage}[t]{0.22\columnwidth}\raggedright
+prospective deployment safety or inter-rater reliability\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{radiologist-centered-assessment}{%
+\section{Radiologist-Centered
+Assessment}\label{radiologist-centered-assessment}}
+
+The radiologist-centered component is implemented as a static review
+workbook generated from selected rendered cases. The workbook is
+designed for a controlled thesis-scale review task rather than for
+clinical deployment. Each case card shows the source CXR, ground-truth
+mask where available, classifier outcome and probability, and a grid of
+explanation overlays. Current review workbooks include method rows and
+four views per method so that positive, negative, magnitude, and signed
+evidence can be inspected separately.
+
+The scoring schema contains four fields:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{localization\_\allowbreak score} in
+  \texttt{\{correct,\allowbreak \ partial,\allowbreak \ incorrect,\allowbreak \ none\}};
+\item
+  \texttt{usefulness\_\allowbreak score} in
+  \texttt{\{useful,\allowbreak \ potentially\_\allowbreak useful,\allowbreak \ misleading,\allowbreak \ not\_\allowbreak useful\}};
+\item
+  \texttt{failure\_\allowbreak category} in
+  \texttt{\{correct,\allowbreak \ partial,\allowbreak \ anatomically\_\allowbreak related,\allowbreak \ devices\_\allowbreak text\_\allowbreak artifacts,\allowbreak \ non\_\allowbreak pathological\_\allowbreak high\_\allowbreak contrast,\allowbreak \ diffuse\_\allowbreak non\_\allowbreak specific,\allowbreak \ clinically\_\allowbreak misleading\}};
+\item
+  free-text \texttt{artifact\_\allowbreak note} and \texttt{comment} fields.
+\end{itemize}
+
+The review design follows human-centered XAI principles: the intended
+user is a medically trained reviewer, the task is explanation assessment
+rather than diagnosis, and all scoring categories are visible in the
+workbook to reduce context switching. The workbook includes instructions
+and warmup guidance so that scoring is anchored before the main review
+pass. Classifier-outcome-balanced selections preserve \texttt{tp},
+\texttt{fp}, \texttt{tn}, and \texttt{fn} examples where possible,
+because explanation failures can differ across successful predictions,
+false alarms, and missed positives.
+
+Review scores are interpreted as structured qualitative evidence. They
+do not replace quantitative localization or faithfulness metrics, and a
+single-reader review is not presented as prospective clinical
+validation. The review is nevertheless important because masks do not
+capture every clinically relevant pattern: devices, drains, subcutaneous
+emphysema, image markers, and indirect signs can be clinically related
+or confounding even when they do not overlap the pneumothorax mask.
+
+\hypertarget{ethical-and-practical-considerations}{%
+\section{Ethical and Practical
+Considerations}\label{ethical-and-practical-considerations}}
+
+The experiments use public or local retrospective medical-imaging data
+and do not alter patient care. Public CXR data are treated as
+de-identified challenge data, and local data are stored under
+\texttt{data\_\allowbreak local/\allowbreak } rather than committed as source artifacts.
+Generated figures should avoid patient-identifiable metadata and should
+use source image stems only for traceability within the experiment
+folders.
+
+The study is not a clinical deployment evaluation. The models are
+off-the-shelf classifiers, the masks are used as available reference
+annotations rather than perfect clinical truth, and the
+radiologist-centered workbook is an early structured review artifact.
+Results should therefore be framed as evidence about explanation
+behavior, model transfer, and validation methodology, not as a
+recommendation for automated diagnosis.
+
+Several practical risks are explicitly controlled in the methodology.
+Classifier thresholds and heatmap fractions are calibrated separately.
+Final held-out evaluation must not tune on test results. Old output
+folders are versioned and not overwritten; v1 and v2 attribution outputs
+are kept separate because the signed-attribution refactor changes the
+statistical meaning of maps and calibrated fractions. Long exploratory
+runs use checkpointed output files so that case selection and metrics
+remain reproducible.
+
+The software environment is part of the methodology. Python runs are
+performed in WSL Ubuntu, with the project installed editably from
+\texttt{pyproject.\allowbreak toml}; current documented environment notes include
+Python \texttt{3.\allowbreak 10.\allowbreak 12}, CUDA-capable PyTorch, and
+\texttt{torchxrayvision==1.\allowbreak 4.\allowbreak 0}. The final thesis should disclose
+AI/development tools according to institutional policy, including
+PyCharm/Junie and other assistants used during the research workflow.
+
+\hypertarget{implementation-and-reproducibility}{%
+\section{Implementation and
+Reproducibility}\label{implementation-and-reproducibility}}
+
+The CXR pipeline is organized around reusable scripts and package
+modules. The main classifier-screening script is
+\texttt{scripts/\allowbreak evaluate\_\allowbreak cxr\_\allowbreak torchxray\_\allowbreak model.\allowbreak py}. The main CXR XAI
+run script is \texttt{scripts/\allowbreak run\_\allowbreak cxr\_\allowbreak torchxray\_\allowbreak smoke.\allowbreak py}. XAI
+top-fraction calibration is performed by
+\texttt{scripts/\allowbreak calibrate\_\allowbreak cxr\_\allowbreak xai\_\allowbreak thresholds.\allowbreak py}. Single-case
+threshold diagnostics use
+\texttt{scripts/\allowbreak visualize\_\allowbreak cxr\_\allowbreak threshold\_\allowbreak selection.\allowbreak py}, and
+outcome-balanced visualizations use
+\texttt{scripts/\allowbreak visualize\_\allowbreak cxr\_\allowbreak classifier\_\allowbreak outcome\_\allowbreak thresholds.\allowbreak py}.
+Review workbooks are generated with
+\texttt{scripts/\allowbreak build\_\allowbreak review\_\allowbreak workbook.\allowbreak py}.
+
+The final draft currently uses the following result-producing artifacts
+as Chapter 4 sources: DenseNet-chex classifier screen
+\texttt{outputs/\allowbreak iter\_\allowbreak 56\_\allowbreak chex\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak }, DenseNet-chex
+v3 XAI calibration \texttt{outputs/\allowbreak iter\_\allowbreak 57\_\allowbreak chex\_\allowbreak calibration\_\allowbreak v3/\allowbreak },
+DenseNet-chex held-out improvement
+\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak }, ResNet-50 classifier
+screen \texttt{outputs/\allowbreak iter\_\allowbreak 55\_\allowbreak resnet\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak },
+ResNet-50 v3 XAI calibration
+\texttt{outputs/\allowbreak iter\_\allowbreak 50\_\allowbreak resnet\_\allowbreak calibration\_\allowbreak v3/\allowbreak }, ResNet-50 held-out
+improvement \texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak },
+balanced review workbook and analysis
+\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak workbook\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak }
+and
+\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak },
+CT smoke test \texttt{outputs/\allowbreak iter\_\allowbreak 53\_\allowbreak ct\_\allowbreak smoke\_\allowbreak test/\allowbreak }, and CT
+improvement run \texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak }.
+
+Experiment outputs are stored under ordinal folders such as
+\texttt{outputs/\allowbreak iter\_\allowbreak XX\_\allowbreak \textless{}short\_\allowbreak experiment\_\allowbreak name\textgreater{}}.
+Root-level CSV summaries are kept at the run root, and image artifacts
+are grouped by case so copied PNG files remain traceable. For
+classifier-outcome visualizations, top-level folders preserve
+\texttt{tp}, \texttt{fp}, \texttt{tn}, and \texttt{fn} grouping.
+
+When Python source files or output schemas change, syntax checks and
+relevant tests are run through WSL. The canonical local test command is
+\texttt{wsl.\allowbreak exe\ python3\ -\allowbreak m\ pytest\ tests/\allowbreak \ -\allowbreak v}; for script-only
+changes, at least
+\texttt{wsl.\allowbreak exe\ python3\ -\allowbreak m\ py\_\allowbreak compile\ \textless{}changed\_\allowbreak python\_\allowbreak files\textgreater{}}
+is required. Documentation-only changes do not require tests, but the
+Markdown diff should still be reviewed for scope and thesis-safe
+wording.
+
+\hypertarget{conclusions-to-chapter-3}{%
+\section*{Conclusions to Chapter 3}\label{conclusions-to-chapter-3}}
+\addcontentsline{toc}{section}{Conclusions to Chapter 3}
+
+The methodology defines XAI validation as a layered experimental problem
+rather than as a visual-inspection exercise. The classifier layer
+measures whether an off-the-shelf medical image classifier assigns the
+correct image-level pneumothorax label. The localization layer tests
+whether selected attribution regions overlap available pneumothorax
+masks. The faithfulness layer asks whether perturbing highly attributed
+pixels changes the actual model probability in the expected direction.
+The human-centered layer then checks whether a medically trained
+reviewer finds the explanations useful, misleading, or clinically
+incomplete under a defined scoring rubric. Keeping these layers separate
+is essential because a heatmap can be faithful to the model while still
+being poorly localized to clinically expected pathology.
+
+The CXR pipeline uses TorchXRayVision classifiers without local
+fine-tuning. DenseNet-all remains the original historical external
+baseline, but the Stage A diagnostic sweep identified DenseNet-chex as
+the stronger DenseNet-121 checkpoint, and ResNet-50 as the strongest
+tested TorchXRayVision follow-up overall. Explanation methods are
+implemented through the \texttt{SignedAttribution} contract, which
+provides positive, negative, magnitude, and signed views from one
+underlying attribution map. The method panel includes CAM-family,
+pixel-attribution, perturbation, and consensus approaches; the consensus
+remains frozen to the original four constituents so that cross-iteration
+comparison is not invalidated by the later Eigen-CAM and Score-CAM
+additions.
+
+The evaluation protocol protects the train/test boundary by separating
+classifier-threshold calibration, XAI top-fraction calibration, and
+held-out testing. Phase 5.1 recalibrates top fractions as \texttt{v3}
+artifacts for the expanded method panel, and Phase 5.2 uses those frozen
+artifacts for paired test-set comparisons. Wilcoxon signed-rank tests,
+Holm-Bonferroni correction, and bootstrap confidence intervals provide a
+non-parametric statistical framework for consensus-vs-individual
+comparisons. The scripts, output folders, seeds, and run metadata make
+the experiments reproducible, while Chapter 4 returns to the main
+limitations: off-the-shelf model mismatch, mask-reference imperfections,
+perturbation-baseline sensitivity, and the exploratory scale of the
+radiologist-centered review.
+
+\hypertarget{results-and-discussion}{%
+\chapter{Results and Discussion}\label{results-and-discussion}}
+
+\hypertarget{classification-performance}{%
+\section{Classification Performance}\label{classification-performance}}
+
+Classifier screening confirms that the selected CXR baselines differ
+substantially in image-level ranking performance. DenseNet-chex replaces
+DenseNet-all as the current DenseNet baseline because Stage A showed
+better aggregate localization among DenseNet-121 checkpoints; the full
+CheX test screen in
+\texttt{outputs/\allowbreak iter\_\allowbreak 56\_\allowbreak chex\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak } shows moderate
+image-level performance but not a uniformly better classifier-ranking
+profile than the original DenseNet-all. ResNet-50 is a stronger
+co-primary TorchXRayVision follow-up: the full test screen in
+\texttt{outputs/\allowbreak iter\_\allowbreak 55\_\allowbreak resnet\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak } gives higher
+AUC, average precision, specificity, and F1 at the Stage A threshold.
+These classifier values are reported only as image-level behavior. They
+do not imply that either model localizes pneumothorax well.
+
+The CT branch is not reported as a conventional binary
+classifier-performance table because the integrated DifeiT ViT
+checkpoint is a multi-class ICH subtype classifier and the thesis target
+is defined as \texttt{1\ -\allowbreak \ P(normal)} for positive masked hemorrhage
+slices. Its role in this chapter is therefore cross-modality explanation
+validation on verified positive slices rather than a complete CT
+screening benchmark.
+
+Key interpretation points for the current CXR experiments: - Treat
+\texttt{densenet121-\allowbreak res224-\allowbreak all} as the original historical
+TorchXRayVision baseline, not as the final selected DenseNet baseline.
+It remains useful because it demonstrates that an off-the-shelf medical
+classifier can have moderate ranking/classification behavior while still
+producing clinically weak pneumothorax localization. - Treat
+\texttt{densenet121-\allowbreak res224-\allowbreak chex} as the selected DenseNet baseline after
+Stage A because it had better aggregate localization than DenseNet-all
+among DenseNet-121 checkpoints (\texttt{mean\_\allowbreak dice=0.\allowbreak 0284},
+\texttt{mean\_\allowbreak iou=0.\allowbreak 0160} versus DenseNet-all
+\texttt{mean\_\allowbreak dice=0.\allowbreak 0237}, \texttt{mean\_\allowbreak iou=0.\allowbreak 0130}). - Stage A
+TorchXRayVision model comparison selected \texttt{resnet50-\allowbreak res512-\allowbreak all}
+as the strongest tested follow-up candidate by localization aggregate,
+not as a clinically strong model. In
+\texttt{outputs/\allowbreak iter\_\allowbreak 33\_\allowbreak stage\_\allowbreak a\_\allowbreak diagnostic\_\allowbreak ab/\allowbreak weights\_\allowbreak ab\_\allowbreak summary.\allowbreak csv},
+\texttt{resnet50-\allowbreak res512-\allowbreak all} had the highest mean Dice/IoU among tested
+TorchXRayVision candidates (\texttt{mean\_\allowbreak dice=0.\allowbreak 0397},
+\texttt{mean\_\allowbreak iou=0.\allowbreak 0221}), but absolute mask overlap remained very low.
+- Thesis-safe wording: ResNet-50 showed a relative improvement over the
+DenseNet branch within this diagnostic sweep, but the result should not
+be interpreted as reliable lesion segmentation or clinically sufficient
+pneumothorax localization.
+
+Table 4.1 keeps classifier performance separate from explanation
+quality: a model can rank cases well while producing attribution maps
+that are weakly localized to the lesion mask.
+
+\begin{landscape}
+\begin{longtable}[]{@{}lllrrrrrrl@{}}
+\caption{CXR classifier performance summary}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.06\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Split\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Threshold source\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Threshold\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+AUC\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Accuracy\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Sensitivity\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Specificity\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+F1\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Notes\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.06\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Split\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Threshold source\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Threshold\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+AUC\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Accuracy\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Sensitivity\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Specificity\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+F1\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Notes\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+test\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Stage A / CheX rerun operating point\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 565}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 7460}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 6822}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 7138}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 6738}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 4871}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+selected DenseNet baseline after Stage A localization; \texttt{207} TP,
+\texttt{353} FP, \texttt{729} TN, \texttt{83} FN\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+test\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Stage A threshold sweep\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 525}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 9163}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 8601}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 7103}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 9002}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 6821}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+co-primary TorchXRayVision follow-up; \texttt{206} TP, \texttt{108} FP,
+\texttt{974} TN, \texttt{84} FN\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+\end{landscape}
+
+Table 4.2 summarizes the already completed Stage A localization signal
+that motivated keeping ResNet-50 as a co-primary baseline. Values are
+aggregate positive-view localization means from
+\texttt{outputs/\allowbreak iter\_\allowbreak 33\_\allowbreak stage\_\allowbreak a\_\allowbreak diagnostic\_\allowbreak ab/\allowbreak weights\_\allowbreak ab\_\allowbreak summary.\allowbreak csv}.
+
+\begin{longtable}[]{@{}lrrrl@{}}
+\caption{Stage A TorchXRayVision model-localization
+comparison}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.14\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean Dice\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean IoU\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean precision at fraction\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.14\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean Dice\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean IoU\strut
+\end{minipage} & \begin{minipage}[b]{0.19\columnwidth}\raggedleft
+Mean precision at fraction\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0397}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0221}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0296}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+best tested TorchXRayVision candidate by aggregate localization, but
+still weak in absolute terms\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0284}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0160}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0216}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+strongest DenseNet-121 comparator in the Stage A summary\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0237}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0130}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0182}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+original baseline; lower localization than ResNet-50\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak nih}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0194}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0108}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0151}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+weaker DenseNet-121 comparator\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak pc}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0180}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0097}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0127}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+weaker DenseNet-121 comparator\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak mimic\_\allowbreak ch}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0139}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0073}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0095}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+weaker DenseNet-121 comparator\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak mimic\_\allowbreak nb}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0128}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0070}\strut
+\end{minipage} & \begin{minipage}[t]{0.19\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0098}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+weakest tested DenseNet-121 comparator\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{quantitative-explanation-validation}{%
+\section{Quantitative Explanation
+Validation}\label{quantitative-explanation-validation}}
+
+The final Phase 5.2 held-out improvement experiments were run after
+freezing the expanded-method \texttt{v3} calibration artifacts. Both CXR
+baselines used \texttt{200} randomly sampled positive masked test-split
+cases (\texttt{seed=20260515}) and the same positive-view localization
+metric panel: \texttt{IoU}, \texttt{Dice}, \texttt{pointing\_\allowbreak hit}, and
+\texttt{precision\_\allowbreak at\_\allowbreak fraction}. The quantitative results support three
+thesis-safe conclusions.
+
+First, absolute pneumothorax-mask overlap remains low for all methods.
+For DenseNet-chex, the highest mean Dice values are \texttt{occlusion}
+(\texttt{0.\allowbreak 0411}) and \texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus} (\texttt{0.\allowbreak 0409}),
+with consensus close behind (\texttt{0.\allowbreak 0383}) and the remaining methods
+in the \texttt{0.\allowbreak 026-\allowbreak 0.\allowbreak 036} range. For ResNet-50, \texttt{grad\_\allowbreak cam} has
+the highest mean Dice (\texttt{0.\allowbreak 0540}), followed by \texttt{score\_\allowbreak cam}
+(\texttt{0.\allowbreak 0513}) and consensus (\texttt{0.\allowbreak 0488}). These values are
+useful for relative method comparison, but they are not clinically
+strong segmentation-like localization.
+
+Second, consensus behavior is model-dependent. In the DenseNet-chex
+held-out run (\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak }),
+consensus significantly improves Dice, IoU, and precision-at-fraction
+over \texttt{score\_\allowbreak cam}, but it does not significantly beat the
+stronger aggregate Dice methods such as \texttt{occlusion} or
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}. In the ResNet-50 run
+(\texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak }), consensus
+significantly improves Dice/IoU over \texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus},
+\texttt{integrated\_\allowbreak gradients}, \texttt{gradient\_\allowbreak shap},
+\texttt{occlusion}, and \texttt{eigen\_\allowbreak cam}, but not over
+\texttt{grad\_\allowbreak cam} or \texttt{score\_\allowbreak cam}. Therefore, consensus should
+be framed as a stabilizing method in some settings, not as a universally
+superior explanation.
+
+Third, \texttt{pointing\_\allowbreak hit} remains a strict and sparse diagnostic.
+Most methods have median \texttt{pointing\_\allowbreak hit=0.\allowbreak 0}; significant
+differences in this metric should be interpreted cautiously because the
+maximum-attribution pixel rarely falls inside the pneumothorax mask.
+This confirms the earlier Stage A pattern that selected-region overlap
+metrics and peak-localization metrics should not be treated as
+interchangeable.
+
+Key interpretation points for quantitative CXR explanation validation: -
+Quantitative overlap metrics and peak-localization metrics answer
+different questions. Across Stage A all-model correlations
+(\texttt{outputs/\allowbreak iter\_\allowbreak 35\_\allowbreak metric\_\allowbreak correlations\_\allowbreak iter33\_\allowbreak stage\_\allowbreak a\_\allowbreak all\_\allowbreak models/\allowbreak }),
+IoU, Dice, and precision-at-fraction were almost redundant, while
+pointing-hit was only weakly associated with those overlap metrics. Use
+pointing-hit as a strict peak-localization diagnostic, not as an
+interchangeable replacement for Dice/IoU. - Signed diagnostics are
+conceptually separate from positive lesion overlap. Negative attribution
+should not be scored as successful because it overlaps the pneumothorax
+mask; for suppressive evidence, lesion avoidance is often more
+meaningful than lesion overlap. - Faithfulness and localization must be
+separated in the discussion. Deletion/insertion curves test whether a
+heatmap explains the model behavior under perturbation, whereas mask
+metrics test agreement with annotated pathology location. A method can
+be faithful to the model while still clinically poorly localized. - For
+pixel-level methods (\texttt{Integrated\ Gradients},
+\texttt{GradientSHAP}), post-processing affects readability. The
+smoothed ResNet review run used
+\texttt{-\allowbreak \/\allowbreak -\allowbreak pixel-\allowbreak attribution-\allowbreak mask-\allowbreak smoothing\ 9}, and metrics were
+computed from the same smoothed maps shown in the review workbook.
+Present this as a visualization/selection setting, not as a change in
+the classifier.
+
+These results distinguish calibration-dependent Phase 5.2 evidence from
+the earlier diagnostic Stage A evidence. The interpretation is
+intentionally conservative: averaging weak or mislocalized method
+families does not automatically create clinically aligned evidence, but
+under the stronger ResNet-50 baseline the frozen consensus can improve
+localization relative to several weaker individual methods.
+
+\begin{graph}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.42\textheight,keepaspectratio]{figures/iter_58_chex_improvement_v3__improvement_experiment_boxplots.png}
+\caption{DenseNet-chex Phase 5.2 localization metric distributions}
+\label{graph:4-2}
+\end{graph}
+
+\begin{graph}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.42\textheight,keepaspectratio]{figures/iter_52_resnet_improvement_v3__improvement_experiment_boxplots.png}
+\caption{ResNet-50 Phase 5.2 localization metric distributions}
+\label{graph:4-3}
+\end{graph}
+
+\hypertarget{cross-modality-comparison}{%
+\section{Cross-Modality Comparison}\label{cross-modality-comparison}}
+
+Phase 5.4 Branch A was completed, so the thesis includes a real CT pilot
+rather than only a methodological extension. The verified PhysioNet
+\texttt{ct-\allowbreak ich} v1.3.1 branch uses NIfTI volumes with matched masks,
+HU-preserving preprocessing, the DifeiT ViT checkpoint, and the binary
+target \texttt{1\ -\allowbreak \ P(normal)}. The full CT smoke run is stored in
+\texttt{outputs/\allowbreak iter\_\allowbreak 53\_\allowbreak ct\_\allowbreak smoke\_\allowbreak test/\allowbreak }, and the calibrated held-out
+CT improvement experiment is stored in
+\texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak }.
+
+The cross-modality result is deliberately asymmetric. The CXR
+experiments evaluate the frozen four-method CXR consensus across CAM,
+input-gradient, and perturbation families. The CT pilot evaluates
+\texttt{consensus\_\allowbreak input3}, an input-space consensus of
+\texttt{integrated\_\allowbreak gradients}, \texttt{gradient\_\allowbreak shap}, and
+\texttt{occlusion}, because the convolutional CAM implementation does
+not transfer directly to the Vision Transformer checkpoint. Therefore,
+CT results are valid evidence that the validation framework transfers
+across modalities, but they are not a one-to-one replication of the CXR
+method panel.
+
+Table 4.3 summarizes the corrected cross-modality consensus reading. The
+important negative control is that there is no general law that
+consensus improves localization. DenseNet-chex shows significant overlap
+gains mainly over \texttt{score\_\allowbreak cam}, while stronger aggregate Dice
+methods remain competitive or better descriptively. ResNet-50 shows
+small significant overlap gains over weaker methods while tying the
+strongest CAM methods. CT shows the cleanest consensus benefit, but only
+for peak localization (\texttt{pointing\_\allowbreak hit}), while broad overlap
+metrics remain non-significant.
+
+\begin{longtable}[]{@{}llllll@{}}
+\caption{Cross-modality consensus summary}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.14\columnwidth}\raggedright
+Setting\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Reference consensus\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Test set\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Main significant result\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Aggregate consensus metrics\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Thesis interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.14\columnwidth}\raggedright
+Setting\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Reference consensus\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Test set\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Main significant result\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Aggregate consensus metrics\strut
+\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedright
+Thesis interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+CXR DenseNet-chex\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+frozen four-method CXR \texttt{consensus}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{200} SIIM test positives\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+Dice/IoU/precision higher than \texttt{score\_\allowbreak cam}; pointing-hit differs
+from several methods with zero median effects\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+IoU \texttt{0.\allowbreak 0203}, Dice \texttt{0.\allowbreak 0383}, pointing \texttt{0.\allowbreak 050},
+precision \texttt{0.\allowbreak 0213}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+consensus is competitive but not best by aggregate Dice; not universally
+superior\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+CXR ResNet-50\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+frozen four-method CXR \texttt{consensus}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{200} SIIM test positives\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+Dice/IoU/precision higher than five weaker methods; not significant vs
+\texttt{grad\_\allowbreak cam} or \texttt{score\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+IoU \texttt{0.\allowbreak 0265}, Dice \texttt{0.\allowbreak 0488}, pointing \texttt{0.\allowbreak 010},
+precision \texttt{0.\allowbreak 0289}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+consensus stabilizes weak/noisy methods but remains comparable to the
+best CAM alternatives\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.14\columnwidth}\raggedright
+CT DifeiT ViT\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{consensus\_\allowbreak input3} from input-space methods\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+\texttt{105} PhysioNet CT positive slices\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+pointing-hit significantly higher than IG, GradientSHAP, and occlusion;
+overlap metrics non-significant\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+IoU \texttt{0.\allowbreak 0411}, Dice \texttt{0.\allowbreak 0754}, pointing \texttt{0.\allowbreak 343},
+precision \texttt{0.\allowbreak 0458}\strut
+\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedright
+strongest consensus signal is peak localization on CT, not broad
+overlap\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+The CT finding should be reported with four caveats. First, the CT
+calibration selected fraction \texttt{0.\allowbreak 05} for all methods, which is
+the floor of the sweep and suggests that smaller fractions may be
+relevant for tiny hemorrhage masks. Second, \texttt{pointing\_\allowbreak hit} is
+binary per case, so the proper interpretation combines per-method rates,
+win/tie/loss counts, and the paired rank test; median paired differences
+alone are not informative. Third, the CT pilot uses one classifier and
+one dataset. Fourth, CAM-family transformer explanations remain future
+work because adopting transformer-specific CAM or attention methods
+would introduce a different implementation path from the CXR
+convolutional code.
+
+\begin{graph}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.42\textheight,keepaspectratio]{figures/iter_54_ct_improvement_test__ct_improvement_experiment_boxplots.png}
+\caption{CT pilot localization metric distributions}
+\label{graph:4-4}
+\end{graph}
+
+\hypertarget{radiologist-assessment-and-failure-taxonomy}{%
+\section{Radiologist Assessment and Failure
+Taxonomy}\label{radiologist-assessment-and-failure-taxonomy}}
+
+This section combines the automatic metrics with the structured balanced
+40-case ResNet review. The numerical distributions are already available
+below; the remaining human-review task is to choose the final 2-4
+representative visual examples. The candidate figures should connect the
+counts to direct localization, indirect clinically related evidence,
+device/tube confounding, high-contrast non-lesion evidence, and
+clinically misleading maps.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1_.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_continuous_heatmap.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_threshold_sweep_panel.png}%
+\hfill
+\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_signed_continuous_heatmap.png}%
+\caption{Candidate review-workbook case for explanation visual inspection}
+\label{figure:4-1}
+\end{figure}
+
+Key interpretation points from the balanced 40-case ResNet review
+(\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak },
+scored 2026-05-25). This is the canonical radiologist-review evidence
+for the thesis; the earlier 10-case smoothed review at
+\texttt{outputs/\allowbreak iter\_\allowbreak 45\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak smoothed/\allowbreak } is
+preserved as a methodological pilot but is superseded by the balanced
+outcome-stratified 40-case scoring. - Review score distribution
+(\texttt{n=40}, with 10 cases per
+\texttt{tp}/\texttt{fp}/\texttt{tn}/\texttt{fn} outcome): localization
+was \texttt{correct} in 11/40 cases, \texttt{partial} in 15/40, and
+\texttt{incorrect} in 14/40. Usefulness was \texttt{useful} in 12/40,
+\texttt{potentially\_\allowbreak useful} in 13/40, \texttt{misleading} in 14/40, and
+\texttt{not\_\allowbreak useful} in 1/40. The split between useful + potentially
+useful (25/40) and misleading + not useful (15/40) supports a nuanced
+Chapter 4 framing: many maps carry some interpretable signal, but
+clinically misleading or poorly localized explanations remain common. -
+Failure taxonomy counts: \texttt{correct} 10/40, \texttt{partial} 8/40,
+\texttt{non\_\allowbreak pathological\_\allowbreak high\_\allowbreak contrast} 13/40,
+\texttt{clinically\_\allowbreak misleading} 7/40, and
+\texttt{devices\_\allowbreak text\_\allowbreak artifacts} 2/40. The dominant failure mode at
+this stage of the off-the-shelf TorchXRayVision baseline is attention on
+non-pathological high-contrast structures (bones, rib edges, lung apex)
+rather than on device/text artifacts. - Qualitative flags from the
+completed scoring sheet: devices/tubes were relevant in 19/40 cases,
+indirect evidence in 8/40, method disagreement in 8/40, weak pixel
+attribution in 4/40, subcutaneous emphysema in 4/40, and mask-quality
+issue in 3/40. The high devices/tubes flag rate is a structural
+confounder of the off-the-shelf classifier on SIIM pneumothorax: devices
+co-occur with positive cases and the classifier's evidence frequently
+latches onto treatment correlates rather than pneumothorax-specific
+findings. - Interpretation guard: device/tube and subcutaneous-emphysema
+findings should not all be grouped as generic artifacts. Devices and ECG
+wires are treatment-related confounders that the classifier exploits;
+subcutaneous emphysema is sometimes clinically related to pneumothorax
+and is not equivalent to direct mask localization. The thesis must keep
+these categories distinct. - The 40-case balanced review supports using
+\texttt{usefulness\_\allowbreak score} separately from \texttt{localization\_\allowbreak score}.
+Low-overlap maps can still be useful for auditing model failure or
+identifying clinically adjacent evidence; conversely, a visually
+plausible map can be misleading if it emphasizes non-lesion regions. -
+The review workbook and figures should state that heatmaps visualize
+model attribution toward the selected pneumothorax output and should not
+be interpreted as anatomical segmentations. - Exploratory score-metric
+correlations on the balanced 40-case set are modest: strongest absolute
+Spearman associations are about
+\texttt{\textbar{}rho\textbar{}\ \textless{}=\ 0.\allowbreak 42}. Frame these as
+supporting evidence alongside the structured radiologist categories, not
+as standalone proof that any automatic metric captures clinical
+usefulness.
+
+Table 4.4 gives the canonical balanced 40-case review score
+distribution.
+
+Chart \ref{chart:4-2} visualizes Table 4.4 as review-score counts. The
+chart is generated from the canonical counts in
+\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak review\_\allowbreak score\_\allowbreak counts.\allowbreak csv}
+by \texttt{scripts/\allowbreak make\_\allowbreak thesis\_\allowbreak charts.\allowbreak py}.
+
+\begin{chart}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.42\textheight,keepaspectratio]{figures/iter_61_thesis_charts__chart_4_2_review_scores.png}
+\caption{Balanced 40-case review score distribution (localization and usefulness)}
+\label{chart:4-2}
+\end{chart}
+
+\begin{longtable}[]{@{}llrl@{}}
+\caption{Balanced 40-case radiologist review score
+distribution}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.20\columnwidth}\raggedright
+Review dimension\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\raggedright
+Category\strut
+\end{minipage} & \begin{minipage}[b]{0.27\columnwidth}\raggedleft
+Count / 40\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\raggedright
+Thesis interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.20\columnwidth}\raggedright
+Review dimension\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\raggedright
+Category\strut
+\end{minipage} & \begin{minipage}[b]{0.27\columnwidth}\raggedleft
+Count / 40\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\raggedright
+Thesis interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Localization\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{correct}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{11}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+clear lesion-aligned evidence in a minority of cases\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Localization\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{partial}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{15}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+some plausible evidence, but incomplete or indirect\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Localization\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{incorrect}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{14}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+substantial clinically weak or mislocalized explanations\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Usefulness\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{useful}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{12}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+directly helpful for model-audit interpretation\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Usefulness\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{potentially\_\allowbreak useful}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{13}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+informative but requiring caution/context\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Usefulness\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{misleading}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{14}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+clinically misleading evidence remains common\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.20\columnwidth}\raggedright
+Usefulness\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+\texttt{not\_\allowbreak useful}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedleft
+\texttt{1}\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\raggedright
+no practically useful signal in the scored view\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+Table 4.5 summarizes the failure taxonomy for the same review set.
+
+Chart \ref{chart:4-3} visualizes Table 4.5 as failure-taxonomy counts
+alongside the qualitative review flags. The chart is generated from
+\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak review\_\allowbreak score\_\allowbreak counts.\allowbreak csv}
+and
+\texttt{outputs/\allowbreak iter\_\allowbreak 48\_\allowbreak resnet\_\allowbreak review\_\allowbreak analysis\_\allowbreak balanced40\_\allowbreak smoothed\_\allowbreak faithfulness/\allowbreak review\_\allowbreak flag\_\allowbreak counts.\allowbreak csv}
+by \texttt{scripts/\allowbreak make\_\allowbreak thesis\_\allowbreak charts.\allowbreak py}.
+
+\begin{chart}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth,height=0.42\textheight,keepaspectratio]{figures/iter_61_thesis_charts__chart_4_3_failure_taxonomy.png}
+\caption{Balanced 40-case review failure taxonomy and qualitative flags}
+\label{chart:4-3}
+\end{chart}
+
+\begin{longtable}[]{@{}lrl@{}}
+\caption{Balanced 40-case review failure taxonomy}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.27\columnwidth}\raggedright
+Failure category\strut
+\end{minipage} & \begin{minipage}[b]{0.37\columnwidth}\raggedleft
+Count / 40\strut
+\end{minipage} & \begin{minipage}[b]{0.27\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.27\columnwidth}\raggedright
+Failure category\strut
+\end{minipage} & \begin{minipage}[b]{0.37\columnwidth}\raggedleft
+Count / 40\strut
+\end{minipage} & \begin{minipage}[b]{0.27\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.27\columnwidth}\raggedright
+\texttt{correct}\strut
+\end{minipage} & \begin{minipage}[t]{0.37\columnwidth}\raggedleft
+\texttt{10}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedright
+explanation pattern judged clinically aligned\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.27\columnwidth}\raggedright
+\texttt{partial}\strut
+\end{minipage} & \begin{minipage}[t]{0.37\columnwidth}\raggedleft
+\texttt{8}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedright
+partly aligned or incomplete explanation\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.27\columnwidth}\raggedright
+\texttt{non\_\allowbreak pathological\_\allowbreak high\_\allowbreak contrast}\strut
+\end{minipage} & \begin{minipage}[t]{0.37\columnwidth}\raggedleft
+\texttt{13}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedright
+dominant failure mode; model evidence often follows high-contrast
+structures rather than pneumothorax mask\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.27\columnwidth}\raggedright
+\texttt{clinically\_\allowbreak misleading}\strut
+\end{minipage} & \begin{minipage}[t]{0.37\columnwidth}\raggedleft
+\texttt{7}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedright
+explanation emphasizes regions that could mislead clinical
+interpretation\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.27\columnwidth}\raggedright
+\texttt{devices\_\allowbreak text\_\allowbreak artifacts}\strut
+\end{minipage} & \begin{minipage}[t]{0.37\columnwidth}\raggedleft
+\texttt{2}\strut
+\end{minipage} & \begin{minipage}[t]{0.27\columnwidth}\raggedright
+explicit device/text artifact category; separate from clinically related
+tubes or subcutaneous emphysema notes\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{explanation-improvement-experiment}{%
+\section{Explanation Improvement
+Experiment}\label{explanation-improvement-experiment}}
+
+The Phase 5.2 explanation-improvement experiment evaluates whether the
+frozen four-method consensus improves positive-lesion localization over
+individual methods on held-out positive CXR test cases. The
+selected-baseline run uses train-split top-fraction calibration only:
+\texttt{outputs/\allowbreak iter\_\allowbreak 57\_\allowbreak chex\_\allowbreak calibration\_\allowbreak v3/\allowbreak calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv}
+for DenseNet-chex and
+\texttt{outputs/\allowbreak iter\_\allowbreak 50\_\allowbreak resnet\_\allowbreak calibration\_\allowbreak v3/\allowbreak calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv}
+for ResNet-50. The held-out outputs are stored in
+\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak } and
+\texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak }. The earlier
+DenseNet-all outputs remain historical/original-baseline continuity
+artifacts, not the current selected DenseNet baseline.
+
+Each run produced \texttt{1,\allowbreak 600} per-case metric rows (\texttt{200}
+cases x \texttt{8} positive-view methods), paired consensus-vs-method
+Wilcoxon signed-rank tests, Holm-Bonferroni adjusted p-values, bootstrap
+confidence intervals, and aggregate plots. Table 4.6 reports the
+Dice-focused paired comparison because Dice is the most interpretable
+overlap summary for selected attribution regions. Full IoU,
+pointing-hit, and precision-at-fraction results remain available in
+\texttt{improvement\_\allowbreak experiment\_\allowbreak paired.\allowbreak csv} for both runs.
+
+Key interpretation points for the improvement and visualization work: -
+The top-fraction sweep now stops after selected-mask coverage reaches
+approximately full-image coverage
+(\texttt{-\allowbreak \/\allowbreak -\allowbreak stop-\allowbreak fractions-\allowbreak at-\allowbreak coverage\ 0.\allowbreak 95}). This avoids showing
+redundant high-fraction panels when lower fractions already cover the
+whole image and prevents over-interpreting visually saturated masks. -
+Smoothed IG/GradientSHAP maps improved review readability, but the
+improvement is best framed as making pixel-level attribution more
+inspectable, not necessarily more clinically correct. - Exploratory
+cross-case pattern analysis found moderately high visual cosine
+similarity for IG/GradientSHAP maps across the 10 review cases
+(\texttt{mean} roughly \texttt{0.\allowbreak 53-\allowbreak 0.\allowbreak 55} across positive, negative,
+magnitude, and signed views). Higher cross-case similarity tended to
+associate with lower localization score in this small sample, with
+strongest observed Spearman around \texttt{rho=-\allowbreak 0.\allowbreak 54} on \texttt{n=10}
+for magnitude views. Treat this as a hypothesis-generating observation:
+pixel-level methods may sometimes show case-invariant or
+preprocessing-driven patterns, so qualitative review should check
+whether maps are case-specific.
+
+Final figure candidates for this section are the aggregate boxplots and
+paired-difference plots from
+\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak improvement\_\allowbreak experiment\_\allowbreak boxplots.\allowbreak png},
+\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak improvement\_\allowbreak experiment\_\allowbreak paired\_\allowbreak diff.\allowbreak png},
+\texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak improvement\_\allowbreak experiment\_\allowbreak boxplots.\allowbreak png},
+and
+\texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak improvement\_\allowbreak experiment\_\allowbreak paired\_\allowbreak diff.\allowbreak png}.
+The CT improvement run provides matching figures generated with the same
+plotting style,
+\texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak ct\_\allowbreak improvement\_\allowbreak experiment\_\allowbreak boxplots.\allowbreak png}
+and
+\texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak ct\_\allowbreak improvement\_\allowbreak experiment\_\allowbreak paired\_\allowbreak diff.\allowbreak png},
+so the CT panel can be shown alongside the CXR ones without mixing
+incomparable visual encodings.
+
+\begin{graph}[htbp]
+\centering
+\includegraphics[width=0.317\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_58_chex_improvement_v3__improvement_experiment_paired_diff.png}%
+\hfill
+\includegraphics[width=0.317\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_52_resnet_improvement_v3__improvement_experiment_paired_diff.png}%
+\hfill
+\includegraphics[width=0.317\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_54_ct_improvement_test__ct_improvement_experiment_paired_diff.png}%
+\caption{Phase 5.2 paired consensus-vs-individual localization differences}
+\label{graph:4-5}
+\end{graph}
+
+\begin{landscape}
+\begin{longtable}[]{@{}lllrrrlrrl@{}}
+\caption{Phase 5.2 improvement-experiment paired Dice
+comparison}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.06\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Method compared with frozen consensus\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Metric\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Consensus median\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Method median\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Median paired difference\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+95\% bootstrap CI\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Wilcoxon p\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Holm-adjusted p\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.06\columnwidth}\raggedright
+Model\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Method compared with frozen consensus\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Metric\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Consensus median\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Method median\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Median paired difference\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+95\% bootstrap CI\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Wilcoxon p\strut
+\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft
+Holm-adjusted p\strut
+\end{minipage} & \begin{minipage}[b]{0.06\columnwidth}\raggedright
+Interpretation\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0222}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0000}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0000,\ 0.0016{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0441}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 2205}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0127}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0000}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0000,\ 0.0009{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 8024}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 8024}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{integrated\_\allowbreak gradients}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0226}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{-\allowbreak 0.\allowbreak 0005}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0033,\ 0.0041{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 1972}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 3945}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{gradient\_\allowbreak shap}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0213}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{-\allowbreak 0.\allowbreak 0002}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0024,\ 0.0052{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0499}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 2205}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{occlusion}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0191}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0000}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0017,\ 0.0000{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 1111}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 3333}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{eigen\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0186}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0004}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0013,\ 0.0036{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0309}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 1855}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{densenet121-\allowbreak res224-\allowbreak chex}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{score\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0211}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0190}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0015}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0002,\ 0.0068{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0005}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0033}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant, small effect\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0172}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0000,\ 0.0010{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 6000}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 9789}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0085}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0030}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0007,\ 0.0054{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0002}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0006}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{integrated\_\allowbreak gradients}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0184}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0039}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}-0.0001,\ 0.0098{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{\textless{}0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{\textless{}0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{gradient\_\allowbreak shap}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0183}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0040}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0004,\ 0.0097{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{\textless{}0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{\textless{}0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{occlusion}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0252}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0000,\ 0.0024{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0139}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0416}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant, very small effect\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{eigen\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0139}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0051}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0011,\ 0.0076{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{\textless{}0.\allowbreak 0001}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0002}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+significant\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{resnet50-\allowbreak res512-\allowbreak all}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{score\_\allowbreak cam}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+Dice\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0218}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0144}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 0004}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+\texttt{{[}0.0000,\ 0.0024{]}}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 4894}\strut
+\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft
+\texttt{0.\allowbreak 9789}\strut
+\end{minipage} & \begin{minipage}[t]{0.06\columnwidth}\raggedright
+not significant\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+\end{landscape}
+
+The Dice table should be read together with the aggregate means. For
+DenseNet-chex, consensus is statistically better than
+\texttt{score\_\allowbreak cam} by Dice/IoU/precision, but it is not the best method
+by aggregate mean Dice (\texttt{occlusion} and
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus} are slightly higher descriptively). For
+ResNet-50, consensus is statistically better than several methods by
+Dice/IoU, but \texttt{grad\_\allowbreak cam} and \texttt{score\_\allowbreak cam} remain
+competitive and the absolute overlap remains weak. This supports a
+nuanced conclusion: consensus can stabilize localization when individual
+methods are noisy or weak, but it is not a substitute for a clinically
+aligned classifier.
+
+\hypertarget{limitations}{%
+\section{Limitations}\label{limitations}}
+
+This study should be interpreted through explicit threats to validity
+rather than as a clinical-deployment validation.
+
+\textbf{Internal validity.} The results depend on preprocessing, image
+size, classifier threshold, XAI hyperparameters, top-fraction
+calibration, smoothing, perturbation baseline, and random sampling. The
+project controls these risks by freezing classifier thresholds, using
+fixed seeds, versioning calibration artifacts, and reporting method
+settings. However, small changes in baseline choice or smoothing can
+alter pixel-level attribution maps, especially for
+\texttt{Integrated\ Gradients} and \texttt{GradientSHAP}. Long-running
+experiments also use practical speed settings such as capped
+\texttt{Score-\allowbreak CAM} channels or coarse occlusion patches; thesis-quality
+reruns should report whether such approximations were used.
+
+\textbf{Construct validity.} Pneumothorax masks are useful reference
+annotations, but they are imperfect proxies for explanation quality. A
+model may highlight clinically related indirect evidence such as
+subcutaneous emphysema or treatment devices that does not overlap the
+mask. Conversely, a heatmap may overlap the mask for non-causal or
+visually diffuse reasons. Therefore, mask metrics are interpreted as
+localization evidence, not as complete clinical validity. Negative
+evidence is also a separate construct: overlap between suppressive
+evidence and the lesion is not automatically good.
+
+\textbf{External validity.} The tested CXR models are off-the-shelf
+TorchXRayVision classifiers, not SIIM-specific pneumothorax localization
+models. Low mask overlap may reflect model/data mismatch, report-label
+pretraining, or transfer-distribution shift as much as
+explanation-method failure. The Stage A model sweep improves this
+limitation by comparing several TorchXRayVision weights and
+architectures, but the out-of-family external-model slot remains
+unresolved because the checked MONAI CXR candidate was generative rather
+than a pneumothorax classifier. The results should therefore be framed
+as evidence about this off-the-shelf model family on SIIM pneumothorax,
+not as a universal claim about all CXR AI systems.
+
+\textbf{Statistical validity.} The balanced ResNet review is a
+single-rater, 40-case, outcome-stratified study with 10 \texttt{tp}, 10
+\texttt{fp}, 10 \texttt{tn}, and 10 \texttt{fn} cases. It is exploratory
+by design and is not a powered multi-rater reader study. There is no
+inter-rater reliability statistic, no formal clinical-deployment
+validation, and no prospective workflow assessment. Review-score
+correlations and cross-case pattern-similarity observations should
+therefore be described as supporting qualitative evidence rather than
+definitive statistical proof. The earlier 10-case smoothed review is
+retained only as a methodological pilot; the balanced 40-case set is the
+canonical review evidence.
+
+\textbf{Visualization and interpretation limits.} Heatmap readability
+depends on color mapping, selected view, selected top fraction,
+smoothing, and overlay opacity. All thesis figures should state these
+settings and should remind the reader that attribution maps are
+class-specific model-evidence visualizations, not anatomical
+segmentations. Faithfulness curves have a related limitation: they
+evaluate sensitivity of the model output to a perturbation design, so
+their clinical meaning depends on whether the replacement baseline is
+appropriate for the modality.
+
+\textbf{Scope limits.} The CT component is a completed pilot, not a full
+second clinical validation study. It uses one PhysioNet CT hemorrhage
+dataset, one DifeiT ViT checkpoint, positive masked slices, and
+input-space explanation methods only. The CXR and CT consensus
+definitions also differ: CXR uses the frozen four-method consensus,
+whereas CT uses \texttt{consensus\_\allowbreak input3} because the convolutional CAM
+implementations do not directly apply to the Vision Transformer.
+Similarly, \texttt{LIME}, Captum infidelity/sensitivity,
+attention-weighted consensus, and transformer-specific CAM/attention
+methods should be reported only if implemented and verified; otherwise
+they remain future-work items.
+
+\hypertarget{conclusions-to-chapter-4}{%
+\section*{Conclusions to Chapter 4}\label{conclusions-to-chapter-4}}
+\addcontentsline{toc}{section}{Conclusions to Chapter 4}
+
+Chapter 4 shows that the evaluation of explanations must be separated
+from the evaluation of classifier predictions. The original DenseNet-all
+baseline remains useful as a historical weak external reference, while
+DenseNet-chex is the selected DenseNet baseline after Stage A and
+\texttt{resnet50-\allowbreak res512-\allowbreak all} is the strongest tested TorchXRayVision
+follow-up by aggregate localization. However, the absolute localization
+values remain low, so the model comparison supports a relative
+improvement claim rather than a clinical localization claim.
+
+The quantitative explanation results should be interpreted through
+complementary metrics. \texttt{IoU}, \texttt{Dice}, and
+\texttt{precision\_\allowbreak at\_\allowbreak fraction} describe selected-region overlap with
+the pneumothorax mask, while \texttt{pointing\_\allowbreak hit} is a stricter
+peak-localization diagnostic. Signed diagnostics and negative-evidence
+measures answer a different question and should not be collapsed into
+positive lesion-overlap scores. Faithfulness curves add another layer by
+testing whether highlighted pixels affect the model output under
+deletion or insertion, but they do not prove that the highlighted
+evidence is clinically appropriate.
+
+The balanced 40-case ResNet review provides the strongest qualitative
+CXR evidence currently available. It shows that explanations can be
+useful or potentially useful in many cases, but clinically misleading
+and poorly localized maps remain common. Non-pathological high-contrast
+evidence, device/tube confounding, indirect clinically related signs,
+method disagreement, weak pixel attribution, subcutaneous emphysema, and
+mask-quality concerns all affect interpretation. The Phase 5.2 and Phase
+5.4 improvement experiments add that consensus behavior is model-,
+metric-, and modality-dependent: for DenseNet-chex it mainly improves
+over Score-CAM in paired overlap tests, for ResNet-50 it improves
+Dice/IoU over several weaker methods while remaining comparable to
+strong CAM alternatives, and for CT it gives its clearest benefit on
+pointing-hit rather than broad overlap. Together, these findings support
+the broader thesis framing: XAI maps are valuable when they are
+validated as model-behavior diagnostics, not when they are displayed as
+automatic evidence of trustworthiness.
+
+\hypertarget{conclusions-and-recommendations}{%
+\chapter{Conclusions and
+Recommendations}\label{conclusions-and-recommendations}}
+
+\hypertarget{main-findings}{%
+\section{Main Findings}\label{main-findings}}
+
+The thesis supports a cautious interpretation of explainable AI in
+medical image classification. The main finding is that heatmaps can be
+useful for auditing model behavior, but they should not be treated as
+automatic evidence of clinical correctness. In the CXR pneumothorax case
+study, the tested off-the-shelf TorchXRayVision models can produce
+class-specific attribution maps, yet many maps remain weakly localized
+to the pneumothorax masks or highlight indirect, confounded, or
+high-contrast non-lesion structures.
+
+The Stage A model comparison shows that model choice matters.
+\texttt{densenet121-\allowbreak res224-\allowbreak chex} improves over the original
+\texttt{densenet121-\allowbreak res224-\allowbreak all} checkpoint within the DenseNet-121
+branch, while \texttt{resnet50-\allowbreak res512-\allowbreak all} is the strongest tested
+TorchXRayVision candidate by aggregate localization in the completed
+diagnostic sweep. However, the absolute localization values remain low.
+This means the CheX and ResNet-50 results should be interpreted as
+better relative baselines, not as clinically strong pneumothorax
+localizers.
+
+The radiologist-centered review reinforces the quantitative caution. In
+the balanced 40-case ResNet review, explanation usefulness was mixed:
+many cases contained some interpretable signal, but misleading or poorly
+localized maps remained common. Non-pathological high-contrast evidence,
+device/tube confounding, indirect evidence, method disagreement, weak
+pixel attribution, subcutaneous emphysema, and mask-quality issues all
+appeared as clinically relevant interpretation factors. These findings
+support the thesis claim that XAI is most valuable when used to expose
+model limitations rather than to create trust automatically.
+
+The Phase 5.2 consensus-improvement experiment shows that consensus is
+not universally superior. In the DenseNet-chex baseline, the frozen
+consensus significantly improves overlap mainly over
+\texttt{score\_\allowbreak cam}, while \texttt{occlusion} and
+\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus} remain slightly higher by aggregate mean
+Dice. In the ResNet-50 baseline, consensus significantly improves
+Dice/IoU over several weaker methods, but not over \texttt{grad\_\allowbreak cam} or
+\texttt{score\_\allowbreak cam}. This supports a model-dependent conclusion:
+cross-method consensus can stabilize localization under some baselines,
+but averaging weak or mislocalized evidence does not automatically
+produce clinically aligned explanations. The methodological contribution
+remains that explanation claims should be evaluated through classifier
+behavior, localization, faithfulness, method agreement, and clinical
+review together.
+
+The completed CT pilot extends this conclusion across modality without
+turning it into a universal consensus claim. On positive masked CT
+hemorrhage slices, \texttt{consensus\_\allowbreak input3} significantly improves
+\texttt{pointing\_\allowbreak hit} over all three input-space constituent methods,
+but its overlap metrics are not Holm-significantly better than
+individual methods. The result is useful because it shows that the same
+validation framework can be executed beyond CXR and can reveal a
+different consensus signature; it remains limited by a single CT
+model/dataset, a calibration-floor effect at top fraction \texttt{0.\allowbreak 05},
+and the absence of transformer-specific CAM methods in the current
+draft.
+
+\hypertarget{practical-recommendations}{%
+\section{Practical Recommendations}\label{practical-recommendations}}
+
+The first practical recommendation is to report classifier performance
+and explanation quality separately. A model's \texttt{AUC}, sensitivity,
+specificity, or F1 score should not be used as a substitute for evidence
+that the model localizes pathology. Conversely, a poor localization
+score should be interpreted in relation to the model, dataset, target
+class, and reference annotation rather than blamed automatically on one
+XAI method.
+
+The second recommendation is to keep explanation views semantically
+separate. Positive evidence, negative evidence, magnitude, and signed
+views answer different questions. Positive evidence can be evaluated
+against positive lesion masks; negative evidence should be interpreted
+as suppressive evidence and should not be rewarded merely for
+overlapping the lesion. Magnitude maps answer where the image was
+influential, not whether the influence supported the disease class.
+Signed maps summarize the balance between positive and negative evidence
+but should not replace the separate views.
+
+The third recommendation is to use multiple validation layers. For
+thesis-scale XAI evaluation, the minimum useful panel is: mask-overlap
+metrics (\texttt{IoU}, \texttt{Dice}, \texttt{precision\_\allowbreak at\_\allowbreak fraction}),
+strict peak localization (\texttt{pointing\_\allowbreak hit}), faithfulness curves,
+signed-evidence diagnostics, method agreement or disagreement, and
+structured radiologist-style review. These layers should be interpreted
+together because each has a different failure mode.
+
+The fourth recommendation is to handle pixel-level attribution methods
+carefully. \texttt{Integrated\ Gradients} and \texttt{GradientSHAP}
+should be reported with baseline choice, step/sample count, random seed,
+smoothing/readability settings, and any cross-case pattern checks. If
+such methods produce visually similar maps across unrelated cases, they
+should be treated as hypothesis-generating or diagnostic rather than as
+strong case-specific clinical evidence.
+
+The fifth recommendation is to design review materials for auditability.
+Each selected case should preserve the source image, mask or mask
+contour, classifier outcome, probability, continuous heatmap views,
+thresholded selections, and method settings. This allows a reviewer to
+distinguish direct lesion localization, indirect clinically related
+evidence, treatment/device confounding, non-pathological high-contrast
+structures, and map artifacts.
+
+The final practical recommendation is to avoid over-claiming XAI.
+Heatmaps are best used as part of a validation and model-audit workflow.
+They can identify when a classifier is behaving plausibly, but their
+more important thesis role is to show when a model's apparent success is
+not supported by clinically expected evidence.
+
+\hypertarget{future-work}{%
+\section{Future Work}\label{future-work}}
+
+Several extensions follow directly from the limitations of the current
+work.
+
+First, future work should evaluate stronger pneumothorax-specific or
+externally trained classifiers. The current off-the-shelf
+TorchXRayVision baselines are useful for auditing transfer behavior, but
+a full clinical claim would require models whose development target,
+labels, preprocessing, and validation data are closer to SIIM
+pneumothorax localization. Any stronger model should undergo the same
+protocol: classifier-threshold calibration, XAI top-fraction
+calibration, held-out localization metrics, negative-evidence
+diagnostics, faithfulness curves, and radiologist-centered review. A
+preliminary drop-in probe of an off-the-shelf Vision Transformer
+ChestX-ray14 classifier confirmed the same weak-detection and weak,
+off-lesion localization pattern observed for the convolutional
+baselines, so a controlled transformer comparison (a probe-trained
+transformer encoder paired with a token-to-grid CAM adapter so the full
+method panel transfers) is left to future work rather than treated as a
+result here.
+
+Second, the CT pilot should be expanded beyond the current Branch A
+scope. The present draft verifies one hemorrhage classifier and one mask
+source, but a full CT study would add broader test screening, larger or
+multi-source annotated hemorrhage masks, subtype-aware analysis,
+multi-rater review, and a calibration sweep that extends below top
+fraction \texttt{0.\allowbreak 05} for small hemorrhage masks. Candidate future
+sources include RSNA-IHD-derived classifier work and additional public
+CT hemorrhage datasets with masks, but every extension must verify class
+heads, licenses, preprocessing, and data compatibility before results
+are claimed.
+
+Third, the radiologist review should be scaled beyond the current
+single-rater balanced review. A stronger reader study would include
+multiple radiologists, inter-rater reliability statistics, a larger and
+prospectively defined case sample, blinded scoring, and clearer
+separation between direct lesion localization and indirect clinically
+relevant evidence. DECIDE-AI-style reporting would be appropriate for
+any study that moves closer to workflow evaluation.
+
+Fourth, additional explanation methods and robustness metrics can be
+added. \texttt{LIME} would provide a region-level surrogate-family
+comparator. Captum infidelity and sensitivity metrics could triangulate
+faithfulness and robustness beyond deletion/insertion curves. These
+additions should remain secondary unless they are implemented with the
+same calibration and held-out evaluation discipline as the existing
+methods.
+
+Fifth, an attention-weighted consensus (\texttt{consensus\_\allowbreak attention})
+can be studied after the unweighted consensus result is known. This
+variant would assign a coefficient \texttt{alpha\_\allowbreak m} to each constituent
+method \texttt{m}, using possible policies such as calibration-set
+mask-IoU, agreement with the method panel, or perturbation stability.
+The coefficients would be attention weights across explanation methods,
+not architectural attention inside the classifier. The method is
+deferred because it introduces a new hyperparameter family and would
+require its own calibration protocol to avoid test-set peeking.
+
+Sixth, the CT pilot can be extended to the CAM-family explanation
+methods by adopting transformer-specific spatial-explanation techniques.
+Because the integrated CT classifier is a Vision Transformer,
+\texttt{Grad-\allowbreak CAM}, \texttt{Grad-\allowbreak CAM++}, \texttt{Eigen-\allowbreak CAM}, and
+\texttt{Score-\allowbreak CAM} cannot be applied with the convolutional-feature-map
+implementation reused across the chest-X-ray models. Concrete adaptation
+paths exist, and their exclusion from the current draft is a deliberate
+methodological choice rather than an oversight: the widely-used
+\texttt{pytorch-\allowbreak grad-\allowbreak cam} library exposes a token-to-grid reshape that
+runs CAM-family methods on Vision Transformers; \texttt{ViT-\allowbreak CX} provides
+a transformer-specific, Score-CAM-style causal explanation built on
+patch embeddings; and transformer-native methods such as attention
+rollout and transformer attribution explain Vision Transformers through
+attention flow and relevance propagation. Each of these is, however, a
+different implementation from the convolutional chest-X-ray code path,
+so adopting one would re-introduce an implementation confound into a
+comparison whose strength is that the explanation algorithm is held
+constant across modalities; for this reason the current draft restricts
+the CT pilot to the input-space methods whose code is identical on both
+pipelines. Implementing and validating one of these transformer-specific
+approaches in a controlled way would let the full method panel,
+including a four-method consensus comparable to the chest-X-ray
+definition, be evaluated across both modalities.
+
+Finally, future work should broaden the clinical scope. Additional
+pathologies, larger multi-institutional datasets, stronger segmentation
+references, and prospective evaluation would test whether the current
+cautionary findings generalize. A publication-ready version of the work
+should include a cleaned code release, documented experiment
+configurations, frozen calibration artifacts, and a reproducible subset
+of de-identified review figures where data licenses permit.
+
+\appendix
+
+\hypertarget{experiment-configuration}{%
+\chapter{Experiment Configuration}\label{experiment-configuration}}
+
+Include reproducibility information that would interrupt the main text
+if placed in Chapter 3. Suggested contents:
+
+\begin{itemize}
+\tightlist
+\item
+  final environment snapshot: WSL Ubuntu, Python version, PyTorch
+  version, CUDA availability, \texttt{torchxrayvision} version, and
+  project editable-install note;
+\item
+  final dataset-count verification for the local SIIM-ACR snapshot:
+  number of PNG images, masks, positive cases, negative cases, and split
+  counts;
+\item
+  final DenseNet-chex v3 calibration command and output folder;
+\item
+  final ResNet-50 v3 calibration command and output folder;
+\item
+  final DenseNet-chex Phase 5.2 improvement-experiment command and
+  output folder;
+\item
+  final ResNet-50 Phase 5.2 improvement-experiment command and output
+  folder;
+\item
+  final CT smoke and improvement-experiment commands and output folders:
+  \texttt{outputs/\allowbreak iter\_\allowbreak 53\_\allowbreak ct\_\allowbreak smoke\_\allowbreak test/\allowbreak } and
+  \texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak };
+\item
+  final DenseNet-chex full test classifier screen:
+  \texttt{outputs/\allowbreak iter\_\allowbreak 56\_\allowbreak chex\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak };
+\item
+  final ResNet-50 full test classifier screen:
+  \texttt{outputs/\allowbreak iter\_\allowbreak 55\_\allowbreak resnet\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak };
+\item
+  classifier threshold sources, including \texttt{0.\allowbreak 565} for
+  \texttt{densenet121-\allowbreak res224-\allowbreak chex}, \texttt{0.\allowbreak 525} for
+  \texttt{resnet50-\allowbreak res512-\allowbreak all}, and the historical \texttt{0.\allowbreak 62}
+  operating point for \texttt{densenet121-\allowbreak res224-\allowbreak all};
+\item
+  random seeds, \texttt{ig\_\allowbreak steps}, \texttt{gradshap\_\allowbreak samples},
+  occlusion patch/stride, \texttt{score\_\allowbreak cam\_\allowbreak channels\_\allowbreak cap},
+  faithfulness baseline, smoothing settings, and selected
+  calibrated-fraction files;
+\item
+  note that historical v1/v2 output folders are preserved and not
+  overwritten.
+\end{itemize}
+
+Example command block template to fill with final paths:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{wsl.}\FunctionTok{exe}\NormalTok{ {-}{-}cd /mnt/c/Users/Dmytro.}\FunctionTok{Valantsevych}\NormalTok{/Downloads/master\_thesis\_draft\_explainAI python3 scripts/run\_improvement\_experiment.}\FunctionTok{py}\NormalTok{ \textasciigrave{}}
+\NormalTok{  {-}{-}weights \textless{}model\_weights\textgreater{} \textasciigrave{}}
+\NormalTok{  {-}{-}image{-}size \textless{}224\_or\_512\textgreater{} \textasciigrave{}}
+\NormalTok{  {-}{-}split test \textasciigrave{}}
+\NormalTok{  {-}{-}max{-}positive \textless{}n\textgreater{} \textasciigrave{}}
+\NormalTok{  {-}{-}random{-}sample \textasciigrave{}}
+\NormalTok{  {-}{-}seed 20260515 \textasciigrave{}}
+\NormalTok{  {-}{-}ig{-}steps 16 \textasciigrave{}}
+\NormalTok{  {-}{-}gradshap{-}samples 8 \textasciigrave{}}
+\NormalTok{  {-}{-}occlusion{-}patch{-}size 32 \textasciigrave{}}
+\NormalTok{  {-}{-}occlusion{-}stride 16 \textasciigrave{}}
+\NormalTok{  {-}{-}score{-}cam{-}channels{-}cap 256 \textasciigrave{}}
+\NormalTok{  {-}{-}calibration{-}csv outputs/\textless{}calibration\_run\textgreater{}/calibrated\_thresholds\_v3.}\FunctionTok{csv}\NormalTok{ \textasciigrave{}}
+\NormalTok{  {-}{-}device auto \textasciigrave{}}
+\NormalTok{  {-}{-}output{-}dir outputs/\textless{}improvement\_run\textgreater{}}
+\end{Highlighting}
+\end{Shaded}
+
+Final command/path checklist to preserve in the appendix:
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+\begin{minipage}[b]{0.47\columnwidth}\raggedright
+Purpose\strut
+\end{minipage} & \begin{minipage}[b]{0.47\columnwidth}\raggedright
+Output artifact\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+DenseNet-chex full test classifier screen\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 56\_\allowbreak chex\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+DenseNet-chex CXR calibration v3\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 57\_\allowbreak chex\_\allowbreak calibration\_\allowbreak v3/\allowbreak calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv}\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+ResNet-50 CXR calibration v3\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 50\_\allowbreak resnet\_\allowbreak calibration\_\allowbreak v3/\allowbreak calibrated\_\allowbreak thresholds\_\allowbreak v3.\allowbreak csv}\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+DenseNet-chex CXR held-out improvement\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+ResNet-50 CXR held-out improvement\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+CT smoke test\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 53\_\allowbreak ct\_\allowbreak smoke\_\allowbreak test/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+CT calibrated improvement test\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.47\columnwidth}\raggedright
+ResNet-50 full test classifier screen\strut
+\end{minipage} & \begin{minipage}[t]{0.47\columnwidth}\raggedright
+\texttt{outputs/\allowbreak iter\_\allowbreak 55\_\allowbreak resnet\_\allowbreak classifier\_\allowbreak eval\_\allowbreak test/\allowbreak }\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{radiologist-review-template}{%
+\chapter{Radiologist Review
+Template}\label{radiologist-review-template}}
+
+Include the review-task instructions and scoring schema used for the
+balanced review workbook. The appendix should make the rater task
+auditable without requiring the reader to open the HTML workbook.
+
+Suggested contents:
+
+\begin{itemize}
+\tightlist
+\item
+  source workbook path and scored output path for the canonical balanced
+  40-case review;
+\item
+  case selection rule: balanced
+  \texttt{tp}/\texttt{fp}/\texttt{tn}/\texttt{fn} design with 10 cases
+  per outcome group;
+\item
+  fields shown to the reviewer: source image, mask or mask contour where
+  available, classifier outcome, probability, and explanation overlay
+  grid;
+\item
+  explanation-view semantics: positive evidence, negative evidence,
+  magnitude, and signed view;
+\item
+  scoring categories:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{localization\_\allowbreak score} in
+    \texttt{\{correct,\allowbreak \ partial,\allowbreak \ incorrect,\allowbreak \ none\}};
+  \item
+    \texttt{usefulness\_\allowbreak score} in
+    \texttt{\{useful,\allowbreak \ potentially\_\allowbreak useful,\allowbreak \ misleading,\allowbreak \ not\_\allowbreak useful\}};
+  \item
+    \texttt{failure\_\allowbreak category} in
+    \texttt{\{correct,\allowbreak \ partial,\allowbreak \ anatomically\_\allowbreak related,\allowbreak \ devices\_\allowbreak text\_\allowbreak artifacts,\allowbreak \ non\_\allowbreak pathological\_\allowbreak high\_\allowbreak contrast,\allowbreak \ diffuse\_\allowbreak non\_\allowbreak specific,\allowbreak \ clinically\_\allowbreak misleading\}};
+  \item
+    free-text \texttt{artifact\_\allowbreak note} and \texttt{comment};
+  \end{itemize}
+\item
+  warmup-case procedure and note that the review is a structured
+  qualitative assessment, not prospective clinical validation;
+\item
+  final review-score distribution table or a pointer to Table 4.4 and
+  Table 4.5.
+\end{itemize}
+
+\hypertarget{additional-figures}{%
+\chapter{Additional Figures}\label{additional-figures}}
+
+Reserve this appendix for supporting visual examples that are useful but
+too detailed for Chapter 4.
+
+Suggested contents:
+
+\begin{itemize}
+\tightlist
+\item
+  additional representative \texttt{tp}, \texttt{fp}, \texttt{tn}, and
+  \texttt{fn} cases with all method rows and four views per method;
+\item
+  threshold-sweep panels showing how top-fraction selection changes
+  selected regions;
+\item
+  examples of direct lesion localization, indirect clinically related
+  evidence, device/tube confounding, non-pathological high-contrast
+  evidence, and clinically misleading explanations;
+\item
+  comparison panels for DenseNet-chex versus ResNet-50 on matched or
+  similar cases if final artifacts support this;
+\item
+  faithfulness-curve details and family-split plots not included in the
+  main chapter;
+\item
+  final Phase 5.2 consensus-vs-individual figures from
+  \texttt{outputs/\allowbreak iter\_\allowbreak 58\_\allowbreak chex\_\allowbreak improvement\_\allowbreak v3/\allowbreak } and
+  \texttt{outputs/\allowbreak iter\_\allowbreak 52\_\allowbreak resnet\_\allowbreak improvement\_\allowbreak v3/\allowbreak };
+\item
+  optional CT summary plot generated from
+  \texttt{outputs/\allowbreak iter\_\allowbreak 54\_\allowbreak ct\_\allowbreak improvement\_\allowbreak test/\allowbreak ct\_\allowbreak improvement\_\allowbreak experiment.\allowbreak csv},
+  if included with the same caption caveats as Table 4.3.
+\end{itemize}
+
+Every appendix figure should include the source image stem in the
+filename or caption, the model, method, view, classifier probability,
+threshold/fraction, and whether the case is \texttt{tp}, \texttt{fp},
+\texttt{tn}, or \texttt{fn}.
+
+% ===========================================================================
+% Back matter (inserted after the body, before \end{document}, via pandoc -A).
+% IEEE-style numbered bibliography harvested from docs/references.md.
+% Note: in-text \cite wiring is intentionally left to the human pass; this is
+% the formatted, numbered source list required by the template.
+% ===========================================================================
+\input{bibliography.tex}
+
+\end{document}
