@@ -12,7 +12,7 @@ pneumothorax score.
 \textbf{Negative evidence} - The part of a signed attribution map that
 contributes negatively toward the selected target output. Negative
 evidence is interpreted as suppressive evidence against the target score
-and is not evaluated as clinically successful merely because it overlaps
+and is considered significant for potential improvement when it overlaps 
 the lesion mask.
 
 \textbf{Magnitude view} - The absolute-value view of a signed
@@ -23,6 +23,8 @@ stating whether their influence increased or decreased the target score.
 signed attribution map. It summarizes the local balance between positive
 and negative evidence but does not replace inspection of the separate
 positive, negative, and magnitude views.
+
+\textbf{Selected view} - A visualization of other views using their absolute values and disregarding the alpha value.
 
 \textbf{Localization validation} - Evaluation of whether
 high-attribution pixels spatially correspond to available lesion
