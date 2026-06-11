@@ -345,15 +345,29 @@ def build_abbrev_table(md: str) -> str:
 
 
 def build_bibliography(ref_text: str) -> str:
-    entries = re.findall(r"IEEE-style entry:\s*(.+)", ref_text)
-    items = []
-    for idx, e in enumerate(entries, 1):
-        e = e.strip()
+    # Pair each "IEEE-style entry:" with the nearest preceding <a id="..."> anchor
+    # in references.md, and use that id as a stable \bibitem key (e.g. ref-vit,
+    # ref-ct-ich). Stable keys mean inserting a reference never renumbers any
+    # other entry, and in-text \cite{ref-vit} stays readable. Falls back to a
+    # sequential key only if an entry has no anchor.
+    items, key, seen = [], None, set()
+    for line in ref_text.splitlines():
+        m_id = re.search(r'<a id="([^"]+)"', line)
+        if m_id:
+            key = m_id.group(1)
+        m_e = re.search(r"IEEE-style entry:\s*(.+)", line)
+        if not m_e:
+            continue
+        e = m_e.group(1).strip()
         # markdown *italics* -> \emph{}
         e = re.sub(r"\*([^*]+)\*", r"\\emph{\1}", e)
-        # escape bare & % # _ that are not already escaped
+        # escape bare & % # that are not already escaped
         e = e.replace("&", "\\&").replace("%", "\\%").replace("#", "\\#")
-        items.append(f"\\bibitem{{ref{idx}}} {e}")
+        k = key or f"ref-{len(items) + 1}"
+        if k in seen:
+            raise ValueError(f"duplicate bibliography key: {k!r}")
+        seen.add(k)
+        items.append(f"\\bibitem{{{k}}} {e}")
     body = "\n\n".join(items)
     return ("\\begin{thebibliography}{99}\n"
             "\\addcontentsline{toc}{chapter}{Bibliography}\n"

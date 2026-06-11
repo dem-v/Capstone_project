@@ -493,6 +493,31 @@ Access date for URLs checked: 2026-05-24, 2026-05-25, and 2026-05-27 (the latter
 - Reliability status: high; peer-reviewed journal article describing the dataset, ground truth, and challenge protocol, plus official Kaggle competition page for dataset access.
 - Thesis relevance: provides the canonical reference for the CT pilot modality and dataset. The 2019 RSNA challenge released ~870k labeled CT slices with per-subtype hemorrhage labels (epidural, intraparenchymal, intraventricular, subarachnoid, subdural, any). Useful as evidence that off-the-shelf public CT hemorrhage classifiers exist and have a clinically meaningful class head. If the Phase 5.4 hour-1 model-availability check finds an off-the-shelf classifier, the thesis cites this dataset/challenge as the training distribution; if not, this reference frames the qualitative-only fallback as scoped against a recognized public CT task.
 
+### <a id="ref-ct-ich"></a>`REF-CT-ICH` — PhysioNet CT-ICH Dataset (Phase 5.4 CT pilot data)
+
+- IEEE-style entry: M. Hssayeni, "Computed Tomography Images for Intracranial Hemorrhage Detection and Segmentation (version 1.3.1)," PhysioNet, 2020. [Online]. Available: https://doi.org/10.13026/4nae-zg36. Accessed: Jun. 2, 2026.
+- Associated descriptor: M. D. Hssayeni, M. S. Croock, A. D. Salman, H. F. Al-khafaji, Z. A. Yahya, and B. Ghoraani, "Intracranial Hemorrhage Segmentation Using a Deep Convolutional Model," *Data*, vol. 5, no. 1, Art. no. 14, 2020.
+- Source type: official PhysioNet restricted-access dataset release plus a peer-reviewed dataset descriptor.
+- License / access: PhysioNet Restricted Health Data License 1.5.0; access granted under the PhysioNet Restricted Health Data Use Agreement 1.5.0 (credentialed access). Signed by the author on 2026-06-02.
+- Verified URLs:
+  - PhysioNet dataset page: https://physionet.org/content/ct-ich/1.3.1/
+  - Descriptor article (MDPI Data): https://www.mdpi.com/2306-5729/5/1/14
+  - DOI (dataset): https://doi.org/10.13026/4nae-zg36
+  - DOI (descriptor): https://doi.org/10.3390/data5010014
+- Reliability status: high; official PhysioNet release with assigned DOI and an associated peer-reviewed descriptor.
+- Thesis relevance: this is the actual dataset used for the Phase 5.4 CT hemorrhage pilot — NIfTI volumes with matched hemorrhage masks, HU-preserving preprocessing, and the binary target `1 - P(normal)` on positive masked slices. Cite alongside the PhysioNet platform reference wherever the CT data are described (§2.2, §3 methodology, §3.8 ethics). Access is governed by a restricted Data Use Agreement, so the thesis reports compliance rather than redistributing the data.
+
+### <a id="ref-physionet"></a>`REF-PHYSIONET` — PhysioNet Research Resource (platform citation)
+
+- IEEE-style entry: A. L. Goldberger et al., "PhysioBank, PhysioToolkit, and PhysioNet: Components of a New Research Resource for Complex Physiologic Signals," *Circulation*, vol. 101, no. 23, pp. e215-e220, 2000.
+- Source type: peer-reviewed journal article; the citation PhysioNet requires for any work using its hosted data.
+- Verified URLs:
+  - Article page: https://www.ahajournals.org/doi/10.1161/01.CIR.101.23.e215
+  - PhysioNet: https://physionet.org/
+  - DOI: https://doi.org/10.1161/01.CIR.101.23.e215
+- Reliability status: high; canonical platform citation mandated by PhysioNet's terms.
+- Thesis relevance: PhysioNet's data use terms require citing this platform paper in addition to the specific dataset (`REF-CT-ICH`). Cite the two together wherever the CT pilot data are introduced.
+
 ### <a id="ref-vit"></a>`REF-VIT` — Vision Transformer (ViT)
 
 - IEEE-style entry: A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, and N. Houlsby, "An Image Is Worth 16x16 Words: Transformers for Image Recognition at Scale," in *Proc. International Conference on Learning Representations (ICLR)*, 2021.

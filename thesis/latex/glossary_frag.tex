@@ -1,4 +1,3 @@
-
 \textbf{Attribution map / heatmap} - A two-dimensional visualization
 derived from a trained classifier that assigns relative importance to
 image regions for a selected output score. In this thesis, attribution
@@ -13,7 +12,7 @@ pneumothorax score.
 \textbf{Negative evidence} - The part of a signed attribution map that
 contributes negatively toward the selected target output. Negative
 evidence is interpreted as suppressive evidence against the target score
-and is considered significant for potential improvement when it overlaps 
+and is not evaluated as clinically successful merely because it overlaps
 the lesion mask.
 
 \textbf{Magnitude view} - The absolute-value view of a signed
@@ -25,8 +24,6 @@ signed attribution map. It summarizes the local balance between positive
 and negative evidence but does not replace inspection of the separate
 positive, negative, and magnitude views.
 
-\textbf{Selected view} - A visualization of other views using their absolute values and disregarding the alpha value.
-
 \textbf{Localization validation} - Evaluation of whether
 high-attribution pixels spatially correspond to available lesion
 annotations, using metrics such as IoU, Dice, pointing-hit, and
@@ -34,7 +31,7 @@ precision-at-fraction.
 
 \textbf{Faithfulness validation} - Evaluation of whether the highlighted
 pixels materially affect the model's own output probability when they
-are removed, replaced, or inserted. Faithfulness measures explain AI approach 
+are removed, replaced, or inserted. Faithfulness measures model
 behavior, not clinical correctness.
 
 \textbf{Top-fraction thresholding} - Conversion of a continuous heatmap
@@ -44,8 +41,8 @@ introduces a threshold choice that must be calibrated or reported.
 
 \textbf{Coverage saturation} - A secondary diagnostic describing how
 quickly top-fraction thresholding expands to cover nearly the whole
-image. The proposed value records the smallest swept top-fraction at 
-which selected coverage reaches at
+image. The proposed \texttt{coverage\_saturation\_fraction\_95} records
+the smallest swept top-fraction at which selected coverage reaches at
 least \texttt{95\%}; lower values indicate more diffuse or saturated
 maps.
 
