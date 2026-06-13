@@ -1,23 +1,22 @@
 This work investigates how explainable artificial intelligence methods
-can be applied for medical image classification rather than used only
-as visual illustrations. The study focuses primarily on chest X-ray
+can be applied for medical image classification rather than used only as
+visual illustrations. The study focuses primarily on chest X-ray
 pneumothorax detection using the SIIM-ACR pneumothorax dataset and
 off-the-shelf TorchXRayVision classifiers, with a completed head CT
 intracranial hemorrhage pilot used as a cross-modality methodological
-extension. The aim is to compare several post-hoc explanation methods 
-against out-of-the-box medical classification models
-and assess whether their highlighted evidence is localized, faithful to
-the model, and clinically useful.
+extension. The aim is to compare several post-hoc explanation methods
+against out-of-the-box medical classification models and assess whether
+their highlighted evidence is localized, faithful to the model, and
+clinically useful.
 
 The methodology separates classifier behavior from explanation quality.
 Pneumothorax classifiers are evaluated at frozen thresholds, while
-explanation maps are generated with CAM-family, SHAP and Occlusion methods, 
-and a frozen four-method consensus. Each method is
-interpreted through positive, negative, magnitude, and signed views.
-Explanations are validated with lesion-mask localization metrics,
-negative-evidence diagnostics, deletion/insertion faithfulness curves,
-method-agreement analysis, and a structured radiologist-style review of
-selected cases.
+explanation maps are generated with CAM-family, SHAP and Occlusion
+methods, and a frozen four-method consensus. Each method is interpreted
+through positive, negative, magnitude, and signed views. Explanations
+are validated with lesion-mask localization metrics, negative-evidence
+diagnostics, deletion/insertion faithfulness curves, method-agreement
+analysis, and a structured radiologist-style review of selected cases.
 
 Current CXR results show that DenseNet-chex supersedes the original
 DenseNet-all checkpoint as the selected DenseNet baseline, while

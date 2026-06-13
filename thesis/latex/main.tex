@@ -280,14 +280,14 @@ I would like to express my sincere gratitude to my thesis supervisor, prof.~Olek
 
 Deep learning has become a central technology in medical image analysis
 because convolutional and transformer-based models can learn
-discriminative image patterns from large radiology datasets. In chest
-radiography and computed tomography, such models can support
-classification tasks such as pneumothorax detection or intracranial
-hemorrhage screening. However, the clinical usefulness of a model cannot
-be judged only from an image-level prediction score. In high-risk
-medical settings, a prediction is safer and more informative when the
-evidence behind it can be inspected and compared with expected clinical
-findings.
+discriminative image patterns from large radiology datasets
+\cite{ref-medical-xai-review}. In chest radiography and computed
+tomography, such models can support classification tasks such as
+pneumothorax detection or intracranial hemorrhage screening. However,
+the clinical usefulness of a model cannot be judged only from an
+image-level prediction score. In high-risk medical settings, a
+prediction is safer and more informative when the evidence behind it can
+be inspected and compared with expected clinical findings.
 
 Explainable AI (XAI) methods are often proposed as a way to make deep
 learning systems more transparent. Saliency maps, class activation maps,
@@ -295,9 +295,10 @@ occlusion maps, and attribution maps can highlight image regions that
 contribute to a model output. These visualizations are especially
 attractive in radiology because they resemble the spatial reasoning used
 by clinicians. Nevertheless, a visually plausible heatmap is not
-automatically a clinically valid explanation. A model may highlight
-devices, image borders, text markers, bone edges, or treatment-related
-correlates rather than the visible pathology itself.
+automatically a clinically valid explanation
+\cite{ref-saliency-trust-medical}. A model may highlight devices, image
+borders, text markers, bone edges, or treatment-related correlates
+rather than the visible pathology itself \cite{ref-clever-hans}.
 
 This thesis is situated in that gap between visual explanation and
 validated explanation. It treats XAI maps as class-specific
@@ -488,9 +489,12 @@ Deep learning classifiers have become common in radiology research
 because they can learn hierarchical image features directly from pixel
 data. Chest X-ray is a particularly active domain: it is widely
 available, clinically important, and represented in large public
-datasets such as ChestX-ray14, CheXpert, MIMIC-CXR, and related curated
-resources. These datasets enabled pretrained CXR models and libraries,
-including TorchXRayVision, which provide practical baselines for
+datasets such as ChestX-ray14 \cite{ref-chestxray8}, CheXpert
+\cite{ref-chexpert}, MIMIC-CXR \cite{ref-mimic-cxr}, and related curated
+resources such as VinDr-CXR \cite{ref-vindr-cxr}. These datasets enabled
+pretrained CXR models and radiologist-comparison classifiers
+\cite{ref-chexnext} and libraries, including TorchXRayVision
+\cite{ref-torchxrayvision}, which provide practical baselines for
 downstream research.
 
 However, public CXR datasets are not interchangeable. They differ in
@@ -505,71 +509,76 @@ image-level classifier performance and explanation localization must be
 reported separately.
 
 Pneumothorax is a useful focused case study because it has image-level
-clinical relevance and, in the SIIM-ACR challenge context, available
-segmentation masks for positive cases. These masks make it possible to
-evaluate whether model explanations overlap the visible abnormality. The
-thesis uses off-the-shelf TorchXRayVision models as baselines rather
-than locally fine-tuned pneumothorax segmenters. This choice makes the
-study a transfer/generalization audit: it asks how pretrained medical
+clinical relevance and, in the SIIM-ACR challenge context
+\cite{ref-siim-acr}, available segmentation masks for positive cases.
+These masks make it possible to evaluate whether model explanations
+overlap the visible abnormality. The thesis uses off-the-shelf
+TorchXRayVision models as baselines rather than locally fine-tuned
+pneumothorax segmenters. This choice makes the study a
+transfer/generalization audit: it asks how pretrained medical
 classifiers behave when their explanations are tested against a specific
 pneumothorax localization reference.
 
-Head CT intracranial hemorrhage is methodologically relevant as a second
-modality because it differs from radiography in image physics, intensity
-scale, preprocessing, and clinically meaningful perturbation baselines.
-CT data are typically represented in Hounsfield units and interpreted
-through diagnostic windows, whereas CXR inputs are 2D radiographs with
-different normalization assumptions. In this draft, CT is treated as a
-completed pilot: it strengthens the cross-modality methodology with one
-verified pretrained classifier and one public masked dataset, but its
-narrower scope prevents a claim of complete CT clinical validation.
+Head CT intracranial hemorrhage \cite{ref-rsna-ihd} is methodologically
+relevant as a second modality because it differs from radiography in
+image physics, intensity scale, preprocessing, and clinically meaningful
+perturbation baselines. CT data are typically represented in Hounsfield
+units and interpreted through diagnostic windows, whereas CXR inputs are
+2D radiographs with different normalization assumptions. In this draft,
+CT is treated as a completed pilot: it strengthens the cross-modality
+methodology with one verified pretrained classifier and one public
+masked dataset, but its narrower scope prevents a claim of complete CT
+clinical validation.
 
 \hypertarget{explainable-ai-methods-for-image-classification}{%
 \section{Explainable AI Methods for Image
 Classification}\label{explainable-ai-methods-for-image-classification}}
 
 Post-hoc XAI methods for image classifiers can be grouped by the type of
-signal they use. CAM-family methods use internal convolutional feature
-maps to produce class-discriminative spatial maps. \texttt{Grad-\allowbreak CAM}
-weights target-layer activations by gradients of the selected class
-score, while \texttt{Grad-\allowbreak CAM++} modifies the gradient weighting scheme
-to better handle multiple or fine-grained discriminative regions. These
-methods are attractive for radiology because they produce relatively
-smooth, spatially coherent maps, but their resolution and interpretation
-are constrained by the selected feature layer.
+signal they use \cite{ref-medical-xai-review}. CAM-family methods use
+internal convolutional feature maps to produce class-discriminative
+spatial maps. \texttt{Grad-\allowbreak CAM} \cite{ref-gradcam} weights target-layer
+activations by gradients of the selected class score, while
+\texttt{Grad-\allowbreak CAM++} \cite{ref-gradcampp} modifies the gradient weighting
+scheme to better handle multiple or fine-grained discriminative regions.
+These methods are attractive for radiology because they produce
+relatively smooth, spatially coherent maps, but their resolution and
+interpretation are constrained by the selected feature layer.
 
-\texttt{Eigen-\allowbreak CAM} and \texttt{Score-\allowbreak CAM} extend the CAM family in
-different directions. \texttt{Eigen-\allowbreak CAM} derives a map from the
-principal component of target-layer activations and does not require
-gradients, while \texttt{Score-\allowbreak CAM} masks the input with normalized
-activation maps and weights them according to score changes. In the
-current project, both are added as individual methods in the expanded
-Phase 5.1 method panel. They are not added to the frozen consensus
-average because changing consensus constituents mid-thesis would make
-previous consensus results incomparable.
+\texttt{Eigen-\allowbreak CAM} \cite{ref-eigen-cam} and \texttt{Score-\allowbreak CAM}
+\cite{ref-scorecam} extend the CAM family in different directions.
+\texttt{Eigen-\allowbreak CAM} derives a map from the principal component of
+target-layer activations and does not require gradients, while
+\texttt{Score-\allowbreak CAM} masks the input with normalized activation maps and
+weights them according to score changes. In the current project, both
+are added as individual methods in the expanded Phase 5.1 method panel.
+They are not added to the frozen consensus average because changing
+consensus constituents mid-thesis would make previous consensus results
+incomparable.
 
 Pixel-attribution methods answer a different question.
-\texttt{Integrated\ Gradients} accumulates gradients along a path from a
-baseline image to the input, making baseline choice an explicit part of
-the explanation. \texttt{GradientSHAP} approximates Shapley-style
-attributions through noisy baseline interpolation and is therefore
+\texttt{Integrated\ Gradients} \cite{ref-integrated-gradients}
+accumulates gradients along a path from a baseline image to the input,
+making baseline choice an explicit part of the explanation.
+\texttt{GradientSHAP} approximates Shapley-style attributions
+\cite{ref-shap} through noisy baseline interpolation and is therefore
 stochastic; sample count and random seed affect stability. In medical
 images, these methods can reveal fine-grained evidence, but they can
 also produce noisy or case-invariant patterns if preprocessing,
 baselines, or smoothing are not handled carefully.
 
 Perturbation methods evaluate model behavior under direct image
-modification. \texttt{Occlusion} replaces patches of the image and
-measures how the selected class score changes. This makes it
-conceptually close to faithfulness testing because it asks what happens
-to the classifier when regions are removed or replaced. However,
-occlusion is computationally expensive and sensitive to patch size,
-stride, and replacement baseline. It should therefore be interpreted as
-a complementary diagnostic rather than as a direct substitute for
-gradient attribution.
+modification. \texttt{Occlusion} \cite{ref-occlusion-zeiler} replaces
+patches of the image and measures how the selected class score changes.
+This makes it conceptually close to faithfulness testing because it asks
+what happens to the classifier when regions are removed or replaced.
+However, occlusion is computationally expensive and sensitive to patch
+size, stride, and replacement baseline. It should therefore be
+interpreted as a complementary diagnostic rather than as a direct
+substitute for gradient attribution.
 
-\texttt{LIME} represents a region-level surrogate-model family: it
-perturbs interpretable image regions and fits a local linear
+\texttt{LIME} \cite{ref-lime} represents a region-level surrogate-model
+family: it perturbs interpretable image regions and fits a local linear
 approximation to the classifier. In this thesis it remains a
 lower-priority or future add-on unless explicitly implemented before
 finalization. Its conceptual value is that it belongs to a different
@@ -675,8 +684,9 @@ and separate calibration needs\strut
 
 Explanation validation has several non-equivalent dimensions.
 Localization validation compares selected attribution regions with
-available reference annotations. In this thesis the main
-positive-localization metrics are \texttt{IoU}, \texttt{Dice},
+available reference annotations
+\cite{ref-chexlocalize, ref-cxr-saliency-benchmark}. In this thesis the
+main positive-localization metrics are \texttt{IoU}, \texttt{Dice},
 \texttt{pointing\_\allowbreak hit}, and \texttt{precision\_\allowbreak at\_\allowbreak fraction}.
 \texttt{IoU}, \texttt{Dice}, and precision-at-fraction summarize overlap
 between selected heatmap regions and the pneumothorax mask, while
@@ -686,40 +696,45 @@ useful for positive cases with masks, but they do not fully capture
 clinical usefulness.
 
 Faithfulness validation asks whether the highlighted pixels materially
-influence the model's own output. Deletion curves start from the
-original image and replace highly attributed pixels; insertion curves
-start from a baseline image and restore highly attributed pixels. If an
-explanation is faithful to the classifier, deleting high-attribution
-regions should reduce the target probability relatively quickly, while
-inserting them should restore it quickly. This evaluates model behavior,
-not clinical correctness. A heatmap may be faithful to a shortcut-driven
-model while still failing to localize the annotated lesion.
+influence the model's own output
+\cite{ref-samek-evaluation, ref-meaningful-perturbation}. Deletion
+curves start from the original image and replace highly attributed
+pixels; insertion curves start from a baseline image and restore highly
+attributed pixels \cite{ref-rise}. If an explanation is faithful to the
+classifier, deleting high-attribution regions should reduce the target
+probability relatively quickly, while inserting them should restore it
+quickly. This evaluates model behavior, not clinical correctness. A
+heatmap may be faithful to a shortcut-driven model while still failing
+to localize the annotated lesion.
 
-Sanity checks and robustness analyses are also important because
-saliency methods can sometimes produce visually stable maps even when
-model parameters or labels are changed. In medical imaging, this concern
-is heightened by structured preprocessing, strong anatomical priors, and
+Sanity checks \cite{ref-sanity-checks} and robustness analyses
+\cite{ref-infidelity-sensitivity} are also important because saliency
+methods can sometimes produce visually stable maps even when model
+parameters or labels are changed. In medical imaging, this concern is
+heightened by structured preprocessing, strong anatomical priors, and
 recurring acquisition artifacts. For pixel-level methods such as
 Integrated Gradients and GradientSHAP, smoothing and cross-case
 similarity should be reported so that readers can distinguish
 case-specific evidence from generic image patterns.
 
-Human-centered evaluation complements automatic metrics. A
-radiologist-style reviewer can identify whether a map highlights direct
-lesion evidence, indirect clinically related evidence, treatment
-correlates, devices, text artifacts, non-pathological high-contrast
-anatomy, or misleading regions. This type of review should be treated as
-structured qualitative evidence, not as prospective clinical validation.
-Its value is that it exposes clinically meaningful failure modes that a
-mask-overlap score may miss.
+Human-centered evaluation complements automatic metrics
+\cite{ref-human-centered-xai}. A radiologist-style reviewer can identify
+whether a map highlights direct lesion evidence, indirect clinically
+related evidence, treatment correlates, devices, text artifacts,
+non-pathological high-contrast anatomy, or misleading regions. This type
+of review should be treated as structured qualitative evidence, not as
+prospective clinical validation. Its value is that it exposes clinically
+meaningful failure modes that a mask-overlap score may miss.
 
 The central limitation of saliency maps is that they are easy to
-over-interpret. They can show where attribution is high, but they do not
-prove causality in the clinical sense, and they do not replace reporting
-of the model, data, target class, preprocessing, perturbation baseline,
-thresholding rule, or calibration split. For this reason, the thesis
-reports explanation maps together with classifier behavior, localization
-metrics, faithfulness curves, and review scores.
+over-interpret
+\cite{ref-false-hope-xai, ref-radiology-interpretability}. They can show
+where attribution is high, but they do not prove causality in the
+clinical sense, and they do not replace reporting of the model, data,
+target class, preprocessing, perturbation baseline, thresholding rule,
+or calibration split. For this reason, the thesis reports explanation
+maps together with classifier behavior, localization metrics,
+faithfulness curves, and review scores.
 
 Figure 2.1 is reserved for the final literature-review illustration. It
 should show the conceptual risk that a heatmap can be visually plausible
@@ -733,12 +748,13 @@ data-license constraints prevent publication of clinical images.
 
 The reviewed literature supports three conclusions. First, deep learning
 classifiers can be useful in radiology, but image-level performance does
-not guarantee lesion-aligned reasoning. Second, XAI methods are diverse
-and method-dependent: CAM maps, pixel attributions, Shapley-style
-approximations, and occlusion diagnostics answer different questions.
-Third, explanation validation remains difficult because a visually
-plausible heatmap may be unfaithful, poorly localized, or clinically
-misleading.
+not guarantee lesion-aligned reasoning
+\cite{ref-cxr-generalization-zech, ref-hidden-stratification}. Second,
+XAI methods are diverse and method-dependent: CAM maps, pixel
+attributions, Shapley-style approximations, and occlusion diagnostics
+answer different questions. Third, explanation validation remains
+difficult because a visually plausible heatmap may be unfaithful, poorly
+localized, or clinically misleading.
 
 The research gap addressed by this thesis is the lack of a compact but
 layered validation workflow that compares several XAI methods on the
@@ -752,11 +768,14 @@ them useful or misleading.
 
 The thesis also focuses on a practically important negative possibility:
 a pretrained medical classifier may be predictive enough to appear
-useful while its explanations reveal shortcut learning or weak clinical
-localization. Demonstrating this failure mode is scientifically valuable
-because it clarifies what XAI can and cannot justify. The contribution
-is not the claim that heatmaps automatically create trust, but that
-validated heatmaps can help decide when trust should be withheld.
+useful while its explanations reveal shortcut learning
+\cite{ref-shortcut-learning, ref-radiology-shortcuts}, weak clinical
+localization, or reliance on confounders rather than being right for the
+right reasons \cite{ref-right-reasons, ref-race-medical-imaging}.
+Demonstrating this failure mode is scientifically valuable because it
+clarifies what XAI can and cannot justify. The contribution is not the
+claim that heatmaps automatically create trust, but that validated
+heatmaps can help decide when trust should be withheld.
 
 \hypertarget{conclusions-to-chapter-2}{%
 \section*{Conclusions to Chapter 2}\label{conclusions-to-chapter-2}}
@@ -845,14 +864,15 @@ perturbation baselines: CT uses Hounsfield-unit windowing rather than
 0-255 radiograph normalization.
 
 The methodology follows transparent-reporting principles from
-medical-imaging AI guidance such as CLAIM, TRIPOD+AI, QUADAS-AI, and
-DECIDE-AI. The practical implication is that the thesis reports the data
-source, local dataset snapshot, model source, preprocessing,
-split/calibration strategy, target output, XAI settings, thresholding
-choices, metrics, qualitative review task, and limitations together.
-Explanation maps are never described as direct pathology segmentations;
-they are model-behavior visualizations with respect to the selected
-target class.
+medical-imaging AI guidance such as CLAIM \cite{ref-claim}, TRIPOD+AI
+\cite{ref-tripod-ai}, QUADAS-AI \cite{ref-quadas-ai}, and DECIDE-AI
+\cite{ref-decide-ai}. The practical implication is that the thesis
+reports the data source, local dataset snapshot, model source,
+preprocessing, split/calibration strategy, target output, XAI settings,
+thresholding choices, metrics, qualitative review task, and limitations
+together. Explanation maps are never described as direct pathology
+segmentations; they are model-behavior visualizations with respect to
+the selected target class.
 
 \begin{figure}[htbp]
 \centering
@@ -888,7 +908,7 @@ Separated interpretation of classifier behavior, localization, faithfulness, and
 dataset}\label{chest-x-ray-pneumothorax-dataset}}
 
 The primary dataset is the local SIIM-ACR pneumothorax chest X-ray
-snapshot stored under
+snapshot \cite{ref-siim-acr} stored under
 \texttt{data\_\allowbreak local/\allowbreak cxr\_\allowbreak pneumothorax/\allowbreak siim-\allowbreak acr-\allowbreak pneumothorax}. The
 working dataset state documented during the project contains
 \texttt{12,\allowbreak 047} PNG images and \texttt{12,\allowbreak 047} corresponding PNG masks,
@@ -921,7 +941,7 @@ because it can mix train and test cases.
 dataset}\label{head-ct-hemorrhage-pilot-dataset}}
 
 The CT pilot uses the credentialed PhysioNet \texttt{ct-\allowbreak ich} v1.3.1
-dataset stored locally under
+dataset \cite{ref-ct-ich, ref-physionet} stored locally under
 \texttt{data\_\allowbreak local/\allowbreak physionet.\allowbreak org/\allowbreak files/\allowbreak ct-\allowbreak ich/\allowbreak 1.\allowbreak 3.\allowbreak 1}. The dataset
 contains NIfTI CT volumes and matched masks (\texttt{ct\_\allowbreak scans/\allowbreak NNN.\allowbreak nii}
 and \texttt{masks/\allowbreak NNN.\allowbreak nii}) plus per-slice hemorrhage labels. The
@@ -942,13 +962,14 @@ cross-modality comparison controlled. CAM-family methods
 (\texttt{Grad-\allowbreak CAM}, \texttt{Grad-\allowbreak CAM++}, \texttt{Eigen-\allowbreak CAM},
 \texttt{Score-\allowbreak CAM}) are not applied on the CT classifier: they weight a
 two-dimensional convolutional activation map, and a Vision Transformer
-instead represents the image as a sequence of patch tokens with no such
-feature map. Running a CAM on a transformer would require a
-token-to-grid reshape that constitutes a different explanation technique
-and would confound transfer of the \emph{same} methods;
+\cite{ref-vit} instead represents the image as a sequence of patch
+tokens with no such feature map. Running a CAM on a transformer would
+require a token-to-grid reshape that constitutes a different explanation
+technique and would confound transfer of the \emph{same} methods;
 transformer-native spatial-explanation methods such as attention rollout
-or transformer attribution are therefore noted as future work rather
-than used here. Because the frozen four-method consensus includes
+\cite{ref-attention-rollout} or transformer attribution
+\cite{ref-transformer-attribution} are therefore noted as future work
+rather than used here. Because the frozen four-method consensus includes
 \texttt{Grad-\allowbreak CAM}, it cannot be reproduced unchanged on the CT
 classifier; any CT-side consensus is reported separately as an
 exploratory aggregate over the three input-space methods and is
@@ -998,8 +1019,8 @@ cases are rerun with higher-stability settings.
 \hypertarget{classification-models}{%
 \section{Classification Models}\label{classification-models}}
 
-The CXR classifiers are loaded off-the-shelf from TorchXRayVision. The
-original baseline is
+The CXR classifiers are loaded off-the-shelf from TorchXRayVision
+\cite{ref-torchxrayvision}. The original baseline is
 \texttt{xrv.\allowbreak models.\allowbreak DenseNet(weights="densenet121-\allowbreak res224-\allowbreak all")}, used as
 an external pretrained medical classifier without local modification,
 fine-tuning, or forking. This distinction is essential: weak SIIM
@@ -1044,43 +1065,47 @@ The explanation methods are post-hoc methods applied to an already
 trained classifier. They are generated with respect to the selected
 target score and are therefore class-specific attribution maps. The
 current v3 CXR method registry contains the following primary method
-families:
+families, implemented with the Captum \cite{ref-captum-docs} and
+pytorch-grad-cam \cite{ref-pytorch-gradcam} libraries:
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Grad-CAM} (\texttt{grad\_\allowbreak cam}): a class-discriminative
-  activation-map method using gradients flowing into a final
-  convolutional layer.
+  \textbf{Grad-CAM} (\texttt{grad\_\allowbreak cam}) \cite{ref-gradcam}: a
+  class-discriminative activation-map method using gradients flowing
+  into a final convolutional layer.
 \item
-  \textbf{Grad-CAM++} (\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus}): a CAM-family
-  variant with modified activation-map weighting, included as a
-  comparator rather than assumed to be universally superior.
+  \textbf{Grad-CAM++} (\texttt{grad\_\allowbreak cam\_\allowbreak plus\_\allowbreak plus})
+  \cite{ref-gradcampp}: a CAM-family variant with modified
+  activation-map weighting, included as a comparator rather than assumed
+  to be universally superior.
 \item
-  \textbf{Integrated Gradients} (\texttt{integrated\_\allowbreak gradients}): a
-  baseline-dependent path-integration attribution method. The number of
-  integration steps and baseline choice must be reported.
+  \textbf{Integrated Gradients} (\texttt{integrated\_\allowbreak gradients})
+  \cite{ref-integrated-gradients}: a baseline-dependent path-integration
+  attribution method. The number of integration steps and baseline
+  choice must be reported.
 \item
-  \textbf{GradientSHAP} (\texttt{gradient\_\allowbreak shap}): a stochastic
-  additive-attribution approximation related to SHAP concepts. The
-  number of samples, noise standard deviation, and stability settings
-  must be reported.
+  \textbf{GradientSHAP} (\texttt{gradient\_\allowbreak shap}) \cite{ref-shap}: a
+  stochastic additive-attribution approximation related to SHAP
+  concepts. The number of samples, noise standard deviation, and
+  stability settings must be reported.
 \item
-  \textbf{Occlusion sensitivity} (\texttt{occlusion}): a perturbation
-  method that replaces local patches and measures the target-score
-  response. Patch size, stride, and replacement baseline must be
-  reported.
+  \textbf{Occlusion sensitivity} (\texttt{occlusion})
+  \cite{ref-occlusion-zeiler}: a perturbation method that replaces local
+  patches and measures the target-score response. Patch size, stride,
+  and replacement baseline must be reported.
 \item
-  \textbf{Eigen-CAM} (\texttt{eigen\_\allowbreak cam}): a CAM-family method based on
-  the first principal component of target-layer activations, included to
-  broaden the activation-map comparison beyond gradient-weighted CAMs.
+  \textbf{Eigen-CAM} (\texttt{eigen\_\allowbreak cam}) \cite{ref-eigen-cam}: a
+  CAM-family method based on the first principal component of
+  target-layer activations, included to broaden the activation-map
+  comparison beyond gradient-weighted CAMs.
 \item
-  \textbf{Score-CAM} (\texttt{score\_\allowbreak cam}): a CAM-family method that
-  masks the input with normalized activation maps and weights them by
-  signed target-logit changes relative to a baseline. It is
-  computationally expensive because it requires additional forward
-  passes; broad calibration runs therefore report the channel cap used
-  for feasibility.
+  \textbf{Score-CAM} (\texttt{score\_\allowbreak cam}) \cite{ref-scorecam}: a
+  CAM-family method that masks the input with normalized activation maps
+  and weights them by signed target-logit changes relative to a
+  baseline. It is computationally expensive because it requires
+  additional forward passes; broad calibration runs therefore report the
+  channel cap used for feasibility.
 \item
   \textbf{Consensus} (\texttt{consensus}): a sign-aware average of the
   frozen original constituent methods (\texttt{grad\_\allowbreak cam},
@@ -1350,13 +1375,13 @@ localization, and visual review.
 \subsection{Faithfulness curves}\label{faithfulness-curves}}
 
 Faithfulness is evaluated by perturbing the actual model input according
-to each attribution ranking and re-evaluating the classifier
-probability. In a deletion curve, pixels are removed or replaced from
-the original image in descending attribution order; a faithful positive
-explanation is expected to reduce the target probability quickly. In an
-insertion curve, pixels are restored into a baseline image in descending
-attribution order; a faithful explanation is expected to recover the
-target probability quickly.
+to each attribution ranking and re-evaluating the classifier probability
+\cite{ref-rise, ref-samek-evaluation}. In a deletion curve, pixels are
+removed or replaced from the original image in descending attribution
+order; a faithful positive explanation is expected to reduce the target
+probability quickly. In an insertion curve, pixels are restored into a
+baseline image in descending attribution order; a faithful explanation
+is expected to recover the target probability quickly.
 
 For current CXR faithfulness runs, the preferred baseline is a true
 black-image baseline in the normalized TorchXRayVision input space.
@@ -1409,16 +1434,18 @@ held-out Phase 5.2 improvement experiment then uses the frozen
 the test split.
 
 The improvement experiment compares the frozen four-method consensus
-against each individual method using paired case-level metrics. The
-primary statistical test is the Wilcoxon signed-rank test, chosen
-because localization scores are bounded, often zero-inflated, and not
-safely assumed to be normally distributed. Multiple consensus-vs-method
-comparisons are corrected with Holm-Bonferroni family-wise error control
-at \texttt{alpha\ =\ 0.\allowbreak 05}. The effect-size companion is the median
-paired difference with a bootstrap 95\% confidence interval under a
-fixed seed. This framing separates statistical evidence for paired
-improvement from visual or clinical usefulness, which is still assessed
-through representative cases and the radiologist-centered review.
+against each individual method using paired case-level metrics
+\cite{ref-demsar-2006}. The primary statistical test is the Wilcoxon
+signed-rank test \cite{ref-wilcoxon-1945}, chosen because localization
+scores are bounded, often zero-inflated, and not safely assumed to be
+normally distributed. Multiple consensus-vs-method comparisons are
+corrected with Holm-Bonferroni family-wise error control
+\cite{ref-holm-1979, ref-aickin-gensler-1996} at
+\texttt{alpha\ =\ 0.\allowbreak 05}. The effect-size companion is the median paired
+difference with a bootstrap 95\% confidence interval under a fixed seed.
+This framing separates statistical evidence for paired improvement from
+visual or clinical usefulness, which is still assessed through
+representative cases and the radiologist-centered review.
 
 Table 3.2 records the intended calibration and held-out evaluation
 discipline.
@@ -1621,12 +1648,13 @@ The scoring schema contains four fields:
   free-text \texttt{artifact\_\allowbreak note} and \texttt{comment} fields.
 \end{itemize}
 
-The review design follows human-centered XAI principles: the intended
-user is a medically trained reviewer, the task is explanation assessment
-rather than diagnosis, and all scoring categories are visible in the
-workbook to reduce context switching. The workbook includes instructions
-and warmup guidance so that scoring is anchored before the main review
-pass. Classifier-outcome-balanced selections preserve \texttt{tp},
+The review design follows human-centered XAI principles
+\cite{ref-human-centered-xai}: the intended user is a medically trained
+reviewer, the task is explanation assessment rather than diagnosis, and
+all scoring categories are visible in the workbook to reduce context
+switching. The workbook includes instructions and warmup guidance so
+that scoring is anchored before the main review pass.
+Classifier-outcome-balanced selections preserve \texttt{tp},
 \texttt{fp}, \texttt{tn}, and \texttt{fn} examples where possible,
 because explanation failures can differ across successful predictions,
 false alarms, and missed positives.
@@ -1667,7 +1695,8 @@ derived, non-identifiable artifacts (such as aggregate metrics and
 de-identified example visualizations) are reported, and the analysis
 code associated with this work is intended for open release to the
 research community. The dataset is cited together with the PhysioNet
-platform reference as required by PhysioNet's terms of use.
+platform reference \cite{ref-ct-ich, ref-physionet} as required by
+PhysioNet's terms of use.
 
 The study is not a clinical deployment evaluation. The models are
 off-the-shelf classifiers, the masks are used as available reference
@@ -3011,14 +3040,15 @@ evidence and the lesion is not automatically good.
 \textbf{External validity.} The tested CXR models are off-the-shelf
 TorchXRayVision classifiers, not SIIM-specific pneumothorax localization
 models. Low mask overlap may reflect model/data mismatch, report-label
-pretraining, or transfer-distribution shift as much as
-explanation-method failure. The Stage A model sweep improves this
-limitation by comparing several TorchXRayVision weights and
-architectures, but the out-of-family external-model slot remains
-unresolved because the checked MONAI CXR candidate was generative rather
-than a pneumothorax classifier. The results should therefore be framed
-as evidence about this off-the-shelf model family on SIIM pneumothorax,
-not as a universal claim about all CXR AI systems.
+pretraining, or transfer-distribution shift
+\cite{ref-cxr-generalization-zech} as much as explanation-method
+failure. The Stage A model sweep improves this limitation by comparing
+several TorchXRayVision weights and architectures, but the out-of-family
+external-model slot remains unresolved because the checked MONAI CXR
+candidate was generative rather than a pneumothorax classifier. The
+results should therefore be framed as evidence about this off-the-shelf
+model family on SIIM pneumothorax, not as a universal claim about all
+CXR AI systems.
 
 \textbf{Statistical validity.} The balanced ResNet review is a
 single-rater, 40-case, outcome-stratified study with 10 \texttt{tp}, 10
@@ -3049,10 +3079,10 @@ input-space explanation methods only. The CXR and CT consensus
 definitions also differ: CXR uses the frozen four-method consensus,
 whereas CT uses \texttt{consensus\_\allowbreak input3} because the convolutional CAM
 implementations do not directly apply to the Vision Transformer.
-Similarly, \texttt{LIME}, Captum infidelity/sensitivity,
-attention-weighted consensus, and transformer-specific CAM/attention
-methods should be reported only if implemented and verified; otherwise
-they remain future-work items.
+Similarly, \texttt{LIME} \cite{ref-lime}, Captum infidelity/sensitivity
+\cite{ref-infidelity-sensitivity}, attention-weighted consensus, and
+transformer-specific CAM/attention methods should be reported only if
+implemented and verified; otherwise they remain future-work items.
 
 \hypertarget{conclusions-to-chapter-4}{%
 \section*{Conclusions to Chapter 4}\label{conclusions-to-chapter-4}}
@@ -3225,12 +3255,12 @@ protocol: classifier-threshold calibration, XAI top-fraction
 calibration, held-out localization metrics, negative-evidence
 diagnostics, faithfulness curves, and radiologist-centered review. A
 preliminary drop-in probe of an off-the-shelf Vision Transformer
-ChestX-ray14 classifier confirmed the same weak-detection and weak,
-off-lesion localization pattern observed for the convolutional
-baselines, so a controlled transformer comparison (a probe-trained
-transformer encoder paired with a token-to-grid CAM adapter so the full
-method panel transfers) is left to future work rather than treated as a
-result here.
+\cite{ref-vit} ChestX-ray14 \cite{ref-chestxray8} classifier confirmed
+the same weak-detection and weak, off-lesion localization pattern
+observed for the convolutional baselines, so a controlled transformer
+comparison (a probe-trained transformer encoder paired with a
+token-to-grid CAM adapter so the full method panel transfers) is left to
+future work rather than treated as a result here.
 
 Second, the CT pilot should be expanded beyond the current Branch A
 scope. The present draft verifies one hemorrhage classifier and one mask
@@ -3238,22 +3268,23 @@ source, but a full CT study would add broader test screening, larger or
 multi-source annotated hemorrhage masks, subtype-aware analysis,
 multi-rater review, and a calibration sweep that extends below top
 fraction \texttt{0.\allowbreak 05} for small hemorrhage masks. Candidate future
-sources include RSNA-IHD-derived classifier work and additional public
-CT hemorrhage datasets with masks, but every extension must verify class
-heads, licenses, preprocessing, and data compatibility before results
-are claimed.
+sources include RSNA-IHD-derived classifier work \cite{ref-rsna-ihd} and
+additional public CT hemorrhage datasets with masks, but every extension
+must verify class heads, licenses, preprocessing, and data compatibility
+before results are claimed.
 
 Third, the radiologist review should be scaled beyond the current
 single-rater balanced review. A stronger reader study would include
 multiple radiologists, inter-rater reliability statistics, a larger and
 prospectively defined case sample, blinded scoring, and clearer
 separation between direct lesion localization and indirect clinically
-relevant evidence. DECIDE-AI-style reporting would be appropriate for
-any study that moves closer to workflow evaluation.
+relevant evidence. DECIDE-AI-style reporting \cite{ref-decide-ai} would
+be appropriate for any study that moves closer to workflow evaluation.
 
 Fourth, additional explanation methods and robustness metrics can be
-added. \texttt{LIME} would provide a region-level surrogate-family
-comparator. Captum infidelity and sensitivity metrics could triangulate
+added. \texttt{LIME} \cite{ref-lime} would provide a region-level
+surrogate-family comparator. Captum infidelity and sensitivity metrics
+\cite{ref-captum-docs, ref-infidelity-sensitivity} could triangulate
 faithfulness and robustness beyond deletion/insertion curves. These
 additions should remain secondary unless they are implemented with the
 same calibration and held-out evaluation discipline as the existing
@@ -3277,11 +3308,13 @@ Because the integrated CT classifier is a Vision Transformer,
 implementation reused across the chest-X-ray models. Concrete adaptation
 paths exist, and their exclusion from the current draft is a deliberate
 methodological choice rather than an oversight: the widely-used
-\texttt{pytorch-\allowbreak grad-\allowbreak cam} library exposes a token-to-grid reshape that
-runs CAM-family methods on Vision Transformers; \texttt{ViT-\allowbreak CX} provides
-a transformer-specific, Score-CAM-style causal explanation built on
-patch embeddings; and transformer-native methods such as attention
-rollout and transformer attribution explain Vision Transformers through
+\texttt{pytorch-\allowbreak grad-\allowbreak cam} library \cite{ref-pytorch-gradcam} exposes a
+token-to-grid reshape that runs CAM-family methods on Vision
+Transformers; \texttt{ViT-\allowbreak CX} \cite{ref-vit-cx} provides a
+transformer-specific, Score-CAM-style causal explanation built on patch
+embeddings; and transformer-native methods such as attention rollout
+\cite{ref-attention-rollout} and transformer attribution
+\cite{ref-transformer-attribution} explain Vision Transformers through
 attention flow and relevance propagation. Each of these is, however, a
 different implementation from the convolutional chest-X-ray code path,
 so adopting one would re-introduce an implementation confound into a
