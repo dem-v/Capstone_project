@@ -53,6 +53,12 @@
   {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.75em}{}
 \titlespacing*{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
 
+% Indent the FIRST paragraph after every chapter/section/subsection heading.
+% LaTeX suppresses it by default; the template requires a 1.25 cm indent on
+% all paragraphs. indentfirst neutralizes the suppression and works with
+% titlesec (both honour the same \@afterindent flag).
+\usepackage{indentfirst}
+
 % --- Page numbers: centred in the bottom footer on all pages ---
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -64,10 +70,17 @@
   \fancyhf{}\fancyfoot[C]{\thepage}%
   \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
 
-% --- Wide data tables: typeset at \small so many-column tables fit A4 width.
-%     (Template allows tighter spacing inside tables; line spacing there is 1.) ---
+% --- Single line spacing inside floats. Template: body text is 1.5, but
+%     tables / figures / graphs / charts are set at interval 1. The document
+%     default is 1.5 (\setstretch{1.5} after \begin{document}); these hooks
+%     drop each float back to single spacing for its duration. ---
 \usepackage{etoolbox}
-\AtBeginEnvironment{longtable}{\small}
+% Wide data tables also typeset at \small so many-column tables fit A4 width.
+\AtBeginEnvironment{longtable}{\setstretch{1}\small}
+\AtBeginEnvironment{table}{\setstretch{1}}
+\AtBeginEnvironment{figure}{\setstretch{1}}
+\AtBeginEnvironment{graph}{\setstretch{1}}
+\AtBeginEnvironment{chart}{\setstretch{1}}
 \usepackage{pdflscape}  % landscape pages for the widest statistics table
 
 % --- Caption style: label and text, small gap ---
