@@ -84,86 +84,8 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{5}
-% ===========================================================================
-% Neoversity academic-research thesis — formatting per
-% requirements/Шаблон ... .md (technical formatting block).
-% Injected into the pandoc-generated preamble via `pandoc -H`.
-% A4; margins L2.5/R1.5/T2/B2 cm (set via -V geometry); Times New Roman;
-% body 12pt; headings bold 14pt; line spacing 1.5; paragraph indent 1.25 cm;
-% page numbers centred in the bottom footer; chapter titles uppercase.
-% ===========================================================================
-
-% --- Fonts: Times New Roman equivalent for pdfLaTeX (portable, no system font) ---
-\usepackage{newtxtext}
-\usepackage{newtxmath}
-
-% --- Language ---
-\usepackage[english]{babel}
-
-% --- Paragraph indent (1.25 cm) instead of inter-paragraph skip ---
-\setlength{\parindent}{1.25cm}
-\setlength{\parskip}{0pt}
-
-% --- Justified body text is the LaTeX default; keep it. ---
-
-% --- Custom float families: Graph and Chart (separate from Table/Figure) ---
-\usepackage{newfloat}
-\DeclareFloatingEnvironment[fileext=logrp, listname={List of Graphs}, name=Graph, placement=htbp]{graph}
-\DeclareFloatingEnvironment[fileext=lochr, listname={List of Charts}, name=Chart, placement=htbp]{chart}
-
-% --- Number every float family X.Y by chapter ---
-\counterwithin{table}{chapter}
-\counterwithin{figure}{chapter}
-\counterwithin{graph}{chapter}
-\counterwithin{chart}{chapter}
-
-% --- Graphics: reference reproducible artifacts under repo root ---
-\usepackage{graphicx}
-% figures/ holds packaged copies (self-contained, Overleaf-ready); ../../ is the
-% in-repo fallback if you build before running the figure-packaging step.
-\graphicspath{{figures/}{../../}}
-
-% --- Heading format (titlesec) ---
-\usepackage{titlesec}
-% Chapter title: bold 14pt, UPPERCASE, centred; 2 blank lines before body text.
-\titleformat{\chapter}[hang]
-  {\normalfont\bfseries\fontsize{14}{17}\selectfont\filcenter}
-  {\MakeUppercase{\chaptertitlename}\ \thechapter.}{1ex}
-  {\MakeUppercase}
-\titlespacing*{\chapter}{0pt}{0pt}{2\baselineskip}
-% Sections / subsections: bold 12pt, left, 1 blank line before body text.
-\titleformat{\section}
-  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesection}{0.75em}{}
-\titlespacing*{\section}{0pt}{1.5\baselineskip}{1\baselineskip}
-\titleformat{\subsection}
-  {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.75em}{}
-\titlespacing*{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
-
-% --- Page numbers: centred in the bottom footer on all pages ---
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\fancyhf{}
-\fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0pt}
-\fancypagestyle{plain}{%
-  \fancyhf{}\fancyfoot[C]{\thepage}%
-  \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
-
-% --- Wide data tables: typeset at \small so many-column tables fit A4 width.
-%     (Template allows tighter spacing inside tables; line spacing there is 1.) ---
-\usepackage{etoolbox}
-\AtBeginEnvironment{longtable}{\small}
-\usepackage{pdflscape}  % landscape pages for the widest statistics table
-
-% --- Caption style: label and text, small gap ---
-\usepackage{caption}
-\captionsetup{labelsep=colon, font=normalsize}
-\captionsetup[table]{position=top}
-
-% --- \allowbreak breakpoints are injected into long \texttt identifiers/paths
-%     by build_thesis.py (post-process), so they wrap inside narrow table
-%     columns and never overflow the margin. No hyphen is inserted. ---
+% Neoversity formatting preamble. Single source of truth: edit preamble_extra.tex.
+\input{preamble_extra.tex}
 
 \author{}
 \date{}
@@ -175,108 +97,12 @@
 % front matter, which is injected before pandoc's own body-level \setstretch.
 \setstretch{1.5}
 
-% ===========================================================================
-% Front matter (inserted right after \begin{document} via pandoc -B).
-% Title page, certification, declaration, acknowledgments, TOC, the four
-% lists, abbreviations, glossary, abstract.  Fill the <BLANK> items before
-% submission (Student ID, supervisor names, dates, signatures).
-% ===========================================================================
+% Front matter (title page, certification, declaration, acknowledgments, TOC,
+% the four lists, abbreviations, glossary, abstract). Single source of truth:
+% edit frontmatter.tex (it in turn \inputs abbrev/glossary/abstract fragments).
+% Fill the remaining <BLANK> fields (dates, signatures) there.
+\input{frontmatter.tex}
 
-% ----------------------------- Title page ---------------------------------
-\begin{titlepage}
-\thispagestyle{empty}
-\centering
-\vspace*{2cm}
-{\large\bfseries Cross-Modality Validation of Explainable AI Methods for Medical Image Classification: Chest X-ray Pneumothorax and Head CT Hemorrhage Case Studies\par}
-\vspace{2cm}
-{\normalsize Author: Dmytro Valantsevych\par}
-\vspace{1.5cm}
-{\normalsize A Master's Thesis submitted to Neoversity in partial fulfillment of the requirements for the degree of Master of Science in Computer Science\par}
-\vspace{1cm}
-{\normalsize June, 2026\par}
-\vspace{2cm}
-\begin{flushleft}
-Student ID: \underline{1262048355}\\[0.6em]
-Thesis Supervisor: \underline{prof. Oleksii Kudin}\\[0.6em]
-Co-Supervisor (if applicable): \rule{5cm}{0.4pt}\\[0.6em]
-Date of Submission: \rule{4cm}{0.4pt} (target draft cutoff 04/06/2026; defense 21/06/2026)
-\end{flushleft}
-\vfill
-{\footnotesize\itshape \copyright{} The dissertation of Dmytro Valantsevych is approved, and it is acceptable in quality and form for publication electronically.\par}
-\end{titlepage}
-\setcounter{page}{2}% title page is page 1 (unprinted); avoid duplicate page.1 hyperref destination
-
-% --------------------------- Certification ---------------------------------
-\chapter*{Thesis Certification}
-\addcontentsline{toc}{chapter}{Thesis Certification}
-I confirm that I have reviewed this study and, in my judgment, it adheres to the appropriate standards of academic presentation. I believe it satisfactorily meets the criteria, in terms of both quality and breadth, to serve as a thesis for the attainment of the Master of Science in Computer Science degree. This thesis has been submitted to Neoversity and is deemed sufficient to fulfill the prerequisites for the Master of Science in Computer Science degree.
-
-\vspace{2cm}
-\noindent\rule{7cm}{0.4pt}\\
-Supervisor
-
-\vspace{1.5cm}
-\noindent\rule{7cm}{0.4pt}\\
-Co-Supervisor (if applicable)
-
-% ---------------------------- Declaration ----------------------------------
-\chapter*{Declaration of Academic Integrity}
-\addcontentsline{toc}{chapter}{Declaration of Academic Integrity}
-I confirm that this thesis, submitted to fulfill the requirements for the Master of Science in Computer Science degree, completed by me from \rule{3cm}{0.4pt} to \rule{3cm}{0.4pt}, is the result of my own individual endeavor. Any contributions from external sources or individuals, including the use of AI tools, are appropriately acknowledged through citation. Furthermore, I confirm that this material has not been previously submitted, in its entirety or in part, for the completion of a degree at this institution or any other.
-
-By making this declaration, I acknowledge that any violation of this statement constitutes academic misconduct. I understand that such misconduct may lead to expulsion from the program and/or disqualification from receiving the degree.
-
-\vspace{0.8cm}
-\noindent Name of the Candidate: Dmytro Valantsevych
-
-\vspace{1.2cm}
-\noindent Signature of Candidate: \rule{6cm}{0.4pt}\hfill Date: \rule{3.5cm}{0.4pt}
-
-
-% -------------------------- Acknowledgments --------------------------------
-\chapter*{Acknowledgments}
-\addcontentsline{toc}{chapter}{Acknowledgments}
-I would like to express my sincere gratitude to my thesis supervisor, prof.~Oleksii Kudin, for his guidance, constructive feedback, and support throughout the planning and execution of this research. I am also grateful to the faculty of Neoversity for the academic foundation on which this work builds, and to my family and friends for their patience and encouragement during the months of experiments and writing.
-
-\vspace{0.8cm}
-\noindent\textbf{Use of artificial intelligence tools.} In the interest of transparency and in accordance with the academic integrity requirements of this program, the author discloses the following use of AI and AI-assisted development tools during the research workflow:
-
-\begin{itemize}
-  \item \textbf{GPT-5.5 and Codex} (OpenAI, \url{https://openai.com/}) were used for code assistance (writing, refactoring, and debugging of experiment code) and for brainstorming and planning discussions around experiment design.
-  \item \textbf{Claude Sonnet~4.6, Claude Opus~4.7, and Claude Opus~4.8} (Anthropic, \url{https://www.anthropic.com/claude}), operated through the Claude Code agentic environment (\url{https://claude.com/claude-code}), were used for pipeline code development, experiment automation, drafting of research documentation and thesis draft text, and the \LaTeX{} build of this document.
-  \item \textbf{PyCharm} with the \textbf{Junie} assistant (JetBrains, \url{https://www.jetbrains.com/pycharm/}, \url{https://www.jetbrains.com/junie/}) and \textbf{VS~Code} (Microsoft, \url{https://code.visualstudio.com/}) served as development environments with integrated AI coding assistance from the above-mentioned models for the experiment pipeline.
-\end{itemize}
-
-\noindent\textbf{Oversight and responsibility.} All AI-assisted output -- code and text alike -- was reviewed, tested, and verified by the author, who directed every stage of the work and bears full responsibility for the content of this thesis. No AI tool is an author of this work. All experimental results reported in Chapter~4 were produced by the author's locally executed analysis pipeline, not generated by an AI tool.
-
-\vspace{0.4cm}
-\noindent\textbf{Data handling.} Only source code and draft text were processed with AI tools. All datasets and dataset-related information (medical images, annotation masks, and derived per-case data) were processed exclusively by locally executed code and were never submitted to any AI tool or external service.
-
-% --------------------- Contents and the four lists -------------------------
-\tableofcontents
-\listoftables
-\listoffigures
-\listofgraphs
-\listofcharts
-
-% ----------------------- List of Abbreviations -----------------------------
-\chapter*{List of Abbreviations}
-\addcontentsline{toc}{chapter}{List of Abbreviations}
-\input{abbrev_frag.tex}
-
-% --------------------------- Glossary --------------------------------------
-\chapter*{Glossary of Methodological Terms}
-\addcontentsline{toc}{chapter}{Glossary of Methodological Terms}
-\input{glossary_frag.tex}
-
-% ---------------------------- Abstract -------------------------------------
-\chapter*{Abstract}
-\addcontentsline{toc}{chapter}{Abstract}
-\input{abstract_frag.tex}
-
-\cleardoublepage
-
-\setstretch{1.5}
 % Body chapters (1-5) + appendices. Single source of truth: edit body.tex.
 \input{body.tex}
 

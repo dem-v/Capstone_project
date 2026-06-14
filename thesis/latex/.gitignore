@@ -17,7 +17,6 @@ _body_clean.md
 _abstract.md
 _abbrev.md
 _glossary.md
-body.tex
 
 # Compiled PDF (regenerate with: pdflatex main.tex, twice)
 main.pdf

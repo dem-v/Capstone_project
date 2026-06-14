@@ -39,24 +39,29 @@
 
 % --- Heading format (titlesec) ---
 \usepackage{titlesec}
+% First-paragraph indent after headings requires TWO things together:
+%  (1) the UNSTARRED \titlespacing below -- titlesec's starred \titlespacing*
+%      actively suppresses the following paragraph's indent and overrides
+%      everything else; the unstarred form merely stops suppressing.
+%  (2) \usepackage{indentfirst} (loaded just after this block) -- which
+%      forces the indent that LaTeX's kernel still removes by default.
+% Either one alone leaves the first paragraph flush-left; both are needed to
+% meet the template's 1.25 cm indent on EVERY paragraph.
 % Chapter title: bold 14pt, UPPERCASE, centred; 2 blank lines before body text.
 \titleformat{\chapter}[hang]
   {\normalfont\bfseries\fontsize{14}{17}\selectfont\filcenter}
   {\MakeUppercase{\chaptertitlename}\ \thechapter.}{1ex}
   {\MakeUppercase}
-\titlespacing*{\chapter}{0pt}{0pt}{2\baselineskip}
+\titlespacing{\chapter}{0pt}{0pt}{2\baselineskip}
 % Sections / subsections: bold 12pt, left, 1 blank line before body text.
 \titleformat{\section}
   {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesection}{0.75em}{}
-\titlespacing*{\section}{0pt}{1.5\baselineskip}{1\baselineskip}
+\titlespacing{\section}{0pt}{1.5\baselineskip}{1\baselineskip}
 \titleformat{\subsection}
   {\normalfont\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.75em}{}
-\titlespacing*{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
+\titlespacing{\subsection}{0pt}{1\baselineskip}{0.5\baselineskip}
 
-% Indent the FIRST paragraph after every chapter/section/subsection heading.
-% LaTeX suppresses it by default; the template requires a 1.25 cm indent on
-% all paragraphs. indentfirst neutralizes the suppression and works with
-% titlesec (both honour the same \@afterindent flag).
+% (2) force the first-paragraph indent (see the note above the chapter title).
 \usepackage{indentfirst}
 
 % --- Page numbers: centred in the bottom footer on all pages ---
