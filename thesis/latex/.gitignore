@@ -20,3 +20,7 @@ _glossary.md
 
 # Compiled PDF (regenerate with: pdflatex main.tex, twice)
 main.pdf
+
+# Keep packaged thesis figures (override the root *.png / *.jpg ignore)
+!figures/
+!figures/**
