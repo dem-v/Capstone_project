@@ -2565,7 +2565,7 @@ class-specific attribution maps, yet many maps remain weakly localized
 to the pneumothorax masks or highlight indirect, confounded, or
 high-contrast non-lesion structures.
 
-The Stage A model comparison shows that model choice matters.
+The model weights comparison shows that model choice matters: 
 \texttt{densenet121-\allowbreak res224-\allowbreak chex} improves over the original
 \texttt{densenet121-\allowbreak res224-\allowbreak all} checkpoint within the DenseNet-121
 branch, while \texttt{resnet50-\allowbreak res512-\allowbreak all} is the strongest tested
@@ -2573,7 +2573,7 @@ TorchXRayVision candidate by aggregate localization in the completed
 diagnostic sweep. However, the absolute localization values remain low.
 This means the CheX and ResNet-50 results should be interpreted as
 better relative baselines, not as clinically strong pneumothorax
-localizers.
+localizers for the purposes of this work.
 
 The radiologist-centered review reinforces the quantitative caution. In
 the balanced 40-case ResNet review, explanation usefulness was mixed:
@@ -2585,7 +2585,7 @@ appeared as clinically relevant interpretation factors. These findings
 support the thesis claim that XAI is most valuable when used to expose
 model limitations rather than to create trust automatically.
 
-The Phase 5.2 consensus-improvement experiment shows that consensus is
+The consensus-improvement experiment shows that consensus is
 not universally superior. In the DenseNet-chex baseline, the frozen
 consensus significantly improves overlap mainly over
 \texttt{Score \allowbreak CAM}, while \texttt{occlusion} and
@@ -2600,10 +2600,10 @@ remains that explanation claims should be evaluated through classifier
 behavior, localization, faithfulness, method agreement, and clinical
 review together.
 
-The completed CT pilot extends this conclusion across modality without
+The completed CT experiment extends this conclusion across modality without
 turning it into a universal consensus claim. On positive masked CT
-hemorrhage slices, \texttt{consensus\_\allowbreak input3} significantly improves
-\texttt{pointing\_\allowbreak hit} over all three input-space constituent methods,
+hemorrhage slices, the three-method consensus significantly improves
+\texttt{pointing \allowbreak hit} over all three input-space constituent methods,
 but its overlap metrics are not Holm-significantly better than
 individual methods. The result is useful because it shows that the same
 validation framework can be executed beyond CXR and can reveal a
@@ -2627,18 +2627,17 @@ The second recommendation is to keep explanation views semantically
 separate. Positive evidence, negative evidence, magnitude, and signed
 views answer different questions. Positive evidence can be evaluated
 against positive lesion masks; negative evidence should be interpreted
-as suppressive evidence and should not be rewarded merely for
-overlapping the lesion. Magnitude maps answer where the image was
+as suppressive evidence. Magnitude maps answer where the image was
 influential, not whether the influence supported the disease class.
 Signed maps summarize the balance between positive and negative evidence
 but should not replace the separate views.
 
 The third recommendation is to use multiple validation layers. For
 thesis-scale XAI evaluation, the minimum useful panel is: mask-overlap
-metrics (\texttt{IoU}, \texttt{Dice}, \texttt{precision\_\allowbreak at\_\allowbreak fraction}),
-strict peak localization (\texttt{pointing\_\allowbreak hit}), faithfulness curves,
+metrics (\texttt{IoU}, \texttt{Dice}, \texttt{precision \allowbreak at \allowbreak fraction}),
+strict peak localization (\texttt{pointing \allowbreak hit}), faithfulness curves,
 signed-evidence diagnostics, method agreement or disagreement, and
-structured radiologist-style review. These layers should be interpreted
+structured radiologist review. These layers should be interpreted
 together because each has a different failure mode.
 
 The fourth recommendation is to handle pixel-level attribution methods
@@ -2646,8 +2645,7 @@ carefully. \texttt{Integrated\ Gradients} and \texttt{GradientSHAP}
 should be reported with baseline choice, step/sample count, random seed,
 smoothing/readability settings, and any cross-case pattern checks. If
 such methods produce visually similar maps across unrelated cases, they
-should be treated as hypothesis-generating or diagnostic rather than as
-strong case-specific clinical evidence.
+should be treated as diagnostic rather than as strong case-specific clinical evidence.
 
 The fifth recommendation is to design review materials for auditability.
 Each selected case should preserve the source image, mask or mask
@@ -2656,6 +2654,12 @@ thresholded selections, and method settings. This allows a reviewer to
 distinguish direct lesion localization, indirect clinically related
 evidence, treatment/device confounding, non-pathological high-contrast
 structures, and map artifacts.
+
+The sixth recommendation is a extreme need of a validated, standardized,
+multi-radiologist reviewed, multi-machine, multi-center masked public datasets 
+based on specific region, pathology, modality and other factors,
+to be used as a benchmark for future developments in medical vision related
+AI tools and the benchmarking workflows for them.
 
 The final practical recommendation is to avoid over-claiming XAI.
 Heatmaps are best used as part of a validation and model-audit workflow.
@@ -2676,17 +2680,17 @@ a full clinical claim would require models whose development target,
 labels, preprocessing, and validation data are closer to SIIM
 pneumothorax localization. Any stronger model should undergo the same
 protocol: classifier-threshold calibration, XAI top-fraction
-calibration, held-out localization metrics, negative-evidence
+calibration, localization metrics, negative-evidence
 diagnostics, faithfulness curves, and radiologist-centered review. A
 preliminary drop-in probe of an off-the-shelf Vision Transformer
 \cite{ref-vit} ChestX-ray14 \cite{ref-chestxray8} classifier confirmed
 the same weak-detection and weak, off-lesion localization pattern
 observed for the convolutional baselines, so a controlled transformer
 comparison (a probe-trained transformer encoder paired with a
-token-to-grid CAM adapter so the full method panel transfers) is left to
-future work rather than treated as a result here.
+token-to-grid CAM adapter so the full method panel transfers) is still 
+to be explored.
 
-Second, the CT pilot should be expanded beyond the current Branch A
+Second, the CT experiments should be expanded beyond the current 
 scope. This thesis verifies one hemorrhage classifier and one mask
 source, but a full CT study would add broader test screening, larger or
 multi-source annotated hemorrhage masks, subtype-aware analysis,
@@ -2694,8 +2698,7 @@ multi-rater review, and a calibration sweep that extends below top
 fraction \texttt{0.\allowbreak 05} for small hemorrhage masks. Candidate future
 sources include RSNA-IHD-derived classifier work \cite{ref-rsna-ihd} and
 additional public CT hemorrhage datasets with masks, but every extension
-must verify class heads, licenses, preprocessing, and data compatibility
-before results are claimed.
+must verify class heads, licenses, preprocessing, and data compatibility.
 
 Third, the radiologist review should be scaled beyond the current
 single-rater balanced review. A stronger reader study would include
@@ -2709,26 +2712,19 @@ Fourth, additional explanation methods and robustness metrics can be
 added. \texttt{LIME} \cite{ref-lime} would provide a region-level
 surrogate-family comparator. Captum infidelity and sensitivity metrics
 \cite{ref-captum-docs, ref-infidelity-sensitivity} could triangulate
-faithfulness and robustness beyond deletion/insertion curves. These
-additions should remain secondary unless they are implemented with the
-same calibration and held-out evaluation discipline as the existing
-methods.
+faithfulness and robustness beyond deletion/insertion curves. 
 
-Fifth, an attention-weighted consensus (\texttt{consensus\_\allowbreak attention})
-can be studied after the unweighted consensus result is known. This
-variant would assign a coefficient \texttt{alpha\_\allowbreak m} to each constituent
-method \texttt{m}, using possible policies such as calibration-set
+Fifth, an attention-weighted consensus can be explored. This
+variant would assign a coefficient $\alpha_m$ to each constituent
+method $m$, using possible policies such as calibration-set
 mask-IoU, agreement with the method panel, or perturbation stability.
 The coefficients would be attention weights across explanation methods,
-not architectural attention inside the classifier. The method is
-deferred because it introduces a new hyperparameter family and would
-require its own calibration protocol to avoid test-set peeking.
+not architectural attention inside the classifier.
 
-Sixth, the CT pilot can be extended to the CAM-family explanation
+Sixth, the CT experiments can be extended to the CAM-family explanation
 methods by adopting transformer-specific spatial-explanation techniques.
 Because the integrated CT classifier is a Vision Transformer,
-\texttt{Grad-\allowbreak CAM}, \texttt{Grad-\allowbreak CAM++}, \texttt{Eigen-\allowbreak CAM}, and
-\texttt{Score-\allowbreak CAM} cannot be applied with the convolutional-feature-map
+CAM-family methods cannot be applied with the convolutional-feature-map
 implementation reused across the chest-X-ray models. Concrete adaptation
 paths exist, and their exclusion from this thesis is a deliberate
 methodological choice rather than an oversight: the widely-used
@@ -2741,11 +2737,10 @@ embeddings; and transformer-native methods such as attention rollout
 \cite{ref-transformer-attribution} explain Vision Transformers through
 attention flow and relevance propagation. Each of these is, however, a
 different implementation from the convolutional chest-X-ray code path,
-so adopting one would re-introduce an implementation confound into a
+so adopting one would re-introduce an implementation variable into a
 comparison whose strength is that the explanation algorithm is held
-constant across modalities; for this reason this thesis restricts
-the CT pilot to the input-space methods whose code is identical on both
-pipelines. Implementing and validating one of these transformer-specific
+constant across modalities. 
+Implementing and validating one of these transformer-specific
 approaches in a controlled way would let the full method panel,
 including a four-method consensus comparable to the chest-X-ray
 definition, be evaluated across both modalities.
@@ -2753,10 +2748,7 @@ definition, be evaluated across both modalities.
 Finally, future work should broaden the clinical scope. Additional
 pathologies, larger multi-institutional datasets, stronger segmentation
 references, and prospective evaluation would test whether the current
-cautionary findings generalize. A publication-ready version of the work
-should include a cleaned code release, documented experiment
-configurations, frozen calibration artifacts, and a reproducible subset
-of de-identified review figures where data licenses permit.
+cautionary findings generalize. 
 
 \appendix
 
