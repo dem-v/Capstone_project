@@ -462,8 +462,12 @@ faithfulness curves, and review scores.
 	\centering
 	\includegraphics[width=0.95\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_27_classifier_outcome_any5000_balanced100_all_methods__fn__1065_train_1__figure_2_1_composite.png}
 	\caption{Conceptual risk of visually plausible but clinically misleading saliency maps.}
-	\subcaption{(a) Chest X-ray with the annotated pneumothorax mask (green contour) in the right lung apex. (b) Consensus attribution at the top 20\% selected fraction and (c) Grad-CAM positive evidence at the top 5\% selected fraction concentrate on central, mediastinal regions and largely miss the annotated lesion.}
 	\label{figure:2-1}
+	\smallskip
+	\begin{minipage}{0.95\linewidth}
+		\footnotesize
+		(a) Chest X-ray with the annotated pneumothorax mask (green contour) in the right lung apex. (b) Consensus attribution at the top 20\% selected fraction and (c) Grad-CAM positive evidence at the top 5\% selected fraction concentrate on central, mediastinal regions and largely miss the annotated lesion.
+	\end{minipage}
 \end{figure}
 
 Figure~\ref{figure:2-1} illustrates that a heatmap can be visually plausible
@@ -733,7 +737,7 @@ pneumothorax localization should not be interpreted as failure of a
 locally optimized pneumothorax segmenter, but as evidence about transfer
 behavior of a pretrained image-level classifier.
 
-The CXR pipeline now uses a classifier-loading seam, which returns the model,
+The CXR pipeline uses a classifier-loading seam, which returns the model,
 Grad-CAM target layer, pneumothorax class index, and preprocessing
 function. This allows model comparisons without changing downstream XAI
 code. Current TorchXRayVision candidates include DenseNet-121 weights
@@ -760,8 +764,7 @@ The target output for all CXR explanations is the model's
 \texttt{Pneumothorax} head. If a candidate model lacks a pneumothorax
 class head, it is rejected for this pipeline rather than silently
 attributing another class. Autoencoder-style weights are not valid
-classifiers for this methodology unless a separate reconstruction or
-feature-analysis experiment is explicitly defined.
+classifiers for this methodology.
 
 \hypertarget{explainability-methods}{%
 	\section{Explainability Methods}\label{explainability-methods}}
@@ -858,8 +861,8 @@ review workbook.
 	\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_magnitude_continuous_heatmap.png}%
 	\hfill
 	\includegraphics[width=0.237\linewidth,height=0.32\textheight,keepaspectratio]{figures/iter_48_resnet_review_workbook_balanced40_smoothed_faithfulness__review__assets__case_31__101_test_1__consensus_signed_continuous_heatmap.png}%
-	\caption{Example four-view explanation contract for one review case}
 	\label{figure:3-2}
+	\caption{Example four-view explanation contract for one review case}
 \end{figure}
 
 Table \ref{table:3-1} summarizes the method panel and the semantic role of each
@@ -1000,24 +1003,27 @@ are:
 	\tightlist
 	\item
 	\textbf{Intersection over Union (IoU)}: the intersection of selected
-	explanation pixels (P) and mask pixels (GT) divided by their union.
+	explanation pixels (P) and mask pixels (GT) divided by their union, as in formula \eqref{eq:3-1}.
 	\begin{equation}
 		\text{IoU} = \frac{|GT \cap P|}{|GT \cup P|}
+		\label{eq:3-1}
 	\end{equation}
 	\item
 	\textbf{Dice-Soerensen score}: twice the intersection divided by the sum of
-	selected pixels (P) and mask pixels (GT).
+	selected pixels (P) and mask pixels (GT), as in formula \eqref{eq:3-2}.
 	\begin{equation}
 		\text{Dice} = \frac{2 \cdot |GT \cap P|}{|GT| + |P|}
+		\label{eq:3-2}
 	\end{equation}
 	\item
 	\textbf{Pointing Game hit (or pointing hit)}: \texttt{1} if the maximum-attribution pixel
-	lies inside the lesion mask, otherwise \texttt{0}.
+	lies inside the lesion mask, otherwise \texttt{0}, as in formula \eqref{eq:3-3}.
 	\begin{equation}
 		H(A, M) = \begin{cases} 
 			1 & \text{if } \arg\max_{(i,j)} A_{i,j} \in M \\ 
 			0 & \text{otherwise} 
 		\end{cases}
+		\label{eq:3-3}
 	\end{equation}
 	\begin{center}
 		\small
@@ -1033,9 +1039,10 @@ are:
 	\end{center}
 	\item
 	\textbf{Precision at fraction (\texttt{P@F})}: the proportion of selected
-	top-fraction pixels that fall inside the mask.
+	top-fraction pixels that fall inside the mask, as in formula \eqref{eq:3-4}.
 	\begin{equation}
 		\text{P@F}(A, M) = \frac{|P_f \cap M|}{|P_f|} = \frac{\sum_{(i,j) \in P_f} M_{i,j}}{|P_f|}
+		\label{eq:3-4}
 	\end{equation}
 	\begin{center}
 		\small
@@ -1142,16 +1149,18 @@ on non-lesion cues.
 Classifier thresholds and explanation thresholds are calibrated
 separately. The classifier threshold converts the pneumothorax
 probability into an image-level outcome (\texttt{tp}, \texttt{fp},
-\texttt{tn}, or \texttt{fn}). The selection criteria use both the F1 score
-and Youden's J statistic to identify the threshold candidate with the
+\texttt{tn}, or \texttt{fn}). The selection criteria use both the F1 score (formula \eqref{eq:3-5})
+and Youden's J (formula \eqref{eq:3-6}) statistic to identify the threshold candidate with the
 best performance.
 
 \begin{equation}
 	F_1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = \frac{2\text{TP}}{2\text{TP} + \text{FP} + \text{FN}}
+	\label{eq:3-5}
 \end{equation}
 
 \begin{equation}
 	J = \text{Sensitivity} + \text{Specificity} - 1
+	\label{eq:3-6}
 \end{equation}
 
 In contrast, the XAI top-fraction
@@ -1163,11 +1172,12 @@ The improvement experiment compares the frozen four-method consensus
 against each individual method using paired case-level metrics
 \cite{ref-demsar-2006}. The primary statistical test is the Wilcoxon
 signed-rank test \cite{ref-wilcoxon-1945}, chosen because localization
-scores are bounded, often zero-inflated, and not safely assumed to be
+scores are bounded, as in formula \eqref{eq:3-7}, often zero-inflated, and not safely assumed to be
 normally distributed. 
 
 \begin{equation}
 	W = \min \left( \sum_{i=1}^{N_r} \text{sgn}(x_{1,i} - x_{2,i}) \cdot R_i , \quad \sum_{i=1}^{N_r} I(x_{1,i} - x_{2,i} < 0) \cdot R_i \right)
+	\label{eq:3-7}
 \end{equation}
 \begin{center}
 	\small
@@ -1188,10 +1198,11 @@ normally distributed.
 Multiple consensus-vs-method comparisons are
 corrected with Holm-Bonferroni family-wise error control
 \cite{ref-holm-1979, ref-aickin-gensler-1996} at
-\texttt{alpha\ =\ 0.\allowbreak 05}. 
+\texttt{alpha\ =\ 0.\allowbreak 05}, as formula \eqref{eq:3-8}. 
 
 \begin{equation}
 	p_i \le \frac{\alpha}{m - i + 1}
+	\label{eq:3-8}
 \end{equation}
 
 \begin{center}
@@ -1263,7 +1274,7 @@ discipline, while table \ref{table:3-3} provides a compact metric interpretation
 		choose method/view fractions for spatial metrics\strut
 	\end{minipage} \tabularnewline
 	\begin{minipage}[t]{0.17\columnwidth}\raggedright
-		Held-out improvement experiment\strut
+		Improvement experiment\strut
 	\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
 		positive masked test-split cases\strut
 	\end{minipage} & \begin{minipage}[t]{0.17\columnwidth}\raggedright
@@ -1422,8 +1433,8 @@ false alarms, and missed positives.
 
 Review scores are interpreted as structured qualitative evidence. They
 do not replace quantitative localization or faithfulness metrics.
-In this work the author --- a radiologist with five years of
-experience at a high-volume trauma center --- performed a single-reader
+In this work the author -- a radiologist with five years of
+experience at a high-volume trauma center -- performed a single-reader
 evaluation of 40 cases. This single-reader review is not presented 
 as prospective clinical 
 validation. The review is nevertheless important because masks do not
@@ -2881,8 +2892,10 @@ The improvement experiment was launched with the command template shown
 below; the model weights, input size, and number of positive cases were
 substituted per model.
 
+\begingroup
+\renewcommand{\FunctionTok}[1]{#1}% template: code in appendices must be all black
 \begin{Shaded}
-	\begin{Highlighting}[]
+	\begin{Highlighting}[fontsize=\footnotesize,fontfamily=courier]
 		\NormalTok{wsl.}\FunctionTok{exe}\NormalTok{ {-}{-}cd /path/to/project python3 scripts/run\_improvementexperiment.}\FunctionTok{py}\NormalTok{ \textasciigrave{}}
 		\NormalTok{  {-}{-}weights \textless{}model\_weights\textgreater{} \textasciigrave{}}
 		\NormalTok{  {-}{-}image{-}size \textless{}224\_or\_512\textgreater{} \textasciigrave{}}
@@ -2900,6 +2913,7 @@ substituted per model.
 		\NormalTok{  {-}{-}output{-}dir \textless{}output\_directory\textgreater{}}
 	\end{Highlighting}
 \end{Shaded}
+\endgroup
 
 The software environment, dataset composition, classifier operating
 points, and explanation-method hyperparameters are summarised in
