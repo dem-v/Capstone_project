@@ -30,6 +30,8 @@
 \counterwithin{figure}{chapter}
 \counterwithin{graph}{chapter}
 \counterwithin{chart}{chapter}
+% Template numbers formulas (X.Y) by chapter, e.g. (3.1); tie equation to chapter.
+\counterwithin{equation}{chapter}
 
 % --- Graphics: reference reproducible artifacts under repo root ---
 \usepackage{graphicx}
@@ -91,7 +93,8 @@
 % --- Caption style: label and text, small gap ---
 \usepackage{caption}
 \captionsetup{labelsep=colon, font=normalsize}
-\captionsetup[table]{position=top}
+% Template: table caption sits ABOVE the table, left-aligned.
+\captionsetup[table]{position=top, justification=raggedright, singlelinecheck=false}
 
 \usepackage{subcaption}
 \subcaptionsetup{labelsep=colon, font=normalsize}
