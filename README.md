@@ -1,4 +1,4 @@
-# master_thesis_draft_explainAI
+# Neoversity Capstone project code repository by Dmytro Valantsevych
 
 Master-thesis pipeline for validating explainable-AI (XAI) methods on medical imaging. The primary, documented experiment is **chest X-ray pneumothorax classification + explanation** on the Kaggle/SIIM-ACR pneumothorax dataset, using an off-the-shelf `TorchXRayVision` DenseNet-121 baseline (`densenet121-res224-all`). A secondary head-CT intracranial-hemorrhage pipeline is planned under `src/explainai_thesis/ct/`.
 
